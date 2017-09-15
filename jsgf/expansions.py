@@ -95,6 +95,12 @@ class Expansion(object):
             return "%s(%s)" % (self.__class__.__name__,
                                descendants)
 
+    def __eq__(self, other):
+        return type(self) == type(other) and self.children == other.children
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class Sequence(Expansion):
     def __init__(self, *expansions):
@@ -154,12 +160,15 @@ class Literal(Expansion):
         words = escaped.lower().split()
         return "\s+%s" % "\s+".join(words)
 
+    def __eq__(self, other):
+        return super(Literal, self).__eq__(other) and self.text == other.text
+
 
 class RuleRef(Expansion):
     def __init__(self, rule):
         """
         Class for referencing another rule from a rule.
-        :type rule: RuleBase
+        :param rule:
         """
         super(RuleRef, self).__init__([])
 
@@ -184,6 +193,9 @@ class RuleRef(Expansion):
 
     def __del__(self):
         self.decrement_ref_count()
+
+    def __eq__(self, other):
+        return super(RuleRef, self).__eq__(other) and self.rule == other.rule
 
 
 class KleeneStar(Expansion):
@@ -246,7 +258,7 @@ class OptionalGrouping(Expansion):
     def __init__(self, expansion):
         """
         Optional grouping of an expansion.
-        :type expansion: Expansion
+        :param expansion:
         """
         self.expansion = self.handle(expansion)
         super(OptionalGrouping, self).__init__([self.expansion])
