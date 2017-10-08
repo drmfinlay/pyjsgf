@@ -14,13 +14,23 @@ class Rule(object):
         """
         self.name = name
         self.visible = visible
-
-        # Handle the object passed in as an expansion
-        self.expansion = Expansion.handle(expansion)
+        self.expansion = expansion
 
         self._matching_regex = re.compile(
             self.expansion.matching_regex() + r"\Z")
         self._reference_count = 0
+
+    @property
+    def expansion(self):
+        return self._expansion
+
+    @expansion.setter
+    def expansion(self, value):
+        self._set_expansion(value)
+
+    def _set_expansion(self, value):
+        # Handle the object passed in as an expansion
+        self._expansion = Expansion.handle(value)
 
     def compile(self, ignore_tags=False):
         """
