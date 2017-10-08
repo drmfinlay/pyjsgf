@@ -101,6 +101,48 @@ class Expansion(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    @property
+    def is_optional(self):
+        """
+        Whether or not this expansion has an OptionalGrouping ancestor
+        """
+        parent = self.parent
+        while parent:
+            if isinstance(parent, OptionalGrouping):
+                return True
+            parent = parent.parent
+        return False
+
+    @property
+    def is_alternative(self):
+        """
+        Whether or not this expansion has an AlternativeSet ancestor with more
+        than one child.
+        """
+        parent = self.parent
+        while parent:
+            if isinstance(parent, AlternativeSet) and len(parent.children) > 1:
+                return True
+            parent = parent.parent
+        return False
+
+    @property
+    def leaves(self):
+        def _collect_leaves(e):
+            """
+            Recursively collect all expansions with no children.
+            :type e: Expansion
+            :rtype: list
+            """
+            if not e.children:
+                result = [e]
+            else:
+                result = []
+                for child in e.children:
+                    result.extend(_collect_leaves(child))
+            return result
+        return _collect_leaves(self)
+
 
 class Sequence(Expansion):
     def __init__(self, *expansions):
@@ -277,6 +319,10 @@ class OptionalGrouping(Expansion):
         """
         return "(%s)?" % self.expansion.matching_regex()
 
+    @property
+    def is_optional(self):
+        return True
+
 
 class RequiredGrouping(Expansion):
     def __init__(self, *expansions):
@@ -348,3 +394,7 @@ class AlternativeSet(Expansion):
             "(%s)" % e.matching_regex() for e in self.expansions
         ])
         return "(%s)" % alt_set
+
+    @property
+    def is_alternative(self):
+        return True
