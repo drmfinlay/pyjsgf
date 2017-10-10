@@ -14,19 +14,22 @@ class Expansion(object):
     def __init__(self, children):
         self._tag = None
         self._parent = None
-        if isinstance(children, (tuple, list)):
-            self._children = children
-        else:
+        if not isinstance(children, (tuple, list)):
             raise TypeError("'children' must be a list or tuple")
 
+        # Validate each child expansion
+        self._children = map(lambda e: self.validate(e), children)
+
         # Set each child's parent as this expansion
-        for child in children:
+        for child in self._children:
             child.parent = self
 
     def __add__(self, other):
         return self + other
 
-    children = property(lambda self: self._children)
+    @property
+    def children(self):
+        return self._children
 
     def compile(self, ignore_tags=False):
         if self.tag and not ignore_tags:
@@ -70,7 +73,12 @@ class Expansion(object):
         self._tag = "{ %s }" % escaped
 
     @staticmethod
-    def handle(e):
+    def validate(e):
+        """
+        Validate an Expansion object and return it.
+        :param e:
+        :return: Expansion
+        """
         if isinstance(e, str):
             return Literal(e)
         elif isinstance(e, Expansion):
@@ -144,14 +152,24 @@ class Expansion(object):
         return _collect_leaves(self)
 
 
-class Sequence(Expansion):
-    def __init__(self, *expansions):
-        self.expansions = map(self.handle, expansions)
-        super(Sequence, self).__init__(self.expansions)
+class SingleChildExpansion(Expansion):
+    def __init__(self, expansion):
+        super(SingleChildExpansion, self).__init__([expansion])
 
+    @property
+    def child(self):
+        return self.children[0]
+
+
+class VariableChildExpansion(Expansion):
+    def __init__(self, *expansions):
+        super(VariableChildExpansion, self).__init__(expansions)
+
+
+class Sequence(VariableChildExpansion):
     def compile(self, ignore_tags=False):
         seq = " ".join([
-            e.compile(ignore_tags) for e in self.expansions
+            e.compile(ignore_tags) for e in self.children
         ])
 
         # Return the sequence and the tag if there is one
@@ -166,7 +184,7 @@ class Sequence(Expansion):
         :return: str
         """
         return "".join([
-            e.matching_regex() for e in self.expansions
+            e.matching_regex() for e in self.children
         ])
 
 
@@ -240,21 +258,14 @@ class RuleRef(Expansion):
         return super(RuleRef, self).__eq__(other) and self.rule == other.rule
 
 
-class KleeneStar(Expansion):
+class KleeneStar(SingleChildExpansion):
     """
-    JSGF Kleene star operator for allowing zero
-    or more repeats of an expansion. For example:
+    JSGF Kleene star operator for allowing zero or more repeats of an expansion.
+    For example:
     <kleene> = (please)* don't crash;
     """
-    def __init__(self, expansion):
-        """
-        :type expansion: Expansion
-        """
-        self.expansion = self.handle(expansion)
-        super(KleeneStar, self).__init__([self.expansion])
-
     def compile(self, ignore_tags=False):
-        compiled = self.expansion.compile(ignore_tags)
+        compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "(%s)*%s" % (compiled, self.tag)
         else:
@@ -265,24 +276,17 @@ class KleeneStar(Expansion):
         A regex string for matching this expansion.
         :return: str
         """
-        return "(%s)*" % self.expansion.matching_regex()
+        return "(%s)*" % self.child.matching_regex()
 
 
-class Repeat(Expansion):
+class Repeat(SingleChildExpansion):
     """
-    JSGF plus operator for allowing one
-    or more repeats of an expansion. For example:
+    JSGF plus operator for allowing one or more repeats of an expansion.
+    For example:
     <kleene> = (please)+ don't crash;
     """
-    def __init__(self, expansion):
-        """
-        :type expansion: Expansion
-        """
-        self.expansion = self.handle(expansion)
-        super(Repeat, self).__init__([self.expansion])
-
     def compile(self, ignore_tags=False):
-        compiled = self.expansion.compile(ignore_tags)
+        compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "(%s)+%s" % (compiled, self.tag)
         else:
@@ -293,20 +297,15 @@ class Repeat(Expansion):
         A regex string for matching this expansion.
         :return: str
         """
-        return "(%s)+" % self.expansion.matching_regex()
+        return "(%s)+" % self.child.matching_regex()
 
 
-class OptionalGrouping(Expansion):
-    def __init__(self, expansion):
-        """
-        Optional grouping of an expansion.
-        :param expansion:
-        """
-        self.expansion = self.handle(expansion)
-        super(OptionalGrouping, self).__init__([self.expansion])
-
+class OptionalGrouping(SingleChildExpansion):
+    """
+    Expansion that can be spoken in a rule, but doesn't have to be.
+    """
     def compile(self, ignore_tags=False):
-        compiled = self.expansion.compile(ignore_tags)
+        compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "[%s]%s" % (compiled, self.tag)
         else:
@@ -317,21 +316,17 @@ class OptionalGrouping(Expansion):
         A regex string for matching this expansion.
         :return: str
         """
-        return "(%s)?" % self.expansion.matching_regex()
+        return "(%s)?" % self.child.matching_regex()
 
     @property
     def is_optional(self):
         return True
 
 
-class RequiredGrouping(Expansion):
-    def __init__(self, *expansions):
-        self.expansions = map(self.handle, expansions)
-        super(RequiredGrouping, self).__init__(self.expansions)
-
+class RequiredGrouping(VariableChildExpansion):
     def compile(self, ignore_tags=False):
         grouping = "".join([
-            e.compile(ignore_tags) for e in self.expansions
+            e.compile(ignore_tags) for e in self.children
         ])
 
         if self.tag and not ignore_tags:
@@ -345,16 +340,15 @@ class RequiredGrouping(Expansion):
         :return: str
         """
         grouping = "".join([
-            e.matching_regex() for e in self.expansions
+            e.matching_regex() for e in self.children
         ])
         return "(%s)" % grouping
 
 
-class AlternativeSet(Expansion):
+class AlternativeSet(VariableChildExpansion):
     def __init__(self, *expansions):
         self._weights = None
-        self.expansions = map(self.handle, expansions)
-        super(AlternativeSet, self).__init__(self.expansions)
+        super(AlternativeSet, self).__init__(*expansions)
 
     @property
     def weights(self):
@@ -372,12 +366,12 @@ class AlternativeSet(Expansion):
             alt_set = "|".join([
                 "/%f/ %s" % (self.weights[i],
                              e.compile(ignore_tags))
-                for i, e in enumerate(self.expansions)
+                for i, e in enumerate(self.children)
             ])
         else:
             # Or do the same thing without the weights
             alt_set = "|".join([
-                e.compile(ignore_tags) for e in self.expansions
+                e.compile(ignore_tags) for e in self.children
             ])
 
         if self.tag and not ignore_tags:
@@ -391,7 +385,7 @@ class AlternativeSet(Expansion):
         :return: str
         """
         alt_set = "|".join([
-            "(%s)" % e.matching_regex() for e in self.expansions
+            "(%s)" % e.matching_regex() for e in self.children
         ])
         return "(%s)" % alt_set
 
