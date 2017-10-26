@@ -22,6 +22,9 @@ from .expansions import Repeat
 from .expansions import RequiredGrouping
 from .expansions import RuleRef
 from .expansions import Sequence
+from .expansions import SingleChildExpansion
+from .expansions import map_expansion
+from .expansions import VariableChildExpansion
 
 from .grammar import Grammar
 from .grammar import GrammarError

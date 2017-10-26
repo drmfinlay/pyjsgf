@@ -3,6 +3,22 @@ Classes for compiling JSpeech Grammar Format expansions
 """
 
 
+def map_expansion(e, func):
+    """
+    Traverse an expansion tree and call func on each expansion returning a tuple
+    structure with the results.
+    :type e: Expansion
+    :type func: callable
+    :return: tuple
+    """
+    if isinstance(e, RuleRef):
+        e_result = map_expansion(e.rule.expansion, func)
+    else:
+        e_result = func(e)
+    children_result = tuple([map_expansion(child, func) for child in e.children])
+    return e_result, children_result
+
+
 class ExpansionError(Exception):
     pass
 
@@ -14,6 +30,7 @@ class Expansion(object):
     def __init__(self, children):
         self._tag = None
         self._parent = None
+        self._is_optional = False
         if not isinstance(children, (tuple, list)):
             raise TypeError("'children' must be a list or tuple")
 
@@ -45,6 +62,19 @@ class Expansion(object):
     def parent(self, value):
         if isinstance(value, Expansion) or value is None:
             self._parent = value
+
+            # Check if value is an optional expansion
+            parent = value
+            while parent:
+                if parent.is_optional:
+                    self._is_optional = True
+                    break
+                parent = parent.parent
+
+            # Set is_optional for all descendants
+            def set_is_optional(x):
+                x._is_optional = self.is_optional
+            map_expansion(self, set_is_optional)
         else:
             raise AttributeError("'parent' must be an Expansion or None")
 
@@ -112,14 +142,10 @@ class Expansion(object):
     @property
     def is_optional(self):
         """
-        Whether or not this expansion has an OptionalGrouping ancestor
+        Whether or not this expansion has an OptionalGrouping or KleeneStar
+        ancestor.
         """
-        parent = self.parent
-        while parent:
-            if isinstance(parent, OptionalGrouping):
-                return True
-            parent = parent.parent
-        return False
+        return self._is_optional
 
     @property
     def is_alternative(self):
@@ -264,6 +290,10 @@ class KleeneStar(SingleChildExpansion):
     For example:
     <kleene> = (please)* don't crash;
     """
+    def __init__(self, expansion):
+        super(KleeneStar, self).__init__(expansion)
+        self._is_optional = True
+
     def compile(self, ignore_tags=False):
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
@@ -304,6 +334,10 @@ class OptionalGrouping(SingleChildExpansion):
     """
     Expansion that can be spoken in a rule, but doesn't have to be.
     """
+    def __init__(self, expansion):
+        super(OptionalGrouping, self).__init__(expansion)
+        self._is_optional = True
+
     def compile(self, ignore_tags=False):
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
@@ -317,11 +351,6 @@ class OptionalGrouping(SingleChildExpansion):
         :return: str
         """
         return "(%s)?" % self.child.matching_regex()
-
-    @property
-    def is_optional(self):
-        return True
-
 
 class RequiredGrouping(VariableChildExpansion):
     def compile(self, ignore_tags=False):

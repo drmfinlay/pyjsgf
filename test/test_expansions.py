@@ -1,5 +1,5 @@
 import unittest
-from jsgf import AlternativeSet, Sequence, Literal, OptionalGrouping, RequiredGrouping, Rule, RuleRef, Expansion
+from jsgf import *
 
 
 class ParentCase(unittest.TestCase):
@@ -89,6 +89,39 @@ class AncestorProperties(unittest.TestCase):
                             Literal("hey"))
         for leaf in e6.leaves:
             self.assertTrue(leaf.is_alternative)
+
+
+class MapExpansionCase(unittest.TestCase):
+    """
+    Test the map_expansion function.
+    """
+    def setUp(self):
+        self.map_to_string = lambda x: "%s" % x
+        self.map_to_current_match = lambda x: x.current_match
+
+    def test_base(self):
+        e = Literal("hello")
+        mapped = map_expansion(e, self.map_to_string)
+        self.assertEqual(mapped[0], "%s" % e)
+
+    def test_simple(self):
+        e = Sequence("hello", "world")
+        mapped = map_expansion(e, self.map_to_string)
+        self.assertEqual(mapped, (
+            "Sequence(Literal('hello'), Literal('world'))", (
+                ("Literal('hello')", ()),
+                ("Literal('world')", ())
+            )))
+
+    def test_with_matches(self):
+        e = Sequence("hello", "world")
+        e.matches("hello world")  # assuming matches tests pass
+        mapped = map_expansion(e, self.map_to_current_match)
+        self.assertEqual(mapped, (
+            "hello world", (
+                ("hello", ()),
+                ("world", ())
+            )))
 
 
 class LeavesProperty(unittest.TestCase):
