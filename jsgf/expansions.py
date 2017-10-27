@@ -67,14 +67,14 @@ class Expansion(object):
             parent = value
             while parent:
                 if parent.is_optional:
-                    self._is_optional = True
+                    def func(x):
+                        x._is_optional = True
+
+                    # Set is_optional for self and all descendants
+                    map_expansion(self, func)
                     break
                 parent = parent.parent
 
-            # Set is_optional for all descendants
-            def set_is_optional(x):
-                x._is_optional = self.is_optional
-            map_expansion(self, set_is_optional)
         else:
             raise AttributeError("'parent' must be an Expansion or None")
 
@@ -290,10 +290,6 @@ class KleeneStar(SingleChildExpansion):
     For example:
     <kleene> = (please)* don't crash;
     """
-    def __init__(self, expansion):
-        super(KleeneStar, self).__init__(expansion)
-        self._is_optional = True
-
     def compile(self, ignore_tags=False):
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
@@ -328,16 +324,15 @@ class Repeat(SingleChildExpansion):
         :return: str
         """
         return "(%s)+" % self.child.matching_regex()
+    @property
+    def is_optional(self):
+        return True
 
 
 class OptionalGrouping(SingleChildExpansion):
     """
     Expansion that can be spoken in a rule, but doesn't have to be.
     """
-    def __init__(self, expansion):
-        super(OptionalGrouping, self).__init__(expansion)
-        self._is_optional = True
-
     def compile(self, ignore_tags=False):
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
@@ -351,6 +346,10 @@ class OptionalGrouping(SingleChildExpansion):
         :return: str
         """
         return "(%s)?" % self.child.matching_regex()
+    @property
+    def is_optional(self):
+        return True
+
 
 class RequiredGrouping(VariableChildExpansion):
     def compile(self, ignore_tags=False):
