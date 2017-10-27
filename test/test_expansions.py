@@ -65,7 +65,28 @@ class AncestorProperties(unittest.TestCase):
         e4 = Sequence(Literal("hello"), OptionalGrouping("there"))
         self.assertFalse(e4.is_optional)
         self.assertTrue(e4.children[1].is_optional)
-        self.assertTrue(e4.children[1].children[0].is_optional)
+        self.assertTrue(e4.children[1].child.is_optional)
+
+        e5 = Sequence(
+            "a", OptionalGrouping("b"),
+            Sequence("c", OptionalGrouping("d"))
+        )
+
+        a = e5.children[0]
+        opt1 = e5.children[1]
+        b = opt1.child
+        seq2 = e5.children[2]
+        c = seq2.children[0]
+        opt2 = seq2.children[1]
+        d = opt2.child
+        self.assertFalse(e5.is_optional)
+        self.assertFalse(a.is_optional)
+        self.assertTrue(opt1.is_optional)
+        self.assertTrue(opt2.is_optional)
+        self.assertTrue(b.is_optional)
+        self.assertTrue(opt2.is_optional)
+        self.assertTrue(d.is_optional)
+        self.assertFalse(c.is_optional)
 
     def test_is_alternative(self):
         e1 = AlternativeSet("hello")
