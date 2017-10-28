@@ -293,45 +293,48 @@ class Expansion(object):
 
         self.backtracking_flag |= BACKTRACKING_IN_PROGRESS
 
-        def relevant_optionals():
+        def relevant_optionals(e):
             """
             Generator function for optional expansions relevant for performing
-            backtracking on this expansion.
+            backtracking on an expansion.
             """
-            parent = self.parent
-            e = self
+            parent = e.parent
+            x = e
             while parent:
                 # Root expansion is kind of a special case
                 # Traverse children of x in reverse (backtrack) until we find a match
                 try:
-                    e_index = parent.children.index(e)
-                    e_processed_siblings = parent.children[:e_index]
-                    e_processed_siblings.reverse()
-                except ValueError, e:
+                    x_index = parent.children.index(x)
+                    x_processed_siblings = parent.children[:x_index]
+                    x_processed_siblings.reverse()
+                except ValueError, exception:
                     if not isinstance(parent, RuleRef):
-                        raise e
+                        raise exception
 
                     # Rule references are a special case here as the parent is
                     # temporarily set for matching to work across rules
                     # Skipping this 'level' is fine
-                    e = parent
+                    x = parent
                     parent = parent.parent
                     continue
 
-                for c in e_processed_siblings:
+                for c in x_processed_siblings:
                     if c.is_optional:
-                        yield c, e, parent
+                        yield c, x, parent
                         if isinstance(c, Repeat):  # implicitly, this is KleeneStar
                             # Yield c again in a loop until refuse matches takes it
                             # to repetitions_matched 0
                             while c.repetitions_matched > 0:
-                                yield c, e, parent
+                                yield c, x, parent
 
-                e = parent
+                x = parent
                 parent = parent.parent
 
+        # Iterate through each relevant optional in the expansion tree,
+        # setting REFUSE_MATCHES and checking if ancestor matches,
+        # breaking out of the loop if it does
         ancestor = self.parent
-        for optional, x, p in relevant_optionals():
+        for optional, _, p in relevant_optionals(self):
             ancestor = p
             optional.backtracking_flag |= REFUSE_MATCHES
             speech = p.original_speech_str
