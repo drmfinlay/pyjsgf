@@ -62,17 +62,6 @@ REFUSE_MATCHES = 1 << 0
 BACKTRACKING_IN_PROGRESS = 1 << 1  # for preventing cycles
 
 
-def clear_current_matches(e):
-    """
-    Set current_match to None for an expansion and all of its children.
-    :type e: Expansion
-    """
-    def clear(x):
-        x.current_match = None
-
-    map_expansion(e, clear)
-
-
 class ExpansionError(Exception):
     pass
 
@@ -217,13 +206,18 @@ class Expansion(object):
         self._original_speech_str = value
 
     def reset_for_new_match(self):
-        clear_current_matches(self)
+        """
+        Call reset_match_data for this expansion and all of its descendants.
+        """
+        map_expansion(self, lambda x: x.reset_match_data())
 
-        # Reset backtracking flags to 0
-        def reset_flag(x):
-            x.backtracking_flag = 0
-
-        map_expansion(self, reset_flag)
+    def reset_match_data(self):
+        """
+        Reset any members or properties this expansion uses for matching speech.
+        """
+        # Clear current_match and reset backtracking flags to 0
+        self.current_match = None
+        self.backtracking_flag = 0
 
     def matches(self, speech):
         """
@@ -638,6 +632,10 @@ class Repeat(SingleChildExpansion):
             self._repetition_limit = 0
             result = self._matches_internal(result)
         return result
+
+    def reset_match_data(self):
+        super(Repeat, self).reset_match_data()
+        self._repetition_limit = None
 
 
 class KleeneStar(Repeat):
