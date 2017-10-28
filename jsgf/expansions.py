@@ -301,7 +301,6 @@ class Expansion(object):
             parent = e.parent
             x = e
             while parent:
-                # Root expansion is kind of a special case
                 # Traverse children of x in reverse (backtrack) until we find a match
                 try:
                     x_index = parent.children.index(x)
