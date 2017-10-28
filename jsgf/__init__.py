@@ -18,9 +18,11 @@ from .expansions import ExpansionError
 from .expansions import KleeneStar
 from .expansions import Literal
 from .expansions import OptionalGrouping
+from .expansions import restore_current_matches
 from .expansions import Repeat
 from .expansions import RequiredGrouping
 from .expansions import RuleRef
+from .expansions import save_current_matches
 from .expansions import Sequence
 from .expansions import SingleChildExpansion
 from .expansions import map_expansion

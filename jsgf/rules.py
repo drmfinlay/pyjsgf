@@ -1,7 +1,6 @@
 """
 Classes for compiling JSpeech Grammar Format rules
 """
-import re
 from .expansions import Expansion, RuleRef
 
 
@@ -15,9 +14,6 @@ class Rule(object):
         self.name = name
         self.visible = visible
         self.expansion = expansion
-
-        self._matching_regex = re.compile(
-            self.expansion.matching_regex() + r"\Z")
         self._reference_count = 0
 
     @property
@@ -30,7 +26,7 @@ class Rule(object):
 
     def _set_expansion(self, value):
         # Handle the object passed in as an expansion
-        self._expansion = Expansion.handle(value)
+        self._expansion = Expansion.validate(value)
 
     def compile(self, ignore_tags=False):
         """
@@ -56,11 +52,13 @@ class Rule(object):
         Whether speech matches this rule.
         :type speech: str
         """
-        # Insert whitespace before 'speech' to match regex properly.
-        if self._matching_regex.match(" " + speech.lower()):
-            return True
-        else:
-            return False
+        # Strip whitespace at the start of 'speech' and lower it to match regex properly.
+        speech = speech.lstrip().lower()
+        self.expansion.reset_for_new_match()
+        result = self.expansion.matches(speech)
+
+        # Check if the rule matched completely
+        return result == "" and self.expansion.current_match is not None
 
     @property
     def dependencies(self):

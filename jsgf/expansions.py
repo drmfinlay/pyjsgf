@@ -1,6 +1,7 @@
 """
 Classes for compiling JSpeech Grammar Format expansions
 """
+import re
 
 
 def map_expansion(e, func):
@@ -17,6 +18,59 @@ def map_expansion(e, func):
         e_result = func(e)
     children_result = tuple([map_expansion(child, func) for child in e.children])
     return e_result, children_result
+
+
+def save_current_matches(e):
+    """
+    Traverse an expansion tree and return a dictionary with all current_matches
+    saved.
+
+    :type e: Expansion
+    :return: dict
+    """
+    values = {}
+
+    def save(x):
+        values[x] = x.current_match
+    map_expansion(e, save)
+    return values
+
+
+def restore_current_matches(e, values, override_none=True):
+    """
+    Traverse an expansion tree and set e.current_match to its value in the
+    dictionary or None:
+    e.current_match = values[e, None]
+
+    :type e: Expansion
+    :type values: dict
+    :param override_none:
+    """
+    def restore(x):
+        if not override_none and values.get(x, None) is not None:
+            x.current_match = values.get(x, None)
+    map_expansion(e, restore)
+
+
+# --- Backtracking flags ---
+
+# If matches is called and this is set, then speech will not be consumed and
+# current_match will be set to "" or None depending on whether the expansion
+# is optional.
+REFUSE_MATCHES = 1 << 0
+
+BACKTRACKING_IN_PROGRESS = 1 << 1  # for preventing cycles
+
+
+def clear_current_matches(e):
+    """
+    Set current_match to None for an expansion and all of its children.
+    :type e: Expansion
+    """
+    def clear(x):
+        x.current_match = None
+
+    map_expansion(e, clear)
 
 
 class ExpansionError(Exception):
@@ -40,6 +94,10 @@ class Expansion(object):
         # Set each child's parent as this expansion
         for child in self._children:
             child.parent = self
+
+        self._current_match = None
+        self._backtracking_flag = 0
+        self._original_speech_str = None
 
     def __add__(self, other):
         return self + other
@@ -116,12 +174,179 @@ class Expansion(object):
         else:
             raise TypeError("can only take strings or Expansions")
 
-    def matching_regex(self):
+    @property
+    def current_match(self):
         """
-        A regex string for matching this expansion.
+        Current speech match.
+        """
+        return self._current_match
+
+    @current_match.setter
+    def current_match(self, value):
+        # Ensure that string values have only one space between words
+        if isinstance(value, str):
+            value = " ".join([x.strip() for x in value.split()])
+
+        self._current_match = value
+
+    @property
+    def backtracking_flag(self):
+        """
+        Backtracking flag used when backtracking to find optional matches.
+        :return: int
+        """
+        return self._backtracking_flag
+
+    @backtracking_flag.setter
+    def backtracking_flag(self, value):
+        self._backtracking_flag = value
+
+    @property
+    def original_speech_str(self):
+        """
+        The speech string given to this expansion's matches method before
+        processing.
+
+        This is used in backtracking by optional expansions.
         :return: str
         """
-        return ""
+        return self._original_speech_str
+
+    @original_speech_str.setter
+    def original_speech_str(self, value):
+        self._original_speech_str = value
+
+    def reset_for_new_match(self):
+        clear_current_matches(self)
+
+        # Reset backtracking flags to 0
+        def reset_flag(x):
+            x.backtracking_flag = 0
+
+        map_expansion(self, reset_flag)
+
+    def matches(self, speech):
+        """
+        Match speech with this expansion, set current_match to the first matched
+        substring and return the remainder of the string. This method will
+        backtrack to use matches from optional expansions if no match is found.
+
+        :type speech: str
+        :return: str
+        """
+        result = speech.lstrip()
+        self.original_speech_str = result
+
+        if self.backtracking_flag & REFUSE_MATCHES:
+            result = self._refuse_matches(result)
+        else:
+            result = self._matches_internal(result)
+
+            if self.current_match is None and not self.is_optional \
+                    and not self.backtracking_flag & BACKTRACKING_IN_PROGRESS:
+                # Backtrack to find an optional match and the new result
+                self.backtrack_to_matching_optional()
+
+        return result
+
+    def _matches_internal(self, speech):
+        result = speech
+        for child in self.children:
+            # Consume speech
+            result = child.matches(result)
+
+        # Check if any children returned None as the match
+        child_matches = [child.current_match for child in self.children]
+        if None in child_matches:
+            self.current_match = None
+            return speech
+        else:
+            self.current_match = " ".join(child_matches)
+            return result
+
+    def _refuse_matches(self, speech):
+        """
+        Refuse matches on this expansion sub tree and set current_match to None or
+        '' depending on whether they are optional.
+        """
+        def set_refuse_current_match(x):
+            x.current_match = "" if x.is_optional else None
+
+        # Refuse matches on this expansion and its descendants
+        map_expansion(self, set_refuse_current_match)
+        self.current_match = "" if self.is_optional else None
+        return speech
+
+    def backtrack_to_matching_optional(self):
+        """
+        Backtrack through already processed expansions in the expansion tree (and
+        referencing rules) until current_match is not None or until the root
+        expansion is reached.
+
+        Special case: in the event the match found is combined from children of an
+        ancestor of e, then the consecutive children which match together need to have
+        refuse_matches set appropriately.
+        """
+        if not self.parent:
+            # Can't backtrack this expansion
+            return
+
+        self.backtracking_flag |= BACKTRACKING_IN_PROGRESS
+
+        def relevant_optionals():
+            """
+            Generator function for optional expansions relevant for performing
+            backtracking on this expansion.
+            """
+            parent = self.parent
+            e = self
+            while parent:
+                # Root expansion is kind of a special case
+                # Traverse children of x in reverse (backtrack) until we find a match
+                try:
+                    e_index = parent.children.index(e)
+                    e_processed_siblings = parent.children[:e_index]
+                    e_processed_siblings.reverse()
+                except ValueError, e:
+                    if not isinstance(parent, RuleRef):
+                        raise e
+
+                    # Rule references are a special case here as the parent is
+                    # temporarily set for matching to work across rules
+                    # Skipping this 'level' is fine
+                    e = parent
+                    parent = parent.parent
+                    continue
+
+                for c in e_processed_siblings:
+                    if c.is_optional:
+                        yield c, e, parent
+                        if isinstance(c, Repeat):  # implicitly, this is KleeneStar
+                            # Yield c again in a loop until refuse matches takes it
+                            # to repetitions_matched 0
+                            while c.repetitions_matched > 0:
+                                yield c, e, parent
+
+                e = parent
+                parent = parent.parent
+
+        ancestor = self.parent
+        for optional, x, p in relevant_optionals():
+            ancestor = p
+            optional.backtracking_flag |= REFUSE_MATCHES
+            speech = p.original_speech_str
+            p.matches(speech)
+            if p.current_match is not None:
+                break
+
+        if self.current_match is None:
+            def reset_flag(e):
+                # Remove REFUSE_MATCHES from backtracking flags
+                if e.backtracking_flag & REFUSE_MATCHES:
+                    e.backtracking_flag -= REFUSE_MATCHES
+            self.backtracking_flag = 0
+
+            map_expansion(ancestor, reset_flag)
 
     def __str__(self):
         descendants = ", ".join(["%s" % c for c in self.children])
@@ -204,15 +429,6 @@ class Sequence(VariableChildExpansion):
         else:
             return seq
 
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        return "".join([
-            e.matching_regex() for e in self.children
-        ])
-
 
 class Literal(Expansion):
     def __init__(self, text):
@@ -220,6 +436,13 @@ class Literal(Expansion):
         # So use lower() to fix errors similar to:
         # "The word 'HELLO' is missing in the dictionary"
         self.text = text.lower()
+
+        # Set the regex pattern for the expansion
+        pattern = self.matching_regex()
+        if isinstance(pattern, str):
+            self._pattern = re.compile(pattern)
+        else:
+            self._pattern = None
         super(Literal, self).__init__([])
 
     def __str__(self):
@@ -230,6 +453,10 @@ class Literal(Expansion):
             return "%s%s" % (self.text, self.tag)
         else:
             return self.text
+
+    @property
+    def regex_pattern(self):
+        return self._pattern
 
     def matching_regex(self):
         """
@@ -244,7 +471,27 @@ class Literal(Expansion):
         # Also make everything lowercase and allow matching 1 or more
         # whitespace characters between words and before the first word.
         words = escaped.lower().split()
-        return "\s+%s" % "\s+".join(words)
+        return "%s" % "\s+".join(words)
+
+    def _matches_internal(self, speech):
+        result = speech
+        match = None
+
+        for m in self.regex_pattern.finditer(result):
+            if m.start() == 0:
+                match = m
+                result = result[m.end():]  # consume the string
+                break
+
+        if match is None:
+            if self.is_optional:
+                self.current_match = ""
+            else:
+                self.current_match = None
+        else:
+            self.current_match = match.group()
+
+        return result
 
     def __eq__(self, other):
         return super(Literal, self).__eq__(other) and self.text == other.text
@@ -256,9 +503,9 @@ class RuleRef(Expansion):
         Class for referencing another rule from a rule.
         :param rule:
         """
+        self.rule = rule
         super(RuleRef, self).__init__([])
 
-        self.rule = rule
         self.rule.reference_count += 1
 
     def compile(self, ignore_tags=False):
@@ -270,8 +517,18 @@ class RuleRef(Expansion):
     def __str__(self):
         return "%s('%s')" % (self.__class__.__name__, self.rule.name)
 
-    def matching_regex(self):
-        return self.rule.expansion.matching_regex()
+    def _matches_internal(self, speech):
+        # Temporarily set the parent of the referenced rule's root expansion to
+        # this expansion. This is required if backtracking needs to process the
+        # referencing rule's expansion tree - this expansion's tree - too.
+        self.rule.expansion.parent = self
+        result = self.rule.expansion.matches(speech)
+        self.current_match = self.rule.expansion.current_match
+
+        # Reset parent
+        self.rule.expansion.parent = None
+
+        return result
 
     def decrement_ref_count(self):
         if self.rule.reference_count > 0:
@@ -284,7 +541,105 @@ class RuleRef(Expansion):
         return super(RuleRef, self).__eq__(other) and self.rule == other.rule
 
 
-class KleeneStar(SingleChildExpansion):
+class Repeat(SingleChildExpansion):
+    """
+    JSGF plus operator for allowing one or more repeats of an expansion.
+    For example:
+    <repeat> = (please)+ don't crash;
+    """
+    def __init__(self, expansion):
+        super(Repeat, self).__init__(expansion)
+        self._repetition_limit = None
+        self._repetitions_matched = 0
+
+    def compile(self, ignore_tags=False):
+        compiled = self.child.compile(ignore_tags)
+        if self.tag and not ignore_tags:
+            return "(%s)+%s" % (compiled, self.tag)
+        else:
+            return "(%s)+" % compiled
+
+    @property
+    def repetitions_matched(self):
+        """
+        :The number of repetitions last matched.
+        :return:
+        """
+        return self._repetitions_matched
+
+    def _matches_internal(self, speech):
+        """
+        Specialisation of matches method for repetition expansions.
+        A match here is whether every child's current_match value is not None at
+        least once.
+        :type speech: str
+        :return: str
+        """
+        result = speech
+        # Save the state of the expansion tree here
+        values = save_current_matches(self)
+
+        # Accept N complete repetitions
+        matches = []
+
+        # Use a copy of result for repetitions
+        intermediate_result = result
+        while True:
+            # Consume speech
+            intermediate_result = self.child.matches(intermediate_result)
+            child_match = self.child.current_match
+
+            if child_match is None or child_match == "":
+                # Restore current_match state for incomplete repetition tree
+                # without overriding current_match strings with None
+                restore_current_matches(self, values, override_none=False)
+                break
+            else:
+                if isinstance(self._repetition_limit, int) \
+                        and len(matches) >= self._repetition_limit:
+                    # Stop matching
+                    break
+
+                matches.append(child_match)
+
+                # Save current_match state for complete repetition
+                values = save_current_matches(self)
+
+        self._repetitions_matched = len(matches)
+
+        # Check if there were no matches
+        if len(matches) == 0:
+            # Repetitions can be optional, so we need to check that and set
+            # current_match to "" instead of None if appropriate
+            if self.is_optional:
+                self.current_match = ""
+                result = intermediate_result
+            else:
+                self.current_match = None
+                result = speech
+        else:
+            self.current_match = " ".join(matches)
+            result = intermediate_result
+        return result
+
+    def _refuse_matches(self, speech):
+        """
+        Specialisation of refuse matches for repetitions.
+        This method defines a match refusal as reducing the number of repetitions
+        matched by one (until zero) for each time it is backtracked over or until
+        backtracking_flag is unset.
+        """
+        result = speech
+        if self.repetitions_matched > 0:
+            self._repetition_limit = self.repetitions_matched - 1
+            result = self._matches_internal(result)
+        else:
+            self._repetition_limit = 0
+            result = self._matches_internal(result)
+        return result
+
+
+class KleeneStar(Repeat):
     """
     JSGF Kleene star operator for allowing zero or more repeats of an expansion.
     For example:
@@ -297,33 +652,6 @@ class KleeneStar(SingleChildExpansion):
         else:
             return "(%s)*" % compiled
 
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        return "(%s)*" % self.child.matching_regex()
-
-
-class Repeat(SingleChildExpansion):
-    """
-    JSGF plus operator for allowing one or more repeats of an expansion.
-    For example:
-    <kleene> = (please)+ don't crash;
-    """
-    def compile(self, ignore_tags=False):
-        compiled = self.child.compile(ignore_tags)
-        if self.tag and not ignore_tags:
-            return "(%s)+%s" % (compiled, self.tag)
-        else:
-            return "(%s)+" % compiled
-
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        return "(%s)+" % self.child.matching_regex()
     @property
     def is_optional(self):
         return True
@@ -340,12 +668,6 @@ class OptionalGrouping(SingleChildExpansion):
         else:
             return "[%s]" % compiled
 
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        return "(%s)?" % self.child.matching_regex()
     @property
     def is_optional(self):
         return True
@@ -361,16 +683,6 @@ class RequiredGrouping(VariableChildExpansion):
             return "(%s%s)" % (grouping, self.tag)
         else:
             return "(%s)" % grouping
-
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        grouping = "".join([
-            e.matching_regex() for e in self.children
-        ])
-        return "(%s)" % grouping
 
 
 class AlternativeSet(VariableChildExpansion):
@@ -407,15 +719,28 @@ class AlternativeSet(VariableChildExpansion):
         else:
             return "(%s)" % alt_set
 
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        alt_set = "|".join([
-            "(%s)" % e.matching_regex() for e in self.children
-        ])
-        return "(%s)" % alt_set
+    def _matches_internal(self, speech):
+        result = speech
+
+        self.original_speech_str = result
+
+        # Prevent backtracking cycles
+        if self.backtracking_flag & BACKTRACKING_IN_PROGRESS:
+            return result
+
+        self.current_match = None
+        for child in self.children:
+            # Consume speech
+            result = child.matches(result)
+            child_match = child.current_match
+            if child_match is not None:
+                self.current_match = child_match
+                break
+
+        if self.current_match is None:
+            result = speech
+
+        return result
 
     @property
     def is_alternative(self):
