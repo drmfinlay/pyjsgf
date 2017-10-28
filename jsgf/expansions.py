@@ -306,7 +306,6 @@ class Expansion(object):
                 try:
                     x_index = parent.children.index(x)
                     x_processed_siblings = parent.children[:x_index]
-                    x_processed_siblings.reverse()
                 except ValueError, exception:
                     if not isinstance(parent, RuleRef):
                         raise exception
@@ -318,7 +317,7 @@ class Expansion(object):
                     parent = parent.parent
                     continue
 
-                for c in x_processed_siblings:
+                for c in x_processed_siblings.__reversed__():
                     if c.is_optional:
                         yield c, x, parent
                         if isinstance(c, Repeat):  # implicitly, this is KleeneStar
