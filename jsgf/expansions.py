@@ -669,7 +669,7 @@ class OptionalGrouping(SingleChildExpansion):
 
 class RequiredGrouping(VariableChildExpansion):
     def compile(self, ignore_tags=False):
-        grouping = "".join([
+        grouping = " ".join([
             e.compile(ignore_tags) for e in self.children
         ])
 
