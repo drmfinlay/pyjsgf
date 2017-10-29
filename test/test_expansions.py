@@ -25,10 +25,13 @@ class Comparisons(unittest.TestCase):
     def test_literals(self):
         self.assertEqual(Literal("hello"), Literal("hello"))
         self.assertNotEqual(Literal("hey"), Literal("hello"))
+        self.assertNotEqual(Literal("hey"), Sequence(Literal("hello")))
 
     def test_alt_sets(self):
-        self.assertEqual(AlternativeSet("hello"), AlternativeSet("hello"))
-        self.assertNotEqual(AlternativeSet("hey"), AlternativeSet("hello"))
+        self.assertEqual(AlternativeSet("hello", "hi"), AlternativeSet("hello", "hi"))
+        self.assertNotEqual(AlternativeSet("hello", "hi"), AlternativeSet("hello"))
+        self.assertNotEqual(AlternativeSet("hello", "hi"), AlternativeSet("hello"))
+        self.assertNotEqual(AlternativeSet("hello", "hi"), Literal("hello"))
 
     def test_optional(self):
         self.assertEqual(OptionalGrouping("hello"), OptionalGrouping("hello"))
@@ -40,6 +43,24 @@ class Comparisons(unittest.TestCase):
         self.assertNotEqual(RequiredGrouping("hello"), RequiredGrouping("hey"))
         self.assertNotEqual(RequiredGrouping("hello"), AlternativeSet("hello"))
         self.assertNotEqual(RequiredGrouping("hello"), AlternativeSet("hello"))
+
+    def test_sequence(self):
+        self.assertEqual(Sequence("hello"), Sequence("hello"))
+        self.assertNotEqual(Sequence("hello"), Sequence("hey"))
+        self.assertNotEqual(Sequence("hello"), AlternativeSet("hello"))
+        self.assertNotEqual(Sequence("hello"), Literal("hello"))
+
+    def test_repeat(self):
+        self.assertEqual(Repeat("hello"), Repeat("hello"))
+        self.assertNotEqual(Repeat("hello"), Repeat("hey"))
+        self.assertNotEqual(Repeat("hello"), Literal("hello"))
+        self.assertNotEqual(Repeat("hello"), Sequence(Literal("hello")))
+
+    def test_kleene_star(self):
+        self.assertEqual(KleeneStar("hello"), KleeneStar("hello"))
+        self.assertNotEqual(KleeneStar("hello"), KleeneStar("hey"))
+        self.assertNotEqual(KleeneStar("hello"), Literal("hello"))
+        self.assertNotEqual(KleeneStar("hello"), Sequence(Literal("hello")))
 
     def test_rule_ref(self):
         rule1 = Rule("test", True, "test")
