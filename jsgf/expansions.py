@@ -382,20 +382,15 @@ class Expansion(object):
 
     @property
     def leaves(self):
-        def _collect_leaves(e):
-            """
-            Recursively collect all expansions with no children.
-            :type e: Expansion
-            :rtype: list
-            """
+        leaves = []
+
+        def add_leaf(e):
             if not e.children:
-                result = [e]
-            else:
-                result = []
-                for child in e.children:
-                    result.extend(_collect_leaves(child))
-            return result
-        return _collect_leaves(self)
+                leaves.append(e)
+
+        map_expansion(self, add_leaf)
+
+        return leaves
 
 
 class SingleChildExpansion(Expansion):
