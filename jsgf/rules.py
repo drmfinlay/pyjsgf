@@ -4,6 +4,10 @@ Classes for compiling JSpeech Grammar Format rules
 from .expansions import Expansion, RuleRef
 
 
+class CompilationError(Exception):
+    pass
+
+
 class Rule(object):
     def __init__(self, name, visible, expansion):
         """
@@ -35,8 +39,18 @@ class Rule(object):
         :type ignore_tags: bool
         :rtype: str
         """
-        result = "<%s> = %s;" % (self.name,
-                                 self.expansion.compile(ignore_tags))
+        expansion = self.expansion.compile(ignore_tags)
+        if not expansion:  # the compiled expansion is None or ""
+            return ""
+
+        # Raise a CompilationError if there are no non-optional leaves in the
+        # expansion tree
+        leaves = self.expansion.leaves
+        if self.expansion.is_optional or all(map(lambda l: l.is_optional, leaves)):
+            raise CompilationError("nothing in the expansion tree is required to "
+                                   "be spoken.")
+
+        result = "<%s> = %s;" % (self.name, expansion)
 
         if self.visible:
             return "public %s" % result

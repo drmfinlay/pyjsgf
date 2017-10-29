@@ -1,6 +1,7 @@
 import unittest
 
 from jsgf import *
+from jsgf.rules import CompilationError
 
 
 class RuleDependenciesCase(unittest.TestCase):
@@ -42,6 +43,14 @@ class RuleRefCount(unittest.TestCase):
         self.assertEqual(0, self.rule.reference_count, "rule '%s' is not independent.")
         grammar.add_rule(PublicRule("test", RuleRef(self.rule)))
         self.assertEqual(1, self.rule.reference_count, "rule '%s' is independent.")
+
+
+class OptionalOnlyRule(unittest.TestCase):
+    def test_optional_only_rule(self):
+        rule = PublicRule("test", OptionalGrouping("hello"))
+
+        # Rules that only have optional literals are not valid
+        self.assertRaises(CompilationError, rule.compile)
 
 
 if __name__ == '__main__':
