@@ -18,7 +18,7 @@ class BasicGrammarCase(unittest.TestCase):
     def test_basic_grammar_compile(self):
         expected = "#JSGF V1.0 UTF-8 en;\n" \
                    "grammar test;\n" \
-                   "public <greet> = (<greetWord><name>);\n" \
+                   "public <greet> = (<greetWord> <name>);\n" \
                    "<greetWord> = (hello|hi);\n" \
                    "<name> = (peter|john|mary|anna);\n"
 
@@ -126,7 +126,7 @@ class RootGrammarCase(BasicGrammarCase):
         expected = "#JSGF V1.0 UTF-8 en;\n" \
                    "grammar root;\n" \
                    "public <root> = (<greet>);\n" \
-                   "<greet> = (<greetWord><name>);\n" \
+                   "<greet> = (<greetWord> <name>);\n" \
                    "<greetWord> = (hello|hi);\n" \
                    "<name> = (peter|john|mary|anna);\n"
 
