@@ -188,6 +188,11 @@ class LeavesProperty(unittest.TestCase):
                                         Literal("friend")],
                              "leaves should be in sequence from left to right.")
 
+    def test_with_rule_ref(self):
+        r = PublicRule("test", Literal("hi"))
+        e = RuleRef(r)
+        self.assertListEqual(e.leaves, [Literal("hi")])
+
 
 if __name__ == '__main__':
     unittest.main()
