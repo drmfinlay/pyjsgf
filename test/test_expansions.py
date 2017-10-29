@@ -2,6 +2,118 @@ import unittest
 from jsgf import *
 
 
+class Compilation(unittest.TestCase):
+    def test_alt_set(self):
+        e1 = AlternativeSet("a")
+        e1.tag = "t"
+        self.assertEqual(e1.compile(ignore_tags=True), "(a)")
+        self.assertEqual(e1.compile(ignore_tags=False), "(a { t })")
+
+        e2 = AlternativeSet("a b")
+        e2.tag = "t"
+        self.assertEqual(e2.compile(ignore_tags=True), "(a b)")
+        self.assertEqual(e2.compile(ignore_tags=False), "(a b { t })")
+
+        e3 = AlternativeSet("a", "b")
+        e3.children[0].tag = "t1"
+        e3.children[1].tag = "t2"
+        self.assertEqual(e3.compile(ignore_tags=True), "(a|b)")
+        self.assertEqual(e3.compile(ignore_tags=False), "(a { t1 }|b { t2 })")
+
+    def test_kleene_star(self):
+        e1 = KleeneStar("a")
+        e1.tag = "t"
+        self.assertEqual(e1.compile(ignore_tags=True), "(a)*")
+        self.assertEqual(e1.compile(ignore_tags=False), "(a)* { t }")
+
+        e2 = KleeneStar("a b")
+        e2.tag = "t"
+        self.assertEqual(e2.compile(ignore_tags=True), "(a b)*")
+        self.assertEqual(e2.compile(ignore_tags=False), "(a b)* { t }")
+
+        e3 = KleeneStar(Sequence("a", "b"))
+        e3.tag = "t"
+        self.assertEqual(e3.compile(ignore_tags=True), "(a b)*")
+        self.assertEqual(e3.compile(ignore_tags=False), "(a b)* { t }")
+
+    def test_literal(self):
+        e1 = Literal("a")
+        self.assertEqual(e1.compile(ignore_tags=True), "a")
+
+        e2 = Literal("a b")
+        self.assertEqual(e2.compile(ignore_tags=True), "a b")
+
+        e3 = Literal("a b")
+        e3.tag = "t"
+        self.assertEqual(e3.compile(ignore_tags=False), "a b { t }")
+
+    def test_optional_grouping(self):
+        e1 = OptionalGrouping("a")
+        self.assertEqual(e1.compile(ignore_tags=True), "[a]")
+
+        e2 = OptionalGrouping("a b")
+        e2.tag = "t"
+        self.assertEqual(e2.compile(ignore_tags=True), "[a b]")
+        self.assertEqual(e2.compile(ignore_tags=False), "[a b] { t }")
+
+    def test_required_grouping(self):
+        e1 = RequiredGrouping("a")
+        e1.tag = "blah"
+        self.assertEqual(e1.compile(ignore_tags=True), "(a)")
+        self.assertEqual(e1.compile(ignore_tags=False), "(a { blah })")
+
+        e2 = RequiredGrouping("a b")
+        e2.tag = "t"
+        self.assertEqual(e2.compile(ignore_tags=True), "(a b)")
+        self.assertEqual(e2.compile(ignore_tags=False), "(a b { t })")
+
+        e3 = RequiredGrouping("a", "b")
+        e3.children[0].tag = "t1"
+        e3.children[1].tag = "t2"
+        self.assertEqual(e3.compile(ignore_tags=True), "(a b)")
+        self.assertEqual(e3.compile(ignore_tags=False), "(a { t1 } b { t2 })")
+
+    def test_repeat(self):
+        e1 = Repeat("a")
+        e1.tag = "t"
+        self.assertEqual(e1.compile(ignore_tags=True), "(a)+")
+        self.assertEqual(e1.compile(ignore_tags=False), "(a)+ { t }")
+
+        e2 = Repeat("a b")
+        e2.tag = "t"
+        self.assertEqual(e2.compile(ignore_tags=True), "(a b)+")
+        self.assertEqual(e2.compile(ignore_tags=False), "(a b)+ { t }")
+
+        e3 = Repeat(Sequence("a", "b"))
+        e3.tag = "t"
+        self.assertEqual(e3.compile(ignore_tags=True), "(a b)+")
+        self.assertEqual(e3.compile(ignore_tags=False), "(a b)+ { t }")
+
+    def test_rule_ref(self):
+        r = PublicRule("test", "a")
+        rule_ref = RuleRef(r)
+        rule_ref.tag = "ref"
+        self.assertEqual(rule_ref.compile(ignore_tags=True), "<test>")
+        self.assertEqual(rule_ref.compile(ignore_tags=False), "<test> { ref }")
+
+    def test_sequence(self):
+        e1 = Sequence("a")
+        self.assertEqual(e1.compile(ignore_tags=True), "a")
+
+        e2 = Sequence("a b")
+        e2.tag = "t"
+        self.assertEqual(e2.compile(ignore_tags=True), "a b")
+        self.assertEqual(e2.compile(ignore_tags=False), "a b { t }")
+
+        e3 = Sequence("a", "b")
+        self.assertEqual(e3.compile(ignore_tags=True), "a b")
+
+        e4 = Sequence("a", "b", "c")
+        e4.children[1].tag = "t"
+        self.assertEqual(e4.compile(ignore_tags=True), "a b c")
+        self.assertEqual(e4.compile(ignore_tags=False), "a b { t } c")
+
+
 class ParentCase(unittest.TestCase):
     def setUp(self):
         alt_set1 = AlternativeSet("hello", "hi", "hey")
