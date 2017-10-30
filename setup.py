@@ -11,4 +11,4 @@ setup(
       """,
       maintainer='Dane Finlay',
       version='1.0',
-      packages=['jsgf'])
+      packages=['jsgf', 'jsgf.ext'])
