@@ -1,10 +1,12 @@
 from copy import deepcopy
 
+import re
+
 from jsgf.expansions import Literal, Expansion
 from jsgf.rules import Rule
 
 
-class Dictation(Expansion):
+class Dictation(Literal):
     """
     Class representing dictation input matching any spoken words.
     This expansion uses the default compile() implementation because JSGF
@@ -13,14 +15,29 @@ class Dictation(Expansion):
     NaturallySpeaking and the dragonfly Python library together.
     """
     def __init__(self):
-        super(Dictation, self).__init__([])
+        # Pass the empty string to the Literal constructor so that calling compile
+        # yields "" or "" + the tag
+        super(Dictation, self).__init__("")
 
-    def matching_regex(self):
-        # Match one or more words separated by whitespace as well as any
-        # whitespace preceding the words.
-        word = "[a-zA-Z0-9?,\.\-_!;:']+"
-        words = "(\s+%s)+" % word
-        return words
+    def __str__(self):
+        return "%s()" % self.__class__.__name__
+
+    def _matches_internal(self, speech):
+        # Override this method to let speech start with a single space in order to
+        # match n words easily
+        return super(Dictation, self)._matches_internal(" " + speech)
+
+    @property
+    def matching_regex_pattern(self):
+        """
+        A regex pattern for matching this expansion.
+        """
+        if not self._pattern:
+            # Match one or more words separated by whitespace
+            word = "[a-zA-Z0-9?,\.\-_!;:']+"
+            regex = "(\s+%s)+" % word
+            self._pattern = re.compile(regex)
+        return self._pattern
 
 
 def dictation_in_expansion(e, no_literals=False):
