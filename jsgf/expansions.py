@@ -426,13 +426,7 @@ class Literal(Expansion):
         # So use lower() to fix errors similar to:
         # "The word 'HELLO' is missing in the dictionary"
         self.text = text.lower()
-
-        # Set the regex pattern for the expansion
-        pattern = self.matching_regex()
-        if isinstance(pattern, str):
-            self._pattern = re.compile(pattern)
-        else:
-            self._pattern = None
+        self._pattern = None
         super(Literal, self).__init__([])
 
     def __str__(self):
@@ -445,29 +439,30 @@ class Literal(Expansion):
             return self.text
 
     @property
-    def regex_pattern(self):
+    def matching_regex_pattern(self):
+        """
+        A regex pattern for matching this expansion.
+        """
+        if not self._pattern:
+            # Selectively escape certain characters because this text will
+            # be used in a regular expression pattern string.
+            #
+            escaped = self.text.replace(".", r"\.")
+
+            # Also make everything lowercase and allow matching 1 or more
+            # whitespace characters between words and before the first word.
+            words = escaped.lower().split()
+
+            # Create and set a regex pattern to use
+            regex = "%s" % "\s+".join(words)
+            self._pattern = re.compile(regex)
         return self._pattern
-
-    def matching_regex(self):
-        """
-        A regex string for matching this expansion.
-        :return: str
-        """
-        # Selectively escape certain characters because this text will
-        # be used in a regular expression pattern string.
-        #
-        escaped = self.text.replace(".", r"\.")
-
-        # Also make everything lowercase and allow matching 1 or more
-        # whitespace characters between words and before the first word.
-        words = escaped.lower().split()
-        return "%s" % "\s+".join(words)
 
     def _matches_internal(self, speech):
         result = speech
         match = None
 
-        for m in self.regex_pattern.finditer(result):
+        for m in self.matching_regex_pattern.finditer(result):
             if m.start() == 0:
                 match = m
                 result = result[m.end():]  # consume the string
