@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import re
 
-from jsgf.expansions import Literal, Expansion
+from jsgf.expansions import Literal, Expansion, REFUSE_MATCHES, ExpansionError
 from jsgf.rules import Rule
 
 
@@ -23,9 +23,60 @@ class Dictation(Literal):
         return "%s()" % self.__class__.__name__
 
     def _matches_internal(self, speech):
-        # Override this method to let speech start with a single space in order to
-        # match n words easily
-        return super(Dictation, self)._matches_internal(" " + speech)
+        result = speech
+
+        # Find the leaves after this expansion using the root expansion
+        parent = self.parent
+        while True:
+            if not parent.parent:
+                break  # we are at the root expansion
+            parent = parent.parent
+
+        leaves = parent.leaves
+        index = leaves.index(self)
+        relevant_leaves = parent.leaves[index + 1:]
+
+        # Break on the first leaf that matches or if a leaf doesn't match that
+        # isn't optional
+        match = None
+        for leaf in relevant_leaves:
+            if leaf is self:
+                continue
+
+            # Handle successive dictation
+            if isinstance(leaf, Dictation):
+                if self.is_optional and not leaf.is_optional:
+                    # Let the next dictation expansion use the speech.
+                    return "%s %s".strip() % (
+                        super(Dictation, self)._matches_internal(" "), result)
+                elif not self.is_optional and not leaf.is_optional:
+                    # This is an error because we can't detect the end of one
+                    # expansion's match and the start of the other.
+                    raise ExpansionError("cannot match on two successive "
+                                         "non-optional Dictation expansions")
+                else:
+                    break
+
+            if leaf.backtracking_flag & REFUSE_MATCHES:
+                continue  # shouldn't try matching on this leaf
+
+            pattern = leaf.matching_regex_pattern
+            match = pattern.search(result)  # get the first match
+            if not match and not leaf.is_optional or match:
+                break
+
+        # Let speech to be matched start with a single space in order to match
+        # n words easily
+        if match:
+            result = "%s %s" % (
+                super(Dictation, self)._matches_internal(
+                    " " + result[0:match.start()]),
+                result[match.start():])
+        else:
+            result = super(Dictation, self)._matches_internal(" " + result)
+
+        # Strip whitespace before returning so that the rule doesn't fail to match
+        return result.strip()
 
     @property
     def matching_regex_pattern(self):

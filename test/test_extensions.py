@@ -1,6 +1,8 @@
 import unittest
 
-from jsgf.expansions import Sequence, OptionalGrouping, Literal, AlternativeSet, Repeat
+from jsgf import PublicRule
+
+from jsgf.expansions import Sequence, OptionalGrouping, Literal, AlternativeSet, Repeat, ExpansionError
 from jsgf.ext.extensions import ExtensionRule, Dictation
 
 # Create shorthand aliases for some expansions as they're used here A LOT
@@ -37,6 +39,69 @@ class DictationPropertiesCase(unittest.TestCase):
         rule2 = ExtensionRule("test", True, e2)
         self.assertTrue(rule2.dictation_only_rule)
         self.assertTrue(rule2.dictation_rule)
+
+
+class DictationMatchesCase(unittest.TestCase):
+    def test_matches_with_literals(self):
+        e1 = Seq("hello", Dict())
+        r1 = PublicRule("test", e1)
+        self.assertTrue(r1.matches("hello world"))
+        self.assertTrue(r1.matches("hello world"))
+        self.assertEqual(e1.current_match, "hello world")
+        self.assertEqual(e1.children[0].current_match, "hello")
+        self.assertEqual(e1.children[1].current_match, "world")
+
+        e2 = Seq("a", Dict(), "c")
+        r2 = PublicRule("test", e2)
+        self.assertTrue(r2.matches("a b c"))
+        self.assertEqual(e2.children[0].current_match, "a")
+        self.assertEqual(e2.children[1].current_match, "b")
+        self.assertEqual(e2.children[2].current_match, "c")
+        self.assertEqual(e2.current_match, "a b c")
+
+    def test_matches_as_optional(self):
+        e1 = Seq("hello", Opt(Dict()))
+        r1 = PublicRule("test", e1)
+        self.assertTrue(r1.matches("hello"))
+        self.assertEqual(e1.current_match, "hello")
+        self.assertEqual(e1.children[0].current_match, "hello")
+        self.assertEqual(e1.children[1].current_match, "")
+
+    def test_successive_dictation(self):
+        e1 = Seq(Dict(), Dict())
+        self.assertRaises(ExpansionError, e1.matches, "test")
+
+        e2 = Seq(Opt(Dict()), Dict())
+        self.assertEqual(e2.matches("hello"), "")
+        self.assertEqual(e2.current_match, "hello")
+        self.assertEqual(e2.children[0].current_match, "")
+        self.assertEqual(e2.children[1].current_match, "hello",
+                         "required Dictation should get to consume the speech "
+                         "string")
+
+        e3 = Seq(Dict(), Opt(Dict()))
+        self.assertEqual(e3.matches("hello"), "")
+        self.assertEqual(e3.current_match, "hello")
+        self.assertEqual(e3.children[0].current_match, "hello",
+                         "required Dictation should get to consume the speech "
+                         "string")
+        self.assertEqual(e3.children[1].current_match, "")
+
+    def test_backtracking(self):
+        e1 = Seq(Opt(Dict()), "hello")
+        self.assertEqual(e1.matches("hello"), "")
+        self.assertEqual(e1.current_match, "hello")
+        self.assertEqual(e1.children[0].current_match, "")
+        self.assertEqual(e1.children[1].current_match, "hello")
+
+        # This would normally require backtracking, but Dictation looks forward
+        # for matches on speech and uses a substring if there's a match for the
+        # next literal
+        e2 = Seq(Dict(), "hello")
+        self.assertEqual(e2.matches("hey hello"), "")
+        self.assertEqual(e2.current_match, "hey hello")
+        self.assertEqual(e2.children[0].current_match, "hey")
+        self.assertEqual(e2.children[1].current_match, "hello")
 
 
 class RuleSequenceCase(unittest.TestCase):
