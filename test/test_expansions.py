@@ -245,6 +245,43 @@ class AncestorProperties(unittest.TestCase):
             self.assertTrue(leaf.is_alternative)
 
 
+class MutuallyExclusiveOfCase(unittest.TestCase):
+    def test_no_alternative_sets(self):
+        e1 = Literal("hi")
+        e2 = Literal("hello")
+        self.assertFalse(e1.mutually_exclusive_of(e2))
+
+    def test_one_alternative_set(self):
+        e1 = AlternativeSet("hi", "hello")
+        self.assertTrue(e1.children[0].mutually_exclusive_of(e1.children[1]))
+
+        e2 = AlternativeSet(Sequence("hi", "there"), "hello")
+        self.assertTrue(e2.children[0]
+                        .mutually_exclusive_of(e2.children[1]))
+        self.assertTrue(e2.children[0].children[0]
+                        .mutually_exclusive_of(e2.children[1]))
+        self.assertTrue(e2.children[0].children[1]
+                        .mutually_exclusive_of(e2.children[1]))
+
+    def test_two_alternative_sets(self):
+        e1 = Sequence(AlternativeSet(Sequence("a", "b"), "c"),
+                      AlternativeSet("d", "e"))
+        as1, as2 = e1.children[0], e1.children[1]
+        seq2 = as1.children[0]
+        a, b, c = seq2.children[0], seq2.children[1], as1.children[1]
+        d, e = as2.children[0], as2.children[1]
+
+        self.assertFalse(as1.mutually_exclusive_of(as2))
+        self.assertTrue(a.mutually_exclusive_of(c))
+        self.assertTrue(b.mutually_exclusive_of(c))
+        self.assertFalse(a.mutually_exclusive_of(b))
+
+        self.assertTrue(d.mutually_exclusive_of(e) and e.mutually_exclusive_of(d),
+                        "mutual exclusivity should be an associative operation")
+        self.assertFalse(a.mutually_exclusive_of(d))
+        self.assertFalse(a.mutually_exclusive_of(e))
+
+
 class MapExpansionCase(unittest.TestCase):
     """
     Test the map_expansion function.

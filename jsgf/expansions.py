@@ -392,6 +392,45 @@ class Expansion(object):
 
         return leaves
 
+    def mutually_exclusive_of(self, other):
+        """
+        Whether this expansion cannot be spoken with another expansion together.
+        :type other: Expansion
+        :return: bool
+        """
+        parent1 = self.parent
+        parent2 = other.parent
+        e1, e2 = self, other
+        s1, s2 = set(), set()
+        d1, d2 = {}, {}
+
+        # Add each ancestor of self and other to 2 sets and store which child of
+        # parent1/parent2 is [an ancestor of] self/e in 2 dictionaries
+        while parent1 or parent2:
+            if parent1:
+                if isinstance(parent1, AlternativeSet):
+                    s1.add(parent1)
+                    d1[parent1] = e1
+                e1 = parent1
+                parent1 = parent1.parent
+
+            if parent2:
+                if isinstance(parent2, AlternativeSet):
+                    s2.add(parent2)
+                    d2[parent2] = e2
+                e2 = parent2
+                parent2 = parent2.parent
+
+        s3 = s1.intersection(s2)
+        if len(s3) == 0:
+            # self and other are not mutually exclusive if there is no intersection
+            return False
+        else:
+            for alt_set in s3:
+                if d1[alt_set] is not d2[alt_set]:
+                    return True
+        return False
+
 
 class SingleChildExpansion(Expansion):
     def __init__(self, expansion):
