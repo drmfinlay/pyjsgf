@@ -361,5 +361,23 @@ class LeavesProperty(unittest.TestCase):
         self.assertListEqual(e.leaves, [Literal("hi")])
 
 
+class RootExpansionProperty(unittest.TestCase):
+    def test_base(self):
+        e = Literal("hello")
+        self.assertEqual(e.root_expansion, e)
+
+    def test_multiple(self):
+        e = Sequence(Literal("hello"), AlternativeSet("there", "friend"))
+        hello = e.children[0]
+        alt_set = e.children[1]
+        there = e.children[1].children[0]
+        friend = e.children[1].children[1]
+        self.assertEqual(e.root_expansion, e)
+        self.assertEqual(alt_set.root_expansion, e)
+        self.assertEqual(hello.root_expansion, e)
+        self.assertEqual(there.root_expansion, e)
+        self.assertEqual(friend.root_expansion, e)
+
+
 if __name__ == '__main__':
     unittest.main()

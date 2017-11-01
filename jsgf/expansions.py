@@ -392,6 +392,18 @@ class Expansion(object):
 
         return leaves
 
+    @property
+    def root_expansion(self):
+        """
+        Traverse to the root expansion r and return it.
+        :return: Expansion
+        """
+        r = self
+        while r.parent:
+            r = r.parent
+
+        return r
+
     def mutually_exclusive_of(self, other):
         """
         Whether this expansion cannot be spoken with another expansion together.
