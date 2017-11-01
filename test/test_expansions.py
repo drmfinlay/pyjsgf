@@ -245,6 +245,24 @@ class AncestorProperties(unittest.TestCase):
             self.assertTrue(leaf.is_alternative)
 
 
+class LiteralUsedInRepetition(unittest.TestCase):
+    def setUp(self):
+        self.seq = Sequence("hello", "world")
+
+    def test_no_repetition(self):
+        self.assertFalse(Literal("hello").used_in_repetition)
+        self.assertFalse(self.seq.children[0].used_in_repetition)
+        self.assertFalse(self.seq.children[1].used_in_repetition)
+
+    def test_with_repeat(self):
+        self.assertTrue(Repeat("hello").child.used_in_repetition)
+        self.assertTrue(Repeat(self.seq).child.children[0].used_in_repetition)
+
+    def test_with_kleene_star(self):
+        self.assertTrue(KleeneStar("hello").child.used_in_repetition)
+        self.assertTrue(KleeneStar(self.seq).child.children[1].used_in_repetition)
+
+
 class MutuallyExclusiveOfCase(unittest.TestCase):
     def test_no_alternative_sets(self):
         e1 = Literal("hi")

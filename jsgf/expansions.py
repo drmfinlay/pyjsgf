@@ -520,6 +520,22 @@ class Literal(Expansion):
     def __eq__(self, other):
         return super(Literal, self).__eq__(other) and self.text == other.text
 
+    @property
+    def used_in_repetition(self):
+        """
+        Whether this expansion has a Repeat or KleeneStar expansion ancestor.
+        :return: bool
+        """
+        parent = self.parent
+        result = False
+        while parent:
+            if isinstance(parent, Repeat):
+                result = True
+                break
+            parent = parent.parent
+
+        return result
+
 
 class RuleRef(Expansion):
     def __init__(self, rule):
