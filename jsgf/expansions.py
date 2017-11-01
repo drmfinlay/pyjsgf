@@ -499,13 +499,7 @@ class Literal(Expansion):
 
     def _matches_internal(self, speech):
         result = speech
-        match = None
-
-        for m in self.matching_regex_pattern.finditer(result):
-            if m.start() == 0:
-                match = m
-                result = result[m.end():]  # consume the string
-                break
+        match = self.matching_regex_pattern.match(result)
 
         if match is None:
             if self.is_optional:
@@ -513,6 +507,7 @@ class Literal(Expansion):
             else:
                 self.current_match = None
         else:
+            result = result[match.end():]
             self.current_match = match.group()
 
         return result
