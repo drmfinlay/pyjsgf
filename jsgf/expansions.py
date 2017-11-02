@@ -528,16 +528,16 @@ class Literal(Expansion):
         return super(Literal, self).__eq__(other) and self.text == other.text
 
     @property
-    def used_in_repetition(self):
+    def repetition_ancestor(self):
         """
-        Whether this expansion has a Repeat or KleeneStar expansion ancestor.
-        :return: bool
+        This expansion's closest Repeat or KleeneStar ancestor, if it has one.
+        :return: Expansion
         """
         parent = self.parent
-        result = False
+        result = None
         while parent:
             if isinstance(parent, Repeat):
-                result = True
+                result = parent
                 break
             parent = parent.parent
 
