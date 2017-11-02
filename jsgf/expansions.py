@@ -515,6 +515,21 @@ class Literal(Expansion):
             self._pattern = re.compile(regex)
         return self._pattern
 
+    @property
+    def leaves_after(self):
+        """
+        Generator function for leaves after this one (if any).
+        :return: generator
+        """
+        self_reached = False
+        leaves = self.root_expansion.leaves
+        for leaf in leaves:
+            if leaf is self:
+                self_reached = True
+                continue
+            elif self_reached:
+                yield leaf
+
     def _matches_internal(self, speech):
         result = speech
         match = self.matching_regex_pattern.match(result)
