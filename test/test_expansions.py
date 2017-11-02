@@ -298,8 +298,10 @@ class MutuallyExclusiveOfCase(unittest.TestCase):
         self.assertTrue(b.mutually_exclusive_of(c))
         self.assertFalse(a.mutually_exclusive_of(b))
 
-        self.assertTrue(d.mutually_exclusive_of(e) and e.mutually_exclusive_of(d),
-                        "mutual exclusivity should be an associative operation")
+        self.assertEqual(d.mutually_exclusive_of(e), e.mutually_exclusive_of(d),
+                         "mutual_exclusive_of should be a commutative operation "
+                         "(order does not matter)")
+        self.assertTrue(d.mutually_exclusive_of(e))
         self.assertFalse(a.mutually_exclusive_of(d))
         self.assertFalse(a.mutually_exclusive_of(e))
 
