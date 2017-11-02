@@ -176,6 +176,12 @@ class Expansion(object):
         if isinstance(value, str):
             value = " ".join([x.strip() for x in value.split()])
 
+        if not value:
+            if self.is_optional:
+                value = ""
+            else:
+                value = None
+
         self._current_match = value
 
     @property

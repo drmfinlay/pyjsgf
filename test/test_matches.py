@@ -4,6 +4,27 @@ from jsgf import *
 
 
 class CurrentMatchCase(unittest.TestCase):
+    def test_current_match_correction(self):
+        """
+        Test whether current_match gets set to None if the expansion isn't optional
+        and "" if it is.
+        """
+        e1 = Literal("hello")
+        e1.current_match = ""
+        self.assertEqual(e1.current_match, None)
+        e1.current_match = None
+        self.assertEqual(e1.current_match, None)
+        e1.current_match = "hello"
+        self.assertEqual(e1.current_match, "hello")
+
+        e2 = KleeneStar("hello")
+        e2.current_match = None
+        self.assertEqual(e2.current_match, "")
+        e2.current_match = ""
+        self.assertEqual(e2.current_match, "")
+        e1.current_match = "hello hello"
+        self.assertEqual(e1.current_match, "hello hello")
+
     def test_literal(self):
         e = Literal("hello")
         r = PublicRule("test", e)
