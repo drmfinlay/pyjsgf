@@ -1,6 +1,59 @@
 import unittest
 
 from jsgf import *
+from jsgf.expansions import matches_overlap
+
+
+class MatchesOverlap(unittest.TestCase):
+    def setUp(self):
+        self.p1 = Literal("hey").matching_regex_pattern
+        self.p2 = Literal("hello").matching_regex_pattern
+        self.p3 = Literal("hello world").matching_regex_pattern
+
+    def test_no_overlap(self):
+        m1 = self.p1.match("hey")
+        m2 = self.p2.match("hey")
+        self.assertFalse(matches_overlap(m1, m2))
+
+        m1 = self.p1.match("hello")
+        m2 = self.p2.match("hello")
+        self.assertFalse(matches_overlap(m1, m2))
+
+        m1 = self.p1.match("hey hello")
+        m2 = self.p2.match("hey hello")
+        self.assertFalse(matches_overlap(m1, m2))
+
+    def test_commutative(self):
+        m1 = self.p1.match("hey")
+        m2 = self.p2.match("hey")
+        msg = "matches_overlap should be commutative (order does not matter)"
+        self.assertFalse(matches_overlap(m1, m2))
+        self.assertEqual(matches_overlap(m1, m2), matches_overlap(m2, m1), msg)
+
+        m1 = self.p1.match("hey hello")
+        m2 = self.p2.match("hey hello")
+        self.assertFalse(matches_overlap(m1, m2))
+        self.assertEqual(matches_overlap(m1, m2), matches_overlap(m2, m1), msg)
+
+        m1 = self.p2.match("hello world")
+        m2 = self.p3.match("hello world")
+        self.assertTrue(matches_overlap(m1, m2))
+        self.assertEqual(matches_overlap(m1, m2), matches_overlap(m2, m1), msg)
+
+    def test_same_match(self):
+        p1 = Literal("hello").matching_regex_pattern
+        m1 = p1.match("hello")
+        self.assertTrue(matches_overlap(m1, m1))
+        self.assertFalse(matches_overlap(None, None))
+
+    def test_overlap(self):
+        p1 = Literal("hello").matching_regex_pattern
+        p2 = Literal("hello world").matching_regex_pattern
+
+        m1 = p1.match("hello world")
+        m2 = p2.match("hello world")
+        self.assertTrue(matches_overlap(m1, m2))
+        self.assertTrue(matches_overlap(m2, m1))
 
 
 class CurrentMatchCase(unittest.TestCase):

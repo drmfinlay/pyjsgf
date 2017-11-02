@@ -62,6 +62,18 @@ REFUSE_MATCHES = 1 << 0
 BACKTRACKING_IN_PROGRESS = 1 << 1  # for preventing cycles
 
 
+def matches_overlap(m1, m2):
+    """
+    Check whether two regex matches overlap.
+    :return: bool
+    """
+    if not m1 or not m2 or m1.string != m2.string:
+        return False
+    x1, y1 = m1.span()
+    x2, y2 = m2.span()
+    return x1 < x2 <= y1 or x2 < x1 <= y2 or x1 == x2
+
+
 class ExpansionError(Exception):
     pass
 
