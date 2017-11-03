@@ -52,16 +52,6 @@ def restore_current_matches(e, values, override_none=True):
     map_expansion(e, restore)
 
 
-# --- Backtracking flags ---
-
-# If matches is called and this is set, then speech will not be consumed and
-# current_match will be set to "" or None depending on whether the expansion
-# is optional.
-REFUSE_MATCHES = 1 << 0
-
-BACKTRACKING_IN_PROGRESS = 1 << 1  # for preventing cycles
-
-
 def matches_overlap(m1, m2):
     """
     Check whether two regex matches overlap.
@@ -101,8 +91,6 @@ class Expansion(object):
             child.parent = self
 
         self._current_match = None
-        self._backtracking_flag = 0
-        self._original_speech_str = None
 
     def __add__(self, other):
         return self + other
@@ -200,33 +188,6 @@ class Expansion(object):
 
         self._current_match = value
 
-    @property
-    def backtracking_flag(self):
-        """
-        Backtracking flag used when backtracking to find optional matches.
-        :return: int
-        """
-        return self._backtracking_flag
-
-    @backtracking_flag.setter
-    def backtracking_flag(self, value):
-        self._backtracking_flag = value
-
-    @property
-    def original_speech_str(self):
-        """
-        The speech string given to this expansion's matches method before
-        processing.
-
-        This is used in backtracking by optional expansions.
-        :return: str
-        """
-        return self._original_speech_str
-
-    @original_speech_str.setter
-    def original_speech_str(self, value):
-        self._original_speech_str = value
-
     def reset_for_new_match(self):
         """
         Call reset_match_data for this expansion and all of its descendants.
@@ -237,33 +198,18 @@ class Expansion(object):
         """
         Reset any members or properties this expansion uses for matching speech.
         """
-        # Clear current_match and reset backtracking flags to 0
         self.current_match = None
-        self.backtracking_flag = 0
 
     def matches(self, speech):
         """
         Match speech with this expansion, set current_match to the first matched
-        substring and return the remainder of the string. This method will
-        backtrack to use matches from optional expansions if no match is found.
+        substring and return the remainder of the string.
 
         :type speech: str
         :return: str
         """
         result = speech.lstrip()
-        self.original_speech_str = result
-
-        if self.backtracking_flag & REFUSE_MATCHES:
-            result = self._refuse_matches(result)
-        else:
-            result = self._matches_internal(result)
-
-            if self.current_match is None and not self.is_optional \
-                    and not self.backtracking_flag & BACKTRACKING_IN_PROGRESS:
-                # Backtrack to find an optional match and the new result
-                self.backtrack_to_matching_optional()
-
-        return result
+        return self._matches_internal(result).strip()
 
     def _matches_internal(self, speech):
         result = speech
@@ -279,91 +225,6 @@ class Expansion(object):
         else:
             self.current_match = " ".join(child_matches)
             return result
-
-    def _refuse_matches(self, speech):
-        """
-        Refuse matches on this expansion sub tree and set current_match to None or
-        '' depending on whether they are optional.
-        """
-        def set_refuse_current_match(x):
-            x.current_match = "" if x.is_optional else None
-
-        # Refuse matches on this expansion and its descendants
-        map_expansion(self, set_refuse_current_match)
-        self.current_match = "" if self.is_optional else None
-        return speech
-
-    def backtrack_to_matching_optional(self):
-        """
-        Backtrack through already processed expansions in the expansion tree (and
-        referencing rules) until current_match is not None or until the root
-        expansion is reached.
-
-        Special case: in the event the match found is combined from children of an
-        ancestor of e, then the consecutive children which match together need to have
-        refuse_matches set appropriately.
-        """
-        if not self.parent:
-            # Can't backtrack this expansion
-            return
-
-        self.backtracking_flag |= BACKTRACKING_IN_PROGRESS
-
-        def relevant_optionals(e):
-            """
-            Generator function for optional expansions relevant for performing
-            backtracking on an expansion.
-            """
-            parent = e.parent
-            x = e
-            while parent:
-                # Traverse children of x in reverse (backtrack) until we find a match
-                try:
-                    x_index = parent.children.index(x)
-                    x_processed_siblings = parent.children[:x_index]
-                except ValueError, exception:
-                    if not isinstance(parent, RuleRef):
-                        raise exception
-
-                    # Rule references are a special case here as the parent is
-                    # temporarily set for matching to work across rules
-                    # Skipping this 'level' is fine
-                    x = parent
-                    parent = parent.parent
-                    continue
-
-                for c in x_processed_siblings.__reversed__():
-                    if c.is_optional:
-                        yield c, x, parent
-                        if isinstance(c, Repeat):  # implicitly, this is KleeneStar
-                            # Yield c again in a loop until refuse matches takes it
-                            # to repetitions_matched 0
-                            while c.repetitions_matched > 0:
-                                yield c, x, parent
-
-                x = parent
-                parent = parent.parent
-
-        # Iterate through each relevant optional in the expansion tree,
-        # setting REFUSE_MATCHES and checking if ancestor matches,
-        # breaking out of the loop if it does
-        ancestor = self.parent
-        for optional, _, p in relevant_optionals(self):
-            ancestor = p
-            optional.backtracking_flag |= REFUSE_MATCHES
-            speech = p.original_speech_str
-            p.matches(speech)
-            if p.current_match is not None:
-                break
-
-        if self.current_match is None:
-            def reset_flag(e):
-                # Remove REFUSE_MATCHES from backtracking flags
-                if e.backtracking_flag & REFUSE_MATCHES:
-                    e.backtracking_flag -= REFUSE_MATCHES
-            self.backtracking_flag = 0
-
-            map_expansion(ancestor, reset_flag)
 
     def __str__(self):
         descendants = ", ".join(["%s" % c for c in self.children])
@@ -550,14 +411,55 @@ class Literal(Expansion):
         result = speech
         match = self.matching_regex_pattern.match(result)
 
-        if match is None:
-            if self.is_optional:
-                self.current_match = ""
-            else:
-                self.current_match = None
-        else:
-            result = result[match.end():]
+        if not match:
+            self.current_match = None
+            return result
+
+        repetition_ancestor = self.repetition_ancestor
+        use_match = True
+        if self.is_optional or repetition_ancestor:
+            # Check if there are non-optional unprocessed leaves with only one
+            # match that overlaps with this expansion's match
+            leaves_after = self.leaves_after
+            for leaf in leaves_after:
+                if (leaf.is_optional and not leaf.repetition_ancestor
+                        or self.mutually_exclusive_of(leaf)):
+                    continue
+
+                leaf_pattern = leaf.matching_regex_pattern
+                leaf_matches = [_ for _ in leaf_pattern.finditer(result)]
+
+                overlapping_matches = []
+                for m in leaf_matches:
+                    if matches_overlap(match, m):
+                        overlapping_matches.append(m)
+
+                if len(overlapping_matches) == 0 and len(leaf_matches) > 0:
+                    use_match = True
+                else:
+                    use_match = len(leaf_matches) > len(overlapping_matches)
+
+                if repetition_ancestor and use_match:
+                    def pattern_matches_self(l):
+                        return (l.matching_regex_pattern.pattern ==
+                                self.matching_regex_pattern.pattern)
+
+                    message = "self and leaf are ambiguous literals used by " \
+                              "one or more repetition expansions"
+                    if pattern_matches_self(leaf) and leaf.repetition_ancestor:
+                        raise MatchError(message)
+                    else:
+                        for x in leaves_after:
+                            if pattern_matches_self(x):
+                                raise MatchError(message)
+                            else:
+                                break
+                break
+        if use_match:
             self.current_match = match.group()
+            result = result[match.end():]
+        else:
+            self.current_match = None
 
         return result
 
@@ -603,9 +505,12 @@ class RuleRef(Expansion):
 
     def _matches_internal(self, speech):
         # Temporarily set the parent of the referenced rule's root expansion to
-        # this expansion. This is required if backtracking needs to process the
-        # referencing rule's expansion tree - this expansion's tree - too.
+        # this expansion. This is required when it is necessary to view this
+        # expansion's tree and the referencing rule's expansion tree as one larger
+        # tree. E.g. when determining mutual exclusivity of 2 expansions, if an
+        # expansion is optional, if a literal is used for repetition, etc.
         self.rule.expansion.parent = self
+
         result = self.rule.expansion.matches(speech)
         self.current_match = self.rule.expansion.current_match
 
@@ -634,7 +539,7 @@ class Repeat(SingleChildExpansion):
     def __init__(self, expansion):
         super(Repeat, self).__init__(expansion)
         self._repetition_limit = None
-        self._repetitions_matched = 0
+        self._repetitions_matched = None
 
     def compile(self, ignore_tags=False):
         compiled = self.child.compile(ignore_tags)
@@ -665,6 +570,7 @@ class Repeat(SingleChildExpansion):
 
         # Accept N complete repetitions
         matches = []
+        self._repetitions_matched = 0
 
         # Use a copy of result for repetitions
         intermediate_result = result
@@ -673,58 +579,25 @@ class Repeat(SingleChildExpansion):
             intermediate_result = self.child.matches(intermediate_result)
             child_match = self.child.current_match
 
-            if child_match is None or child_match == "":
+            if not child_match:
                 # Restore current_match state for incomplete repetition tree
                 # without overriding current_match strings with None
                 restore_current_matches(self, values, override_none=False)
                 break
             else:
-                if isinstance(self._repetition_limit, int) \
-                        and len(matches) >= self._repetition_limit:
-                    # Stop matching
-                    break
-
                 matches.append(child_match)
+                self._repetitions_matched += 1
 
-                # Save current_match state for complete repetition
+                # Save current_match state for complete repetition and update
+                # repetitions_matched
                 values = save_current_matches(self)
 
-        self._repetitions_matched = len(matches)
-
-        # Check if there were no matches
-        if len(matches) == 0:
-            # Repetitions can be optional, so we need to check that and set
-            # current_match to "" instead of None if appropriate
-            if self.is_optional:
-                self.current_match = ""
-                result = intermediate_result
-            else:
-                self.current_match = None
-                result = speech
-        else:
-            self.current_match = " ".join(matches)
-            result = intermediate_result
-        return result
-
-    def _refuse_matches(self, speech):
-        """
-        Specialisation of refuse matches for repetitions.
-        This method defines a match refusal as reducing the number of repetitions
-        matched by one (until zero) for each time it is backtracked over or until
-        backtracking_flag is unset.
-        """
-        result = speech
-        if self.repetitions_matched > 0:
-            self._repetition_limit = self.repetitions_matched - 1
-            result = self._matches_internal(result)
-        else:
-            self._repetition_limit = 0
-            result = self._matches_internal(result)
-        return result
+        self.current_match = " ".join(matches)
+        return intermediate_result
 
     def reset_match_data(self):
         super(Repeat, self).reset_match_data()
-        self._repetition_limit = None
+        self._repetitions_matched = None
 
 
 class KleeneStar(Repeat):
@@ -809,19 +682,12 @@ class AlternativeSet(VariableChildExpansion):
 
     def _matches_internal(self, speech):
         result = speech
-
-        self.original_speech_str = result
-
-        # Prevent backtracking cycles
-        if self.backtracking_flag & BACKTRACKING_IN_PROGRESS:
-            return result
-
         self.current_match = None
         for child in self.children:
             # Consume speech
             result = child.matches(result)
             child_match = child.current_match
-            if child_match is not None:
+            if child_match:
                 self.current_match = child_match
                 break
 

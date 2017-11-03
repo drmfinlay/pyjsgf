@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import re
 
-from jsgf.expansions import Literal, Expansion, REFUSE_MATCHES, ExpansionError
+from jsgf.expansions import Literal, Expansion, ExpansionError
 from jsgf.rules import Rule
 
 
@@ -25,24 +25,10 @@ class Dictation(Literal):
     def _matches_internal(self, speech):
         result = speech
 
-        # Find the leaves after this expansion using the root expansion
-        parent = self.parent
-        while True:
-            if not parent.parent:
-                break  # we are at the root expansion
-            parent = parent.parent
-
-        leaves = parent.leaves
-        index = leaves.index(self)
-        relevant_leaves = parent.leaves[index + 1:]
-
         # Break on the first leaf that matches or if a leaf doesn't match that
         # isn't optional
         match = None
-        for leaf in relevant_leaves:
-            if leaf is self:
-                continue
-
+        for leaf in self.leaves_after:
             # Handle successive dictation
             if isinstance(leaf, Dictation):
                 if self.is_optional and not leaf.is_optional:
@@ -56,9 +42,6 @@ class Dictation(Literal):
                                          "non-optional Dictation expansions")
                 else:
                     break
-
-            if leaf.backtracking_flag & REFUSE_MATCHES:
-                continue  # shouldn't try matching on this leaf
 
             pattern = leaf.matching_regex_pattern
             match = pattern.search(result)  # get the first match
