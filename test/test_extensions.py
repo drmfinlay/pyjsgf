@@ -87,16 +87,13 @@ class DictationMatchesCase(unittest.TestCase):
                          "string")
         self.assertEqual(e3.children[1].current_match, "")
 
-    def test_backtracking(self):
+    def test_forward_tracking(self):
         e1 = Seq(Opt(Dict()), "hello")
         self.assertEqual(e1.matches("hello"), "")
         self.assertEqual(e1.current_match, "hello")
         self.assertEqual(e1.children[0].current_match, "")
         self.assertEqual(e1.children[1].current_match, "hello")
 
-        # This would normally require backtracking, but Dictation looks forward
-        # for matches on speech and uses a substring if there's a match for the
-        # next literal
         e2 = Seq(Dict(), "hello")
         self.assertEqual(e2.matches("hey hello"), "")
         self.assertEqual(e2.current_match, "hey hello")

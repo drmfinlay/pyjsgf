@@ -78,6 +78,10 @@ class ExpansionError(Exception):
     pass
 
 
+class MatchError(Exception):
+    pass
+
+
 class Expansion(object):
     """
     Expansion base class

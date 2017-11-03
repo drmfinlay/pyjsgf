@@ -1,7 +1,7 @@
 import unittest
 
 from jsgf import *
-from jsgf.expansions import matches_overlap
+from jsgf.expansions import matches_overlap, MatchError
 
 
 class MatchesOverlap(unittest.TestCase):
@@ -149,6 +149,35 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[1].children[0].current_match, None)
         self.assertEqual(e.children[1].children[1].current_match, None)
 
+    def test_skip_mutually_exclusive(self):
+        """
+        Test whether literals that are mutually exclusive get skipped in the
+        matching process.
+        """
+        e1 = AlternativeSet(Sequence("a", "b", OptionalGrouping("c")),
+                            Sequence("a", "b"))
+        r1 = PublicRule("test", e1)
+        seq1, seq2 = e1.children[0], e1.children[1]
+        a1, b1 = seq1.children[0], seq1.children[1]
+        c = seq1.children[2]
+        a2, b2 = seq2.children[0], seq2.children[1]
+
+        self.assertTrue(r1.matches("a b"))
+        self.assertEqual(a2.current_match, None)
+        self.assertEqual(a1.current_match, "a")
+        self.assertEqual(b2.current_match, None)
+        self.assertEqual(b1.current_match, "b")
+
+        self.assertFalse(r1.matches("a b a b"))
+        self.assertFalse(r1.matches("a b a b c"))
+
+        self.assertTrue(r1.matches("a b c"))
+        self.assertEqual(a1.current_match, "a")
+        self.assertEqual(a2.current_match, None)
+        self.assertEqual(b1.current_match, "b")
+        self.assertEqual(b2.current_match, None)
+        self.assertEqual(c.current_match, "c")
+
     def test_rule_ref(self):
         e1 = AlternativeSet("bob", "leo")
         person = HiddenRule("person", e1)
@@ -172,7 +201,7 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e2.children[1].current_match, "bob")
         self.assertEqual(e1.current_match, "bob")
 
-    def test_rule_ref_back_tracing(self):
+    def test_rule_ref_ambiguous(self):
         e1 = Literal("hello")
         r1 = HiddenRule("test1", e1)
         e2 = Sequence(
@@ -358,7 +387,7 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(opt2.current_match, "")
         self.assertEqual(a4.current_match, "")
 
-    def test_optional_backtrack_complex(self):
+    def test_optional_forward_search_complex(self):
         seq1 = Sequence(
             OptionalGrouping(Sequence("a", "b c")),
             "a b c"
@@ -404,6 +433,22 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[0].child.current_match, "please")
         self.assertEqual(e.children[1].current_match, "don't crash")
 
+    def test_successive_repeats(self):
+        e = Sequence(Repeat("please"), Repeat("don't crash"))
+        r = PublicRule("test", e)
+        self.assertTrue(r.matches("please don't crash"))
+        self.assertEqual(e.current_match, "please don't crash")
+        self.assertEqual(e.children[0].current_match, "please")
+        self.assertEqual(e.children[0].child.current_match, "please")
+        self.assertEqual(e.children[1].current_match, "don't crash")
+
+        self.assertTrue(r.matches("please please don't crash don't crash"))
+        self.assertEqual(e.current_match, "please please don't crash don't crash")
+        self.assertEqual(e.children[0].current_match, "please please")
+        self.assertEqual(e.children[0].child.current_match, "please")
+        self.assertEqual(e.children[1].current_match, "don't crash don't crash")
+        self.assertEqual(e.children[1].child.current_match, "don't crash")
+
     def test_kleene_star(self):
         e = Sequence(KleeneStar("please"), "don't crash")
         r = PublicRule("test", e)
@@ -429,6 +474,83 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[0].child.current_match, "please")
         self.assertEqual(e.children[1].current_match, "don't crash")
 
+    def test_successive_kleene_stars(self):
+        e1 = Sequence(KleeneStar("please"), KleeneStar("don't crash"))
+        r1 = PublicRule("test", e1)
+        self.assertTrue(r1.matches("don't crash"))
+        self.assertEqual(e1.current_match, "don't crash")
+        self.assertEqual(e1.children[0].current_match, "")
+        self.assertEqual(e1.children[0].child.current_match, "")
+        self.assertEqual(e1.children[1].current_match, "don't crash")
+
+        self.assertTrue(r1.matches("please don't crash"))
+        self.assertEqual(e1.current_match, "please don't crash")
+        self.assertEqual(e1.children[0].current_match, "please")
+        self.assertEqual(e1.children[0].child.current_match, "please")
+        self.assertEqual(e1.children[1].current_match, "don't crash")
+
+        self.assertTrue(r1.matches("please please don't crash don't crash"))
+        self.assertEqual(e1.current_match, "please please don't crash don't crash")
+        self.assertEqual(e1.children[0].current_match, "please please")
+        self.assertEqual(e1.children[0].child.current_match, "please")
+        self.assertEqual(e1.children[1].current_match, "don't crash don't crash")
+        self.assertEqual(e1.children[1].child.current_match, "don't crash")
+
+    def test_repeats_in_repeat(self):
+        e1 = Repeat(Repeat("a"))
+        r = PublicRule("test", e1)
+
+        self.assertFalse(r.matches(""))
+        self.assertEqual(e1.child.current_match, None)
+        self.assertEqual(e1.child.child.current_match, None)
+        self.assertEqual(e1.current_match, None)
+
+        self.assertTrue(r.matches("a"))
+        self.assertEqual(e1.child.current_match, "a")
+        self.assertEqual(e1.child.child.current_match, "a")
+        self.assertEqual(e1.current_match, "a")
+
+        self.assertTrue(r.matches("a a"))
+        self.assertEqual(e1.child.current_match, "a a")
+        self.assertEqual(e1.child.child.current_match, "a")
+        self.assertEqual(e1.current_match, "a a")
+
+        e2 = KleeneStar(Repeat("a"))
+        r2 = PublicRule("test", e2)
+
+        self.assertTrue(r2.matches(""))
+        self.assertEqual(e2.child.current_match, "")
+        self.assertEqual(e2.child.child.current_match, "")
+        self.assertEqual(e2.current_match, "")
+
+        self.assertTrue(r2.matches("a"))
+        self.assertEqual(e2.child.current_match, "a")
+        self.assertEqual(e2.child.child.current_match, "a")
+        self.assertEqual(e2.current_match, "a")
+
+        self.assertTrue(r2.matches("a a"))
+        self.assertEqual(e2.child.current_match, "a a")
+        self.assertEqual(e2.child.child.current_match, "a")
+        self.assertEqual(e2.current_match, "a a")
+
+    def test_multiple_repeats(self):
+        e1 = Sequence(Repeat("a"), "b", Repeat("c"), "d")
+        r1 = PublicRule("test", e1)
+        self.assertTrue(r1.matches("a b c d"))
+        self.assertTrue(r1.matches("a a b c d"))
+        self.assertTrue(r1.matches("a b c c d"))
+        self.assertTrue(r1.matches("a a b c c d"))
+
+        e2 = Sequence(KleeneStar("a"), "b", KleeneStar("c"), "d")
+        r2 = PublicRule("test", e2)
+        self.assertTrue(r2.matches("b d"))
+        self.assertTrue(r2.matches("a b d"))
+        self.assertTrue(r2.matches("b c d"))
+        self.assertTrue(r2.matches("a b c d"))
+        self.assertTrue(r2.matches("a a b c d"))
+        self.assertTrue(r2.matches("a b c c d"))
+        self.assertTrue(r2.matches("a a b c c d"))
+
     def test_kleene_star_ambiguous(self):
         e = Sequence(KleeneStar("a"), KleeneStar("a"), "a")
         r = PublicRule("test", e)
@@ -441,15 +563,35 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[2].current_match, "a")
         self.assertEqual(e.current_match, "a")
 
-        self.assertTrue(r.matches("a a"))
-        self.assertEqual(e.children[0].current_match, "a")
-        self.assertEqual(e.children[0].child.current_match, "a")
-        self.assertEqual(e.children[1].current_match, "")
-        self.assertEqual(e.children[1].child.current_match, "")
-        self.assertEqual(e.children[2].current_match, "a")
-        self.assertEqual(e.current_match, "a a")
+        # For the moment, an error should be raised for ambiguous repetition
+        self.assertRaises(MatchError, r.matches, "a a")
+        self.assertRaises(MatchError, r.matches, "a a a")
 
-    def test_backtracking_complex(self):
+    def test_repeat_ambiguous(self):
+        e1 = Sequence(Repeat("a"), Repeat("a"), "a")
+        r1 = PublicRule("test", e1)
+
+        self.assertFalse(r1.matches("a"))
+        self.assertEqual(e1.children[0].current_match, None)
+        self.assertEqual(e1.children[0].child.current_match, None)
+        self.assertEqual(e1.children[1].current_match, None)
+        self.assertEqual(e1.children[1].child.current_match, None)
+        self.assertEqual(e1.children[2].current_match, "a")
+        self.assertEqual(e1.current_match, None)
+
+        # For the moment, an error should be raised for ambiguous repetition
+        self.assertRaises(MatchError, r1.matches, "a a")
+        self.assertRaises(MatchError, r1.matches, "a a a")
+
+        r2 = PublicRule("test", Sequence(Repeat("a"), Repeat("a")))
+        self.assertRaises(MatchError, r2.matches, "a a a")
+        self.assertRaises(MatchError, r2.matches, "a a a")
+
+        r3 = PublicRule("test", Sequence(Repeat("a"), KleeneStar("a")))
+        self.assertRaises(MatchError, r3.matches, "a a")
+        self.assertRaises(MatchError, r3.matches, "a a a")
+
+    def test_forward_searching_complex(self):
         e = Sequence("a", Sequence(
             OptionalGrouping("b"), OptionalGrouping("c"),
             "a"
