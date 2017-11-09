@@ -53,5 +53,62 @@ class OptionalOnlyRule(unittest.TestCase):
         self.assertRaises(CompilationError, rule.compile)
 
 
+class ComparisonTests(unittest.TestCase):
+    def test_same_type(self):
+        self.assertEqual(PublicRule("test", "test"), PublicRule("test", "test"),
+                         "identical rules were not equal")
+
+        self.assertNotEqual(
+            PublicRule("test1", "test"), PublicRule("test2", "test"),
+            "rules with only different names were equal")
+
+        self.assertNotEqual(
+            Rule("test", False, "test"), Rule("test", True, "test"),
+            "rules with only different visibility were equal")
+
+        self.assertNotEqual(
+            PublicRule("test", "test"), PublicRule("test", "testing"),
+            "rules with only different expansions were equal")
+
+        self.assertNotEqual(
+            PublicRule("test1", "test"), PublicRule("test2", "testing"),
+            "rules with different expansions and names were equal")
+
+        self.assertNotEqual(
+            Rule("test", True, "test"), Rule("test", False, "testing"),
+            "rules with different expansions and visibility were equal")
+
+        self.assertNotEqual(
+            Rule("test1", True, "test"), Rule("test2", False, "test"),
+            "rules with different names and visibility were equal")
+
+    def test_complex_expansions(self):
+        self.assertEqual(PublicRule("test", Sequence("a", "b", "c")),
+                         PublicRule("test", Sequence("a", "b", "c")),
+                         "identical rules were not equal")
+
+        self.assertNotEqual(PublicRule("test", Sequence("a", "b")),
+                            PublicRule("test", Sequence("a", "b", "c")),
+                            "rules with different expansions were equal")
+
+        self.assertNotEqual(PublicRule("test", Sequence("a", "b", "c")),
+                            PublicRule("test",
+                                       Sequence("a", "b", OptionalGrouping("c"))),
+                            "rules with different expansions were equal")
+
+    def test_different_types(self):
+        self.assertNotEqual(
+            HiddenRule("test", "test"), PublicRule("test", "test"),
+            "rules with only different types were equal")
+
+        self.assertNotEqual(
+            HiddenRule("test", "test"), Rule("test", False, "test"),
+            "rules with only different types were equal")
+
+        self.assertNotEqual(
+            PublicRule("test", "test"), Rule("test", True, "test"),
+            "rules with only different types were equal")
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -107,6 +107,14 @@ class Rule(object):
         assert isinstance(value, int) and value >= 0
         self._reference_count = value
 
+    def __eq__(self, other):
+        return (type(self) == type(other) and self.name == other.name and
+                self.expansion == other.expansion and
+                self.visible == other.visible)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class PublicRule(Rule):
     def __init__(self, name, expansion):
