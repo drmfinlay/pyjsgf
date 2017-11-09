@@ -306,29 +306,38 @@ class MutuallyExclusiveOfCase(unittest.TestCase):
         self.assertFalse(a.mutually_exclusive_of(e))
 
 
-class MapExpansionCase(unittest.TestCase):
+class ExpansionTreeFunctions(unittest.TestCase):
     """
-    Test the map_expansion function.
+    Test the map_expansion, flat_map_expansion and filter_expansion functions.
     """
     def setUp(self):
         self.map_to_string = lambda x: "%s" % x
         self.map_to_current_match = lambda x: x.current_match
 
-    def test_base(self):
+    def test_base_map(self):
         e = Literal("hello")
-        mapped = map_expansion(e, self.map_to_string)
-        self.assertEqual(mapped[0], "%s" % e)
+        mapped1 = map_expansion(e, self.map_to_string, TraversalOrder.PreOrder)
+        self.assertEqual(mapped1[0], "%s" % e)
 
-    def test_simple(self):
+        mapped2 = map_expansion(e, self.map_to_string, TraversalOrder.PostOrder)
+        self.assertEqual(mapped2[1], "%s" % e)
+
+    def test_simple_map(self):
         e = Sequence("hello", "world")
-        mapped = map_expansion(e, self.map_to_string)
-        self.assertEqual(mapped, (
+        mapped1 = map_expansion(e, self.map_to_string, TraversalOrder.PreOrder)
+        self.assertEqual(mapped1, (
             "Sequence(Literal('hello'), Literal('world'))", (
                 ("Literal('hello')", ()),
                 ("Literal('world')", ())
             )))
 
-    def test_with_matches(self):
+        mapped2 = map_expansion(e, self.map_to_string, TraversalOrder.PostOrder)
+        self.assertEqual(mapped2, (
+            (((), "Literal('hello')"), ((), "Literal('world')")),
+            "Sequence(Literal('hello'), Literal('world'))"
+        ))
+
+    def test_map_with_matches(self):
         e = Sequence("hello", "world")
         e.matches("hello world")  # assuming matches tests pass
         mapped = map_expansion(e, self.map_to_current_match)
@@ -337,6 +346,81 @@ class MapExpansionCase(unittest.TestCase):
                 ("hello", ()),
                 ("world", ())
             )))
+
+    def test_filter_base(self):
+        e = Literal("hello")
+        self.assertEqual(
+            filter_expansion(e, lambda x: x.text == "hello",
+                             TraversalOrder.PreOrder),
+            [Literal("hello")])
+
+        self.assertEqual(
+            filter_expansion(e, lambda x: x.text == "hello",
+                             TraversalOrder.PostOrder),
+            [Literal("hello")])
+
+    def test_filter_simple(self):
+        e = Sequence("a", "b", "c")
+        literals = e.children
+        self.assertEqual(
+            filter_expansion(e, lambda x: isinstance(x, Literal),
+                             TraversalOrder.PreOrder),
+            literals)
+
+        self.assertEqual(
+            filter_expansion(e, lambda x: isinstance(x, Literal),
+                             TraversalOrder.PostOrder),
+            literals)
+
+    def test_filter_with_matches(self):
+        e1 = Sequence("a", "b", "c")
+        a, b, c = e1.children
+        e1.matches("a b c")
+        self.assertEqual(
+            filter_expansion(e1, lambda x: x.current_match is not None,
+                             TraversalOrder.PreOrder),
+            [e1, a, b, c])
+
+        self.assertEqual(
+            filter_expansion(e1, lambda x: x.current_match is not None,
+                             TraversalOrder.PostOrder),
+            [a, b, c, e1])
+
+        e2 = Sequence("d", OptionalGrouping("e"), "f")
+        d, opt, f = e2.children
+        e = opt.child
+        e2.matches("d f")
+        self.assertEqual(
+            filter_expansion(e2, lambda x: x.current_match is not None,
+                             TraversalOrder.PreOrder),
+            [e2, d, opt, e, f])
+
+        self.assertEqual(
+            filter_expansion(e2, lambda x: x.current_match is not None,
+                             TraversalOrder.PostOrder),
+            [d, e, opt, f, e2])
+
+    def test_flat_map_base(self):
+        e = Literal("hello")
+        self.assertEqual(
+            flat_map_expansion(e, lambda x: x, TraversalOrder.PreOrder),
+            [e])
+
+        self.assertEqual(
+            flat_map_expansion(e, lambda x: x, TraversalOrder.PostOrder),
+            [e])
+
+    def test_flat_map_simple(self):
+        e = Sequence("a", AlternativeSet("b", "c"), "d")
+        a, alt_set, d = e.children
+        b, c = alt_set.children
+        self.assertEqual(
+            flat_map_expansion(e, lambda x: x, TraversalOrder.PreOrder),
+            [e, a, alt_set, b, c, d])
+
+        self.assertEqual(
+            flat_map_expansion(e, lambda x: x, TraversalOrder.PostOrder),
+            [a, b, c, alt_set, d, e])
 
 
 class LeavesProperty(unittest.TestCase):

@@ -4,20 +4,74 @@ Classes for compiling JSpeech Grammar Format expansions
 import re
 
 
-def map_expansion(e, func):
+class TraversalOrder(object):
+    PreOrder, PostOrder = range(2)
+
+
+def map_expansion(e, func, order=TraversalOrder.PreOrder):
     """
     Traverse an expansion tree and call func on each expansion returning a tuple
     structure with the results.
     :type e: Expansion
     :type func: callable
+    :type order: int
     :return: tuple
     """
-    if isinstance(e, RuleRef):
-        e_result = map_expansion(e.rule.expansion, func)
+    def map_current(x):
+        if isinstance(x, RuleRef):
+            return map_expansion(x.rule.expansion, func, order)
+        else:
+            return func(x)
+
+    def map_children(x):
+        return tuple([map_expansion(child, func, order)
+                      for child in x.children])
+
+    if order == TraversalOrder.PreOrder:
+        return map_current(e), map_children(e)
+    elif order == TraversalOrder.PostOrder:
+        return map_children(e), map_current(e)
     else:
-        e_result = func(e)
-    children_result = tuple([map_expansion(child, func) for child in e.children])
-    return e_result, children_result
+        raise ValueError("order should be either %d for pre-order or %d for "
+                         "post-order" % (TraversalOrder.PreOrder,
+                                         TraversalOrder.PostOrder))
+
+
+def flat_map_expansion(e, func, order=TraversalOrder.PreOrder):
+    """
+    Call map_expansion with the arguments and return a single flat list.
+    :type e: Expansion
+    :type func: callable
+    :type order: int
+    :return: list
+    """
+    result = []
+
+    def flatten(x):
+        result.append(func(x))
+
+    map_expansion(e, flatten, order)
+
+    return result
+
+
+def filter_expansion(e, func, order=TraversalOrder.PreOrder):
+    """
+    Find all expansions in an expansion tree for which func(x) == True.
+    :type e: Expansion
+    :type func: callable
+    :type order: int
+    :return: list
+    """
+    result = []
+
+    def filter_(x):
+        if func(x):
+            result.append(x)
+
+    map_expansion(e, filter_, order)
+
+    return result
 
 
 def save_current_matches(e):

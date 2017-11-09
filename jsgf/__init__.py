@@ -15,8 +15,11 @@ expansions, such as the Kleene Star, optional and required groupings.
 from .expansions import AlternativeSet
 from .expansions import Expansion
 from .expansions import ExpansionError
+from .expansions import filter_expansion
+from .expansions import flat_map_expansion
 from .expansions import KleeneStar
 from .expansions import Literal
+from .expansions import map_expansion
 from .expansions import OptionalGrouping
 from .expansions import restore_current_matches
 from .expansions import Repeat
@@ -25,7 +28,7 @@ from .expansions import RuleRef
 from .expansions import save_current_matches
 from .expansions import Sequence
 from .expansions import SingleChildExpansion
-from .expansions import map_expansion
+from .expansions import TraversalOrder
 from .expansions import VariableChildExpansion
 
 from .grammar import Grammar
