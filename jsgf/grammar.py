@@ -270,12 +270,9 @@ class RootGrammar(Grammar):
 
     def find_matching_rules(self, speech):
         """
-        Find each visible rule passed to the grammar that matches the 'speech' string.
+        Find each visible rule passed to the grammar that matches the 'speech'
+        string.
         :type speech: str
-        :return: list
+        :return: iterable
         """
-        matching = []
-        for rule in self._match_rules:
-            if rule.visible and rule.matches(speech):
-                matching.append(rule)
-        return matching
+        return filter(lambda r: r.visible and r.matches(speech), self._match_rules)
