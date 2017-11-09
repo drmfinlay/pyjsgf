@@ -2,43 +2,17 @@ import unittest
 
 from jsgf import PublicRule
 
-from jsgf.expansions import Sequence, OptionalGrouping, Literal, AlternativeSet, Repeat, ExpansionError
-from jsgf.ext.extensions import ExtensionRule, Dictation
+from jsgf.expansions import *
+from jsgf.ext import Dictation
 
 # Create shorthand aliases for some expansions as they're used here A LOT
+from jsgf.ext.rules import calculate_expansion_sequence, expand_dictation_expansion
+
 Seq = Sequence
 Opt = OptionalGrouping
 Dict = Dictation
 AS = AlternativeSet
 Rep = Repeat
-
-
-class DictationPropertiesCase(unittest.TestCase):
-    def test_one_expansion(self):
-        rule1 = ExtensionRule("test", True, Dict())
-        rule2 = ExtensionRule("test", True, Literal("test"))
-
-        self.assertTrue(rule1.dictation_only_rule)
-        self.assertFalse(rule2.dictation_only_rule)
-        self.assertTrue(rule1.dictation_rule)
-        self.assertFalse(rule2.dictation_only_rule)
-
-    def test_dictation_and_literal(self):
-        rule = ExtensionRule("test", True, Seq("hello", Dict()))
-        self.assertFalse(rule.dictation_only_rule)
-        self.assertTrue(rule.dictation_rule)
-
-    def test_complex(self):
-        e1 = Seq(
-            "hello", AS(Dict(), "alice", "bob"))
-        rule1 = ExtensionRule("test", True, e1)
-        self.assertFalse(rule1.dictation_only_rule)
-        self.assertTrue(rule1.dictation_rule)
-
-        e2 = Seq(Dict(), Opt(Dict()))
-        rule2 = ExtensionRule("test", True, e2)
-        self.assertTrue(rule2.dictation_only_rule)
-        self.assertTrue(rule2.dictation_rule)
 
 
 class DictationMatchesCase(unittest.TestCase):
@@ -101,40 +75,39 @@ class DictationMatchesCase(unittest.TestCase):
         self.assertEqual(e2.children[1].current_match, "hello")
 
 
-class RuleSequenceCase(unittest.TestCase):
+class ExpansionSequenceCase(unittest.TestCase):
     """
-    Test case for ExtensionRule rule_sequence property used for integrating
-    arbitrary spoken text with JSGF grammars, possibly by using a separate decoder.
+    Test cases for expansion sequences used for integrating arbitrary spoken text
+    with JSGF grammars, possibly by using a separate decoder.
     This case may be just *slightly* over tested...
     """
-    def assert_rule_sequence_equal(self, expected, rule_expansion):
+    def assert_expansion_sequence_equal(self, expected, expansion):
         """
-        Takes a list of expected expansions and a rule_expansion to be tested.
+        Takes a list of expected expansions and an expansion to be tested.
         :type expected: list
-        :type rule_expansion: Expansion
+        :type expansion: Expansion
         """
-        rule = ExtensionRule("test", True, rule_expansion)
-        actual_expansions = map(lambda r: r.expansion, rule.rule_sequence)
+        actual_expansions = calculate_expansion_sequence(expansion)
         self.assertListEqual(expected, actual_expansions)
 
     def test_only_dictation(self):
-        self.assert_rule_sequence_equal([(Dict())], Dict())
+        self.assert_expansion_sequence_equal([(Dict())], Dict())
 
     def test_no_dictation(self):
-        rule = ExtensionRule("test", True, Literal("hello"))
-        self.assertEqual(rule.rule_sequence[0].expansion, rule.expansion)
+        seq = calculate_expansion_sequence(Literal("hello"))
+        self.assertListEqual(seq, [Literal("hello")])
 
     def test_dictation_in_sequence(self):
         # Dictation first
         e1 = Seq(Dict(), "test", "testing")
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq(Dict()),
             Seq("test", "testing")
         ], e1)
 
         # Dictation second
         e2 = Seq("test", Dict(), "testing")
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test"),
             Seq(Dict()),
             Seq("testing")
@@ -142,21 +115,21 @@ class RuleSequenceCase(unittest.TestCase):
 
         # Dictation last
         e3 = Seq("test", "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test", "testing"),
             Seq(Dict())
         ], e3)
 
     def test_multiple_dictation_in_sequence(self):
         e1 = Seq(Dict(), "test", "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq(Dict()),
             Seq("test", "testing"),
             Seq(Dict())
         ], e1)
 
         e2 = Seq("test", Dict(), "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test"),
             Seq(Dict()),
             Seq("testing"),
@@ -165,7 +138,7 @@ class RuleSequenceCase(unittest.TestCase):
 
         e3 = Seq("test", "testing", Dict(),
                  "more", "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test", "testing"),
             Seq(Dict()),
             Seq("more", "testing"),
@@ -175,14 +148,14 @@ class RuleSequenceCase(unittest.TestCase):
     def test_dictation_in_alternative_set(self):
         # Dictation first
         e1 = AS(Dict(), "test", "testing")
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             AS(Dict()),
             AS("test", "testing")
         ], e1)
 
         # Dictation second
         e2 = AS("test", Dict(), "testing")
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             AS("test"),
             AS(Dict()),
             AS("testing")
@@ -190,21 +163,21 @@ class RuleSequenceCase(unittest.TestCase):
 
         # Dictation last
         e3 = AS("test", "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             AS("test", "testing"),
             AS(Dict())
         ], e3)
 
     def test_multiple_dictation_in_alternative_set(self):
         e1 = AS(Dict(), "test", "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             AS(Dict()),
             AS("test", "testing"),
             AS(Dict())
         ], e1)
 
         e2 = AS("test", Dict(), "testing", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             AS("test"),
             AS(Dict()),
             AS("testing"),
@@ -213,7 +186,7 @@ class RuleSequenceCase(unittest.TestCase):
 
         e3 = AS("test 1", "test 2", Dict(),
                 "test 3", "test 4", Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             AS("test 1", "test 2"),
             AS(Dict()),
             AS("test 3", "test 4"),
@@ -222,7 +195,7 @@ class RuleSequenceCase(unittest.TestCase):
 
     def test_successive_dictation_alt_sets(self):
         e1 = Seq(AS("test", Dict()), AS("testing", Dict()))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq(AS("test")),
             Seq(AS(Dict())),
             Seq(AS("testing")),
@@ -232,27 +205,27 @@ class RuleSequenceCase(unittest.TestCase):
     def test_optional_dictation(self):
         # Optional dictation first
         e1 = Seq(Opt(Dict()), "test")
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq(Opt(Dict())),
             Seq("test")
         ], e1)
 
         # Optional dictation second
         e2 = Seq("test", Opt(Dict()), "testing")
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test"), Seq(Opt(Dict())),
             Seq("testing")
         ], e2)
 
         # Optional dictation last
         e3 = Seq("test", Opt(Dict()))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test"), Seq(Opt(Dict()))
         ], e3)
 
     def test_optional_dictation_sequence(self):
         e1 = Seq("test", Opt(Seq("testing", Dict())))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test", Opt(Seq("testing"))),
             Seq(Opt(Seq(Dict())))
         ], e1)
@@ -260,7 +233,7 @@ class RuleSequenceCase(unittest.TestCase):
     def test_dictation_using_all(self):
         e1 = Seq(Seq("test this", Opt("messy")), Dict(),
                  AS("end", "stop", Dict()), Opt(Dict()))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq(Seq("test this", Opt("messy"))),
             Seq(Dict()),
             Seq(AS("end", "stop")),
@@ -272,135 +245,173 @@ class RuleSequenceCase(unittest.TestCase):
         e1 = Seq("test", Opt(
             AS("testing", Dict())
         ))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Seq("test", Opt(AS("testing"))),
             Seq(Opt(AS(Dict())))
         ], e1)
 
-    def test_rule_naming(self):
-        e1 = Seq(Seq("test this", Opt("messy")),
-                 Dict(),
-                 AS("end", "stop", Dict()),
-                 Opt(Dict()))
-        rule1 = ExtensionRule("test", True, e1)
-        for i, r in enumerate(rule1.rule_sequence):
-            self.assertTrue(r.name == "test_%s" % i)
-
     def test_repeated_dictation(self):
         e1 = Rep(Dict())
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Rep(Dict())
         ], e1)
 
     def test_repeated_dictation_with_literals(self):
         e1 = Rep(Seq("lower", Dict()))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Rep(Seq("lower")),
             Rep(Seq(Dict()))
         ], e1)
 
         e2 = Rep(Seq(Dict(), "lower"))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Rep(Seq(Dict())),
             Rep(Seq("lower"))
         ], e2)
 
     def test_repeated_dictation_and_alt_set(self):
         e1 = Rep(Seq(AS("lower", "upper"), Dict()))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Rep(Seq(AS("lower", "upper"))),
             Rep(Seq(Dict()))
         ], e1)
 
         e2 = Rep(Seq(Dict(), AS("lower", "upper")))
-        self.assert_rule_sequence_equal([
+        self.assert_expansion_sequence_equal([
             Rep(Seq(Dict())),
             Rep(Seq(AS("lower", "upper")))
         ], e2)
 
+    def test_with_rule_ref(self):
+        r1 = PublicRule("test", "test")
+        e1 = Seq(RuleRef(r1), Dict())
+        self.assert_expansion_sequence_equal([
+            Seq(RuleRef(r1)),
+            Seq(Dict())
+        ], e1)
 
-class ExtensionRuleSequenceMatchCase(unittest.TestCase):
+        r2 = PublicRule("test", Dict())
+        e2 = Seq(RuleRef(r2), Dict())
+        self.assert_expansion_sequence_equal([
+            Dict(),
+            Seq(Dict())
+        ], e2)
+
+
+class ExpandedDictationExpansion(unittest.TestCase):
     """
-    Test the match functionality of the ExtensionRule class using expansions
-    containing dictation.
+    Test whether the functionality of expand_dictation_expansion works correctly.
     """
+    def test_no_alt_sets(self):
+        e2 = Seq("hi", "hello")
+        self.assertListEqual(expand_dictation_expansion(e2), [e2])
 
-    def assert_rule_matches_speech(self, expansion, speech_list):
-        rule = ExtensionRule("test", True, expansion)
-        if not rule.rule_sequence:
-            self.assertTrue(rule.matches(" ".join(speech_list)))
-        else:
-            for i, r in enumerate(rule.rule_sequence):
-                self.assertTrue(r.matches(speech_list[i], ))
+        e1 = Seq("hi", "hello", Dict())
+        self.assertListEqual(expand_dictation_expansion(e1), [e1])
 
-    def assert_rule_does_not_match_speech(self, expansion, speech_list):
-        rule = ExtensionRule("test", True, expansion)
-        if not rule.rule_sequence:
-            self.assertFalse(rule.matches(" ".join(speech_list)))
-        else:
-            for i, r in enumerate(rule.rule_sequence):
-                self.assertFalse(r.matches(speech_list[i], ))
+    def test_no_dictation(self):
+        e1 = AS("hi", "hello")
+        self.assertListEqual(expand_dictation_expansion(e1), [e1],
+                             "Dictation-free expansions should remain untouched")
 
-    def test_only_dictation_match(self):
-        self.assert_rule_matches_speech(Dict(), ["hello"])
+        e2 = Seq(AS("hi", "hello"), "there")
+        self.assertListEqual(expand_dictation_expansion(e2), [e2])
 
-    def test_no_dictation_match(self):
-        self.assert_rule_does_not_match_speech(Literal("hi"), ["hello"])
+    def test_one_dictation(self):
+        e1 = AS("hi", "hello", Dict())
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            AS("hi", "hello"),
+            Dict()
+        ])
 
-    def test_dictation_in_sequence(self):
-        # Dictation first
-        self.assert_rule_matches_speech(Seq(Dict(), "test", "testing"),
-                                        ("hello", "test testing"))
+        e2 = AS("hi", "hello", Seq("hey", Dict()))
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            AS("hi", "hello"),
+            Seq("hey", Dict())
+        ])
 
-        # Dictation second
-        self.assert_rule_matches_speech(Seq("test", Dict(), "testing"),
-                                        ("test", "hello", "testing"))
+        e3 = Seq(AS("hi", "hello", Dict()), "there")
+        self.assertListEqual(expand_dictation_expansion(e3), [
+            Seq(AS("hi", "hello"), "there"),
+            Seq(Dict(), "there")
+        ])
 
-        # Dictation last
-        self.assert_rule_matches_speech(Seq("test", "testing", Dict()),
-                                        ("test testing", "hello"))
+    def test_one_jsgf_only_alternative(self):
+        e1 = AS("a", Dict())
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            Literal("a"),
+            Dict()
+        ])
 
-    def test_multiple_dictation_in_sequence(self):
-        e1 = Seq(Dict(), "test", "testing", Dict())
-        self.assert_rule_matches_speech(e1,
-                                        ("hello", "test testing",
-                                         "world"))
+        e2 = AS("a")
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            AS("a")
+        ], "Dictation free AlternativeSets should remain untouched")
 
-        e2 = Seq("test", Dict(), "testing", Dict())
-        self.assert_rule_matches_speech(e2,
-                                        ("test", "hello", "testing",
-                                         "world"))
+    def test_multiple_dictation(self):
+        e1 = AS("hi", "hello", Seq("hey", Dict()), Dict())
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            AS("hi", "hello"),
+            Seq("hey", Dict()),
+            Dict()
+        ])
 
-        e3 = Seq("test", "testing", Dict(),
-                 "more", "testing", Dict())
-        self.assert_rule_matches_speech(e3,
-                                        ("test testing", "hello",
-                                         "more testing", "world"))
+        e2 = Seq(AS("hi", "hello", Seq("hey", Dict())), Dict())
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            Seq(AS("hi", "hello"), Dict()),
+            Seq(Seq("hey", Dict()), Dict())
+        ])
 
-    def test_dictation_in_alternative_set(self):
-        # Dictation first
-        e1 = Seq(AS(Dict(), "test", "testing"), "end")
-        self.assert_rule_matches_speech(e1, ("hello world", "end"))
-        self.assert_rule_matches_speech(e1, ("test", "end"))
-        self.assert_rule_matches_speech(e1, ("testing", "end"))
-        self.assert_rule_does_not_match_speech(e1, ("hello world", "test",
-                                                    "end"))
-        self.assert_rule_does_not_match_speech(e1, ("hello world", "test",
-                                                    "end"))
-        self.assert_rule_does_not_match_speech(e1, ("hello world", "test",
-                                                    "end"))
+    def test_multiple_dictation_alt_sets(self):
+        e1 = Seq(AS("a", "b", Dict()), "c", AS("d", Dict()))
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            Seq(AS("a", "b"), "c", "d"),
+            Seq(AS("a", "b"), "c", Dict()),
+            Seq(Dict(), "c", "d"),
+            Seq(Dict(), "c", Dict())
+        ])
 
-    def test_with_rule_references(self):
-        self.fail()
+        e2 = Seq(AS("a", "b", Dict()), "c", AS("d", Dict()), "e")
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            Seq(AS("a", "b"), "c", "d", "e"),
+            Seq(AS("a", "b"), "c", Dict(), "e"),
+            Seq(Dict(), "c", "d", "e"),
+            Seq(Dict(), "c", Dict(), "e")
+        ])
 
+    def test_optional(self):
+        e1 = Seq("hey", Opt(Dict()))
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            Seq("hey"),
+            Seq("hey", Dict())
+        ])
 
-class ExtensionRuleSequenceCompileCase(unittest.TestCase):
-    def assert_compiled_rule_equals(self, compiled_rule, rule_expansion):
-        rule = ExtensionRule("test", True, rule_expansion)
-        self.assertEqual(rule.compile(), compiled_rule)
+        e2 = Seq("the", Opt(Dict()), "thing")
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            Seq("the", "thing"),
+            Seq("the", Dict(), "thing")
+        ])
 
-    def test_only_dictation_compile(self):
-        self.assert_compiled_rule_equals("", Dict())
+        e3 = Seq("the", KleeneStar(Dict()), "thing")
+        self.assertListEqual(expand_dictation_expansion(e3), [
+            Seq("the", "thing"),
+            Seq("the", Rep(Dict()), "thing")
+        ])
+
+    def test_optional_with_alt_set(self):
+        e1 = AS("a", "b", Seq("c", Opt(Seq("d", Dict()))))
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            AS("a", "b", Seq("c")),
+            AS("a", "b"),
+            Seq("c", Seq("d", Dict()))
+        ])
+
+        e2 = AS("a", "b", Seq("c", KleeneStar(Seq("d", Dict()))))
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            AS("a", "b", Seq("c")),
+            AS("a", "b"),
+            Seq("c", Rep(Seq("d", Dict())))
+        ])
 
 
 if __name__ == '__main__':
