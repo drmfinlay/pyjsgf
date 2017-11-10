@@ -27,10 +27,11 @@ class SequenceRule(Rule):
         self._original_expansion = self.expansion
 
     def compile(self, ignore_tags=False):
-        # This rule cannot be fully compiled to JSGF as it only has dictation
-        # expansions
         self.expansion = self._sequence[self._next_index]
+
         if self.next_is_dictation_only:
+            # This rule cannot be fully compiled to JSGF as it only has dictation
+            # expansions
             return ""
         else:
             self.name = "%s_%d" % (self._original_name, self._next_index)
@@ -75,11 +76,8 @@ class SequenceRule(Rule):
         :type speech: str
         :return: bool
         """
-        if self.has_next_expansion:
-            self.expansion = self._sequence[self._next_index]
-            return super(SequenceRule, self).matches(speech)
-        else:
-            return False
+        self.expansion = self._sequence[self._next_index]
+        return super(SequenceRule, self).matches(speech)
 
 
 class PublicSequenceRule(SequenceRule):
