@@ -15,33 +15,33 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         r1 = PublicSequenceRule("test", Dict())
         r2 = PublicSequenceRule("test", Literal("test"))
 
-        self.assertTrue(r1.next_is_dictation_only)
-        self.assertFalse(r2.next_is_dictation_only)
+        self.assertTrue(r1.current_is_dictation_only)
+        self.assertFalse(r2.current_is_dictation_only)
 
     def test_dictation_and_literal(self):
         rule = SequenceRule("test", True, Seq("hello", Dict()))
-        self.assertFalse(rule.next_is_dictation_only)
+        self.assertFalse(rule.current_is_dictation_only)
 
         # Move to the next expansion in the sequence
         self.assertTrue(rule.matches("hello"))
         rule.set_next()
-        self.assertTrue(rule.next_is_dictation_only)
+        self.assertTrue(rule.current_is_dictation_only)
 
     def test_complex(self):
         e1 = Seq(Dict(), Dict())
         r1 = PublicSequenceRule("test", e1)
-        self.assertTrue(r1.next_is_dictation_only)
+        self.assertTrue(r1.current_is_dictation_only)
         self.assertTrue(r1.matches("hello"))
 
         # Go to the next expansion
         r1.set_next()
-        self.assertTrue(r1.next_is_dictation_only)
+        self.assertTrue(r1.current_is_dictation_only)
 
     def test_next_in_sequence_methods(self):
         r1 = PublicSequenceRule("test", Seq("hello", Dict()))
         self.assertTrue(r1.has_next_expansion)
         r1.set_next()
-        self.assertTrue(r1.has_next_expansion)
+        self.assertFalse(r1.has_next_expansion)
         r1.set_next()
         self.assertFalse(r1.has_next_expansion)
 
@@ -66,7 +66,7 @@ class SequenceRuleMatchCase(unittest.TestCase):
     def assert_rule_does_not_match_speech(self, expansion, speech_list):
         r = SequenceRule("test", True, expansion)
         i = 0
-        final_result = True
+        final_result = r.matches(speech_list[i])
         while r.has_next_expansion:
             final_result = final_result and r.matches(speech_list[i])
             if not final_result:
@@ -122,10 +122,10 @@ class SequenceRuleMatchCase(unittest.TestCase):
 class SequenceRuleCompileCase(unittest.TestCase):
     def assert_compiled_rules_equal(self, expansion, expected):
         rule = HiddenSequenceRule("test", expansion)
-        compiled_rules = []
+        compiled_rules = [rule.compile()]
         while rule.has_next_expansion:
-            compiled_rules.append(rule.compile())
             rule.set_next()
+            compiled_rules.append(rule.compile())
 
         self.assertItemsEqual(compiled_rules, expected)
 

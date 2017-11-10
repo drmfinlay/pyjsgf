@@ -1,4 +1,3 @@
-from jsgf import Expansion
 from .expansions import *
 
 
@@ -10,7 +9,7 @@ class SequenceRule(Rule):
         """
         :type name: str
         :type visible: bool
-        :type expansion: Expansion
+        :param expansion:
         """
         super(SequenceRule, self).__init__(name, visible, expansion)
 
@@ -22,19 +21,17 @@ class SequenceRule(Rule):
                                "expand_dictation_expansion function.")
 
         self._sequence = tuple(calculate_expansion_sequence(self.expansion))
-        self._next_index = 0
+        self._current_index = 0
         self._original_name = self.name
         self._original_expansion = self.expansion
+        self._set_expansion_to_current()
 
     def compile(self, ignore_tags=False):
-        self.expansion = self._sequence[self._next_index]
-
-        if self.next_is_dictation_only:
+        if self.current_is_dictation_only:
             # This rule cannot be fully compiled to JSGF as it only has dictation
             # expansions
             return ""
         else:
-            self.name = "%s_%d" % (self._original_name, self._next_index)
             return super(SequenceRule, self).compile(ignore_tags)
 
     @property
@@ -43,40 +40,42 @@ class SequenceRule(Rule):
         Whether the current sequence expansion is the last one.
         :return: bool
         """
-        return self._next_index < len(self._sequence)
+        return self._current_index + 1 < len(self._sequence)
 
     @property
-    def next_is_dictation_only(self):
+    def current_is_dictation_only(self):
         """
-        Whether the next expansion in the sequence contains only dictation
+        Whether the current expansion in the sequence contains only dictation
         literals.
         :return: bool
         """
-        if self.has_next_expansion:
-            return only_dictation_in_expansion(self._sequence[self._next_index])
-        else:
-            return False
+        return only_dictation_in_expansion(self._sequence[self._current_index])
+
+    def _set_expansion_to_current(self):
+        self.expansion = self._sequence[self._current_index]
+        self.name = "%s_%d" % (self._original_name, self._current_index)
 
     def set_next(self):
         """
         Moves to the next expansion in the sequence if there is one.
         """
-        self._next_index += 1
+        if self.has_next_expansion:
+            self._current_index += 1
+            self._set_expansion_to_current()
 
     def restart_sequence(self):
         """
-        Set the current sequence expansion index to the first expansion.
+        Resets the current sequence expansion to the first one in the sequence.
         """
-        self._next_index = 0
-        self.expansion = self._sequence[self._next_index]
+        self._current_index = 0
+        self._set_expansion_to_current()
 
     def matches(self, speech):
         """
-        Return whether or not speech matches the next expansion in the sequence.
+        Return whether or not speech matches the current expansion in the sequence.
         :type speech: str
         :return: bool
         """
-        self.expansion = self._sequence[self._next_index]
         return super(SequenceRule, self).matches(speech)
 
 
