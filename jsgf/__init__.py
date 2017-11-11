@@ -31,10 +31,10 @@ from .expansions import SingleChildExpansion
 from .expansions import TraversalOrder
 from .expansions import VariableChildExpansion
 
-from .grammar import Grammar
-from .grammar import GrammarError
-from .grammar import Import
-from .grammar import RootGrammar
+from .grammars import Grammar
+from .grammars import GrammarError
+from .grammars import Import
+from .grammars import RootGrammar
 
 from .rules import HiddenRule
 from .rules import PublicRule
