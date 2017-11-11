@@ -5,7 +5,7 @@ JSGF is a format used to textually represent grammars for speech recognition eng
 
 This Python package can be used to construct JSGF rules and grammars, compile them into strings or files, and find rules in grammars that match given speech text. Speech text can be strings received from a recognition engine's speech hypothesis, for example.
 
-## Example
+## Usage Example
 The following is a usage example for how to create a JSGF grammar with one rule, compile it and find matching rules given the speech string "hello world":
 ``` Python
 from jsgf import PublicRule, Literal, Grammar
@@ -41,6 +41,8 @@ Matching: PublicRule(Literal('hello world'))
 ```
 
 The first line of the grammar can be changed using the `jsgf_version`, `charset_name`, and `language_name` parameters of the `compile_grammar` and `compile_to_file` methods of the `Grammar` class.
+
+There are more examples on ways to use this package [here](examples/).
 
 
 # Python version
