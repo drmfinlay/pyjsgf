@@ -63,12 +63,26 @@ class SequenceRule(Rule):
             self._current_index += 1
             self._set_expansion_to_current()
 
+    @property
+    def entire_match(self):
+        """
+        If the entire sequence is matched by successive calls to the matches
+        method, this returns all strings that matched joined together by spaces.
+        :return: str
+        """
+        matches = map(lambda x: x.current_match, self._sequence)
+        if all(map(lambda m: m is not None, matches)):
+            return " ".join(matches)
+
     def restart_sequence(self):
         """
-        Resets the current sequence expansion to the first one in the sequence.
+        Resets the current sequence expansion to the first one in the sequence and
+        clears the match data of each sequence expansion.
         """
         self._current_index = 0
         self._set_expansion_to_current()
+        for expansion in self._sequence:
+            expansion.reset_match_data()
 
     def matches(self, speech):
         """

@@ -49,6 +49,79 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         self.assertRaises(IndexError, r1.set_next())
 
 
+class SequenceRuleEntireMatchProperty(unittest.TestCase):
+    def assert_no_entire_match(self, rule):
+        self.assertEqual(
+            rule.entire_match, None,
+            "entire_match should be None unless all expansions match")
+
+    def test_one_seq_expansion(self):
+        r1 = PublicSequenceRule("test", "hello world")
+        self.assert_no_entire_match(r1)
+        self.assertTrue(r1.matches("hello world"))
+        self.assertEqual(r1.entire_match, "hello world")
+
+        self.assertFalse(r1.matches(""))
+        self.assert_no_entire_match(r1)
+
+    def test_multiple_seq_expansions(self):
+        r1 = PublicSequenceRule("test", Seq("hello", Dict()))
+        self.assert_no_entire_match(r1)
+        self.assertTrue(r1.matches("hello"))
+        r1.set_next()
+        self.assertTrue(r1.matches("world"))
+        self.assertEqual(r1.entire_match, "hello world")
+
+        self.assertFalse(r1.matches(""))
+        self.assert_no_entire_match(r1)
+
+    def test_restart_sequence(self):
+        r1 = PublicSequenceRule("test1", Seq("hello", Dict()))
+        self.assert_no_entire_match(r1)
+        self.assertTrue(r1.matches("hello"))
+        r1.set_next()
+        self.assertTrue(r1.matches("world"))
+        self.assertEqual(r1.entire_match, "hello world")
+        r1.restart_sequence()
+        self.assert_no_entire_match(r1)
+
+    def test_with_normal_rule(self):
+        r1 = PublicSequenceRule("test1", "hello")
+        r2 = PublicRule("test2", "hello")
+        self.assert_no_entire_match(r1)
+        self.assertTrue(r1.matches("hello"))
+        self.assertEqual(r1.entire_match, "hello")
+        self.assertTrue(r2.matches(r1.entire_match))
+
+        r3 = PublicSequenceRule("test3", Seq("hello", Dict()))
+        r4 = PublicRule("test4", Seq("hello", Dict()))
+        self.assert_no_entire_match(r3)
+        self.assertTrue(r3.matches("hello"))
+        r3.set_next()
+        self.assertTrue(r3.matches("world"))
+        self.assertEqual(r3.entire_match, "hello world")
+        self.assertTrue(r4.matches(r3.entire_match))
+
+    def test_with_normal_rule_complex(self):
+        r1 = PublicSequenceRule(
+            "test", Seq(AlternativeSet("hi", "hello"), Dict()))
+        r2 = PublicRule(
+            "test", Seq(AlternativeSet("hi", "hello"), Dict()))
+        self.assert_no_entire_match(r1)
+        self.assertTrue(r1.matches("hello"))
+        r1.set_next()
+        self.assertTrue(r1.matches("world"))
+        self.assertEqual(r1.entire_match, "hello world")
+        self.assertTrue(r2.matches(r1.entire_match))
+        r1.restart_sequence()
+        self.assert_no_entire_match(r1)
+        self.assertTrue(r1.matches("hi"))
+        r1.set_next()
+        self.assertTrue(r1.matches("world"))
+        self.assertEqual(r1.entire_match, "hi world")
+        self.assertTrue(r2.matches(r1.entire_match))
+
+
 class SequenceRuleMatchCase(unittest.TestCase):
     """
     Test the match functionality of the SequenceRule class using expansions
