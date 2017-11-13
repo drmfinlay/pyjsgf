@@ -15,15 +15,35 @@ class Dictation(Literal):
         # Pass the empty string to the Literal constructor so that calling compile
         # yields "" or "" + the tag
         super(Dictation, self).__init__("")
+        self._refuse_matches = False
 
     def __str__(self):
         return "%s()" % self.__class__.__name__
 
+    @property
+    def refuse_matches(self):
+        """
+        Refuse matching speech passed to _matches_internal at all.
+        Used by the SequenceRule.graft_sequence_matches method.
+
+        :return: bool
+        """
+        return self._refuse_matches
+
+    @refuse_matches.setter
+    def refuse_matches(self, value):
+        self._refuse_matches = value
+
     def _matches_internal(self, speech):
         result = speech
 
-        # Break on the first leaf that matches or if a leaf doesn't match that
-        # isn't optional
+        if self.refuse_matches:
+            # If current_match is set and speech starts with it, then pretend
+            # that part of speech was consumed normally and return the rest.
+            if self.current_match and result.startswith(self.current_match):
+                result = result[len(self.current_match):].strip()
+            return result
+
         match = None
         for leaf in self.leaves_after:
             # Handle successive dictation
@@ -42,6 +62,9 @@ class Dictation(Literal):
 
             pattern = leaf.matching_regex_pattern
             match = pattern.search(result)  # get the first match
+
+            # Break on the first leaf that matches or if a required leaf doesn't
+            # match (no point continuing)
             if not match and not leaf.is_optional or match:
                 break
 
