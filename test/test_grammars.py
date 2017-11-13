@@ -34,6 +34,18 @@ class BasicGrammarCase(unittest.TestCase):
         self.grammar.remove_rule("greet")
         self.assertListEqual([self.rule2, self.rule3], self.grammar.rules)
 
+    def test_add_rules_with_taken_names(self):
+        self.assertRaises(GrammarError, self.grammar.add_rule,
+                          PublicRule("name", "bob"))
+
+        self.assertRaises(GrammarError, self.grammar.add_rule,
+                          HiddenRule("name", "bob"))
+
+        rules_to_add = [HiddenRule("name", "bob"),
+                        PublicRule("name", "bob")]
+        self.assertRaises(GrammarError, self.grammar.add_rules,
+                          *rules_to_add)
+
 
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):
@@ -195,6 +207,36 @@ class RootGrammarCase(BasicGrammarCase):
     def test_remove_last_visible_rule(self):
         root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
         self.assertRaises(GrammarError, root.remove_rule, "greet")
+
+    def test_add_rules_with_taken_names(self):
+        root = RootGrammar(rules=self.grammar.rules)
+        self.assertRaises(GrammarError, root.add_rule,
+                          PublicRule("name", "bob"))
+
+        self.assertRaises(GrammarError, root.add_rule,
+                          HiddenRule("name", "bob"))
+
+        rules_to_add = [HiddenRule("name", "bob"),
+                        PublicRule("name", "bob")]
+        self.assertRaises(GrammarError, root.add_rules,
+                          *rules_to_add)
+
+    def test_create_grammar_with_rule_name_conflicts(self):
+        # Try with duplicate rules
+        self.assertRaises(GrammarError, RootGrammar,
+                          [PublicRule("test", "test"),
+                           PublicRule("test", "test")])
+
+        # Try with slightly different rules
+        self.assertRaises(GrammarError, RootGrammar,
+                          [PublicRule("test", "testing"),
+                           PublicRule("test", "test")])
+        self.assertRaises(GrammarError, RootGrammar,
+                          [PublicRule("test", "test"),
+                           HiddenRule("test", "test")])
+        self.assertRaises(GrammarError, RootGrammar,
+                          [PublicRule("test", "testing"),
+                           HiddenRule("test", "test")])
 
 
 if __name__ == '__main__':

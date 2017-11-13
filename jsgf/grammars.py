@@ -121,6 +121,9 @@ class Grammar(object):
     def add_rule(self, rule):
         if not isinstance(rule, Rule):
             raise TypeError("object '%s' was not a JSGF Rule object" % rule)
+
+        if rule.name in self.rule_names:
+            raise GrammarError("JSGF grammar cannot have rules with the same name")
         self._rules.append(rule)
 
     def add_import(self, _import):
@@ -192,6 +195,10 @@ class RootGrammar(Grammar):
             if rule.visible:
                 rule = HiddenRule(rule.name, rule.expansion)
                 rule_refs.append(RuleRef(rule))
+
+            if rule.name in map(lambda r: r.name, new_rules):
+                raise GrammarError("JSGF grammar cannot have rules with the same "
+                                   "name")
 
             new_rules.append(rule)
 
