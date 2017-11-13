@@ -87,10 +87,64 @@ class SequenceRule(Rule):
     def matches(self, speech):
         """
         Return whether or not speech matches the current expansion in the sequence.
+        Also sets matches for the original expansion used to create this rule.
         :type speech: str
         :return: bool
         """
-        return super(SequenceRule, self).matches(speech)
+        result = super(SequenceRule, self).matches(speech)
+
+        # Graft the matches in the sequence onto the original expansion used to
+        # create this SequenceRule.
+        SequenceRule.graft_sequence_matches(self, self._original_expansion)
+
+        return result
+
+    @property
+    def original_expansion(self):
+        return self._original_expansion
+
+    @staticmethod
+    def graft_sequence_matches(sequence_rule, expansion):
+        """
+        Take a SequenceRule and an expansion and attempt to graft the matches of
+        all expansions in the sequence onto the given expansion in-place.
+
+        Not all expansions in the sequence need to have been matched.
+
+        :type sequence_rule: SequenceRule
+        :type expansion: Expansion
+        """
+        def is_dictation(x):
+            return isinstance(x, Dictation)
+
+        # Collect Dictation in expansion and in all expansions in the
+        # sequence
+        dictation_in_seq = []
+        dictation_in_exp = filter_expansion(expansion, is_dictation,
+                                            TraversalOrder.PostOrder)
+        for e in sequence_rule._sequence:
+            dictation_in_seq.extend(filter_expansion(
+                e, is_dictation, TraversalOrder.PostOrder))
+
+        # Set current_match of Dictation expansions in the given expansion to
+        # current_match values of their respective counterparts in the sequence.
+        for e1, e2 in zip(dictation_in_seq, dictation_in_exp):
+            assert isinstance(e1, Dictation) and isinstance(e2, Dictation)
+            # Stop the matches(speech) method from changing current_match
+            e2.refuse_matches = True
+            e2.current_match = e1.current_match
+
+        # Then collect expansions with current_match set.
+        matching = []
+        for e in sequence_rule._sequence:
+            if e.current_match is None:
+                # e and nothing after e match
+                break
+            else:
+                matching.append(e)
+
+        # Now match on expansion using the matches for the sequence.
+        expansion.matches(" ".join([e.current_match for e in matching]))
 
 
 class PublicSequenceRule(SequenceRule):

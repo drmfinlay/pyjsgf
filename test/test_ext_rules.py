@@ -49,6 +49,61 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         self.assertRaises(IndexError, r1.set_next())
 
 
+class SequenceRuleGraftMatchMethods(unittest.TestCase):
+    def test_simple(self):
+        r1 = PublicRule("test", Dict())
+        r2 = PublicSequenceRule("test", r1.expansion)
+        r2.matches("hello world")
+        SequenceRule.graft_sequence_matches(r2, r1.expansion)
+        self.assertEqual(r1.expansion.current_match, "hello world")
+
+        r3 = PublicRule("test", Seq("hello", Dict()))
+        r4 = PublicSequenceRule("test", r3.expansion)
+        r4.matches("hello")
+        r4.set_next()
+        r4.matches("there")
+        SequenceRule.graft_sequence_matches(r4, r3.expansion)
+        self.assertEqual(r3.expansion.current_match, "hello there")
+
+    def test_two_dictation(self):
+        r1 = PublicRule("test", Seq(Dict(), Dict()))
+        r2 = PublicSequenceRule("test", r1.expansion)
+        r2.matches("hello")
+        r2.set_next()
+        r2.matches("there")
+        SequenceRule.graft_sequence_matches(r2, r1.expansion)
+        self.assertEqual(r1.expansion.current_match, "hello there")
+        self.assertEqual(r1.expansion.children[0].current_match, "hello")
+        self.assertEqual(r1.expansion.children[1].current_match, "there")
+
+    def test_complex(self):
+        r1 = PublicRule("test", Seq(
+            "test with", AS("lots of", "many"), Dict(), "and JSGF",
+            "expansions", Dict(), Dict()))
+        r2 = PublicSequenceRule("test", r1.expansion)
+        seq = r1.expansion
+        l1, alt_set, d1, l2, l3, d2, d3 = seq.children
+        r2.matches("test with lots of")
+        r2.set_next()
+        r2.matches("dictation")
+        r2.set_next()
+        r2.matches("and JSGF expansions")
+        r2.set_next()
+        r2.matches("hopefully")
+        r2.set_next()
+        r2.matches("maybe")
+        SequenceRule.graft_sequence_matches(r2, r1.expansion)
+        self.assertEqual(l1.current_match, "test with")
+        self.assertEqual(alt_set.current_match, "lots of")
+        self.assertEqual(d1.current_match, "dictation")
+        self.assertEqual(l2.current_match, "and jsgf")
+        self.assertEqual(l3.current_match, "expansions")
+        self.assertEqual(d2.current_match, "hopefully")
+        self.assertEqual(d3.current_match, "maybe")
+        self.assertEqual(seq.current_match, "test with lots of dictation and jsgf "
+                                            "expansions hopefully maybe")
+
+
 class SequenceRuleEntireMatchProperty(unittest.TestCase):
     def assert_no_entire_match(self, rule):
         self.assertEqual(
