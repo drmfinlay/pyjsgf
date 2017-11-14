@@ -148,27 +148,34 @@ class Grammar(object):
                 matching.append(rule)
         return matching
 
-    def remove_rule(self, rule_name):
+    def remove_rule(self, rule):
         """
         Remove a rule from this grammar.
-        :param rule_name:
-        :type rule_name: str
+        :param rule: Rule object or the name of a rule in this grammar
         """
-        if not isinstance(rule_name, str):
-            raise TypeError("object '%s' was not a string" % rule_name)
+        if isinstance(rule, str):
+            rule_name = rule
 
-        if rule_name not in self.rule_names:
-            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule_name, self))
+            if rule_name not in self.rule_names:
+                raise GrammarError(
+                    "'%s' is not a rule in Grammar '%s'" % (rule_name, self))
 
-        # Check if rule with name 'rule_name' is a dependency of another rule in this
-        # grammar.
-        i = self.rule_names.index(rule_name)
-        rule = self._rules[i]
+            # Check if rule with name 'rule_name' is a dependency of another rule
+            # in this grammar.
+            i = self.rule_names.index(rule_name)
+
+            # Set rule to the rule object instead of the name
+            rule = self.rules[i]
+        else:
+            if rule not in self.rules:
+                raise GrammarError(
+                    "'%s' is not a rule in Grammar '%s'" % (rule, self))
+
         if rule.reference_count > 0:
             raise GrammarError("Cannot remove rule '%s' as it is referenced by "
                                "a RuleRef object in another rule." % rule)
 
-        self._rules.pop(i)
+        self.rules.remove(rule)
 
 
 class RootGrammar(Grammar):
@@ -236,28 +243,29 @@ class RootGrammar(Grammar):
             self._rule_refs.append(RuleRef(new_rule))
             self._root_rule.expansion = AlternativeSet(*self._rule_refs)
 
-    def remove_rule(self, rule_name):
+    def remove_rule(self, rule):
         """
-        Remove a rule from the grammar and the alternative set in the root rule if it is
-        visible.
-        Raise an error if the rule to be removed is the last visible rule or a rule that
-        another rule is dependent on.
+        Remove a rule from the grammar and the alternative set in the root rule if
+        it is visible.
+
+        Raise an error if the rule to be removed is a rule that another rule is
+        dependent on or the root rule of this grammar.
         :raises: GrammarError
-        :param rule_name:
-        :type rule_name: str
+        :param rule: Rule object or the name of a rule in this grammar
         """
-        # Check if this rule is the last visible rule
+        # Get names used by RuleRefs
         rule_ref_names = map(lambda r: r.rule.name, self._rule_refs)
-        if rule_name in rule_ref_names and len(rule_ref_names) == 1:
-            raise GrammarError("cannot remove the last visible rule from RootGrammar: '%s'."
-                               % self)
+
+        if isinstance(rule, str):
+            rule_name = rule
+        else:  # assume a Rule object was passed in
+            rule_name = rule.name
 
         if rule_name == self._root_rule.name:
             raise GrammarError("cannot remove the root rule from RootGrammar.")
 
-        # Find and remove the corresponding RuleRef object
-        i = rule_ref_names.index(rule_name)
-        rule_ref = self._rule_refs.pop(i)
+        # Find the corresponding RuleRef object and remove it
+        rule_ref = self._rule_refs.pop(rule_ref_names.index(rule_name))
 
         # Manually decrement the reference count of the corresponding rule because
         # the parent of the RuleRef will still have a reference to it
@@ -271,14 +279,16 @@ class RootGrammar(Grammar):
         # Modify the root rule appropriately
         self._root_rule.expansion = AlternativeSet(*self._rule_refs)
 
-        super(RootGrammar, self).remove_rule(rule_name)
+        super(RootGrammar, self).remove_rule(rule_ref.rule)
 
     def compile_grammar(self, charset_name="UTF-8", language_name="en",
                         jsgf_version="1.0"):
         if len(self._rule_refs) == 0:
-            raise GrammarError("Root grammar must take at least one Public or visible rule.")
+            raise GrammarError("Root grammar must have at least one Public or "
+                               "visible rule.")
 
-        return super(RootGrammar, self).compile_grammar(charset_name, language_name, jsgf_version)
+        return super(RootGrammar, self).compile_grammar(
+            charset_name, language_name, jsgf_version)
 
     def find_matching_rules(self, speech):
         """

@@ -31,7 +31,18 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertRaises(GrammarError, self.grammar.remove_rule, "greetWord")
         self.assertRaises(GrammarError, self.grammar.remove_rule, "name")
 
+        # Test again with the actual rule objects
+        self.assertRaises(GrammarError, self.grammar.remove_rule, self.rule2)
+        self.assertRaises(GrammarError, self.grammar.remove_rule, self.rule3)
+
         self.grammar.remove_rule("greet")
+        self.assertListEqual([self.rule2, self.rule3], self.grammar.rules)
+
+        # Add it again to test removing the rule using the object
+        self.grammar.add_rule(self.rule1)
+        self.assertListEqual([self.rule2, self.rule3, self.rule1],
+                             self.grammar.rules)
+        self.grammar.remove_rule(self.rule1)
         self.assertListEqual([self.rule2, self.rule3], self.grammar.rules)
 
     def test_add_rules_with_taken_names(self):
@@ -148,39 +159,45 @@ class RootGrammarCase(BasicGrammarCase):
     def test_compile_add_remove_rule(self):
         root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
 
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
-                   "grammar root;\n" \
-                   "public <root> = (<greet>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<greet> = <greetWord> there;\n"
+        expected_without = "#JSGF V1.0 UTF-8 en;\n" \
+                           "grammar root;\n" \
+                           "public <root> = (<greet>);\n" \
+                           "<greetWord> = (hello|hi);\n" \
+                           "<greet> = <greetWord> there;\n"
 
-        self.assertEqual(root.compile_grammar(charset_name="UTF-8",
-                                              language_name="en",
-                                              jsgf_version="1.0"), expected)
+        expected_with = "#JSGF V1.0 UTF-8 en;\n" \
+                        "grammar root;\n" \
+                        "public <root> = (<greet>|<partingPhrase>);\n" \
+                        "<greetWord> = (hello|hi);\n" \
+                        "<greet> = <greetWord> there;\n" \
+                        "<partingPhrase> = (goodbye|see you);\n"
+
+        self.assertEqual(root.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            expected_without)
 
         root.add_rule(self.rule6)
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
-                   "grammar root;\n" \
-                   "public <root> = (<greet>|<partingPhrase>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<greet> = <greetWord> there;\n" \
-                   "<partingPhrase> = (goodbye|see you);\n"
 
-        self.assertEqual(root.compile_grammar(charset_name="UTF-8",
-                                              language_name="en",
-                                              jsgf_version="1.0"), expected)
+        self.assertEqual(root.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            expected_with)
 
-        # Test removing the partingPhrase rule
+        # Test removing the partingPhrase rule using the name
         root.remove_rule("partingPhrase")
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
-                   "grammar root;\n" \
-                   "public <root> = (<greet>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<greet> = <greetWord> there;\n"
+        self.assertEqual(root.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            expected_without)
 
-        self.assertEqual(root.compile_grammar(charset_name="UTF-8",
-                                              language_name="en",
-                                              jsgf_version="1.0"), expected)
+        # Add the rule and test removing it using the rule object
+        root.add_rule(self.rule6)
+        self.assertEqual(root.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            expected_with)
+
+        root.remove_rule(self.rule6)
+        self.assertEqual(root.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            expected_without)
 
     def test_match(self):
         # Only rule1 should match
@@ -204,9 +221,34 @@ class RootGrammarCase(BasicGrammarCase):
         self.assertListEqual(root.find_matching_rules("Goodbye"), [])
         self.assertListEqual(root.find_matching_rules("See you"), [])
 
-    def test_remove_last_visible_rule(self):
+        # Test again using the remove_rule(rule object) instead
+        root.add_rule(self.rule6)
+        self.assertListEqual(root.find_matching_rules("Goodbye"), [self.rule6])
+        self.assertListEqual(root.find_matching_rules("See you"), [self.rule6])
+        root.remove_rule(self.rule6)
+        self.assertListEqual(root.find_matching_rules("Goodbye"), [])
+        self.assertListEqual(root.find_matching_rules("See you"), [])
+
+    def test_no_public_rules(self):
+        root = RootGrammar([self.rule5, self.rule4])
+        root.remove_rule("greet")
+        self.assertNotIn("greet", root.rule_names)
+        self.assertRaises(GrammarError, root.compile_grammar)
+        self.assertFalse(root.find_matching_rules("hello"))
+
+        root = RootGrammar([self.rule5, self.rule4])
+        root.remove_rule(self.rule4)
+        self.assertNotIn(self.rule4, root.rules)
+        self.assertRaises(GrammarError, root.compile_grammar)
+        self.assertFalse(root.find_matching_rules("hello"))
+
+    def test_erroneous_remove_rule(self):
         root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
-        self.assertRaises(GrammarError, root.remove_rule, "greet")
+
+        # Try to remove the root rule using the name and the rule object
+        self.assertRaises(GrammarError, root.remove_rule, "root")
+        i = root.rule_names.index("root")
+        self.assertRaises(GrammarError, root.remove_rule, root.rules[i])
 
     def test_add_rules_with_taken_names(self):
         root = RootGrammar(rules=self.grammar.rules)
@@ -220,6 +262,9 @@ class RootGrammarCase(BasicGrammarCase):
                         PublicRule("name", "bob")]
         self.assertRaises(GrammarError, root.add_rules,
                           *rules_to_add)
+
+        # Test if adding a rule with the name 'root' raises an error
+        self.assertRaises(GrammarError, root.add_rule, PublicRule("root", "test"))
 
     def test_create_grammar_with_rule_name_conflicts(self):
         # Try with duplicate rules
