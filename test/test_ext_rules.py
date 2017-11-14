@@ -270,25 +270,25 @@ class SequenceRuleCompileCase(unittest.TestCase):
                           SequenceRule, "test", True, KleeneStar(Dict()))
 
     def test_no_dictation_compile(self):
-        self.assert_compiled_rules_equal(Literal("hi"), ["<test_0> = hi;"])
+        self.assert_compiled_rules_equal(Literal("hi"), ["<test> = hi;"])
 
     def test_dictation_in_sequence(self):
         # Dictation first
         self.assert_compiled_rules_equal(Seq(Dict(), "test", "testing"), (
             "",
-            "<test_1> = test testing;"
+            "<test> = test testing;"
         ))
 
         # Dictation second
         self.assert_compiled_rules_equal(Seq("test", Dict(), "testing"), (
-            "<test_0> = test;",
+            "<test> = test;",
             "",
-            "<test_2> = testing;"
+            "<test> = testing;"
         ))
 
         # Dictation last
         self.assert_compiled_rules_equal(Seq("test", "testing", Dict()), (
-            "<test_0> = test testing;",
+            "<test> = test testing;",
             ""
         ))
 
@@ -296,24 +296,24 @@ class SequenceRuleCompileCase(unittest.TestCase):
         e1 = Seq(Dict(), "test", "testing", Dict())
         self.assert_compiled_rules_equal(e1, (
             "",
-            "<test_1> = test testing;",
+            "<test> = test testing;",
             ""
         ))
 
         e2 = Seq("test", Dict(), "testing", Dict())
         self.assert_compiled_rules_equal(e2, (
-            "<test_0> = test;",
+            "<test> = test;",
             "",
-            "<test_2> = testing;",
+            "<test> = testing;",
             ""
         ))
 
         e3 = Seq("test", "testing", Dict(),
                  "more", "testing", Dict())
         self.assert_compiled_rules_equal(e3, (
-            "<test_0> = test testing;",
+            "<test> = test testing;",
             "",
-            "<test_2> = more testing;",
+            "<test> = more testing;",
             ""
         ))
 

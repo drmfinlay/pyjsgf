@@ -22,7 +22,6 @@ class SequenceRule(Rule):
 
         self._sequence = tuple(calculate_expansion_sequence(self.expansion))
         self._current_index = 0
-        self._original_name = self.name
         self._original_expansion = self.expansion
         self._set_expansion_to_current()
 
@@ -53,7 +52,6 @@ class SequenceRule(Rule):
 
     def _set_expansion_to_current(self):
         self.expansion = self._sequence[self._current_index]
-        self.name = "%s_%d" % (self._original_name, self._current_index)
 
     def set_next(self):
         """
