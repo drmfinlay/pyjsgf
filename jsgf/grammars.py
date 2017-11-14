@@ -30,8 +30,8 @@ class Grammar(object):
     def compile_grammar(self, charset_name="UTF-8", language_name="en",
                         jsgf_version="1.0"):
         """
-        Compile this grammar's imports and rules into a string that can be recognized by a
-        JSGF parser.
+        Compile this grammar's imports and rules into a string that can be
+        recognised by a JSGF parser.
         :param charset_name:
         :param language_name:
         :param jsgf_version:
@@ -91,7 +91,8 @@ class Grammar(object):
         return self._rules
 
     visible_rules = property(
-        lambda self: filter(lambda rule: True if rule.visible else False, self.rules),
+        lambda self: filter(lambda rule: True if rule.visible else False,
+                            self.rules),
         doc="""
         The rules in this grammar which have the visible attribute set to True.
         :rtype: list
@@ -164,15 +165,16 @@ class Grammar(object):
         i = self.rule_names.index(rule_name)
         rule = self._rules[i]
         if rule.reference_count > 0:
-            raise GrammarError("Cannot remove rule '%s' as it is referenced by a RuleRef "
-                               "object in another rule." % rule_name)
+            raise GrammarError("Cannot remove rule '%s' as it is referenced by "
+                               "a RuleRef object in another rule." % rule)
 
         self._rules.pop(i)
 
 
 class RootGrammar(Grammar):
     """
-    A grammar with one public "root" rule containing rule references in an alternative set
+    A grammar with one public "root" rule containing rule references in an
+    alternative set
     to every other rule as such:
     public <root> = (<rule1>|<rule2>|..|<ruleN>);
     <rule1> = ...;
@@ -187,8 +189,8 @@ class RootGrammar(Grammar):
         if rules is None:
             rules = []
 
-        # Recreate each Public (visible) rule as a HiddenRule instead and make RuleRef
-        # objects for each new rule.
+        # Recreate each Public (visible) rule as a HiddenRule instead and make
+        # RuleRef objects for each new rule.
         new_rules = []
         rule_refs = []
         for rule in rules:
@@ -202,7 +204,8 @@ class RootGrammar(Grammar):
 
             new_rules.append(rule)
 
-        # Add a new public rule as the first rule that matches any rule exactly once.
+        # Add a new public rule as the first rule that matches any rule exactly
+        # once.
         self._root_rule = PublicRule("root", AlternativeSet(*rule_refs))
         self._rule_refs = rule_refs
         self._rules.append(self._root_rule)
@@ -214,9 +217,11 @@ class RootGrammar(Grammar):
 
     def add_rule(self, rule):
         """
-        Add a rule to the grammar and add it as an alternative in the root rule if it is
-        visible.
-        :param rule:
+        Add a rule to the grammar and add it as an alternative in the root rule if
+        it is visible.
+
+        Raise an error if a rule already exists in the grammar with the same name.
+
         :type rule: Rule
         """
         new_rule = HiddenRule(rule.name, rule.expansion)
@@ -225,7 +230,8 @@ class RootGrammar(Grammar):
         # Add the original rule to the match_rules list
         self._match_rules.append(rule)
 
-        # Add new_rule as an alternative in the root rule only if rule was originally visible
+        # Add new_rule as an alternative in the root rule only if rule was
+        # originally visible
         if rule.visible:
             self._rule_refs.append(RuleRef(new_rule))
             self._root_rule.expansion = AlternativeSet(*self._rule_refs)
@@ -253,12 +259,11 @@ class RootGrammar(Grammar):
         i = rule_ref_names.index(rule_name)
         rule_ref = self._rule_refs.pop(i)
 
-        # Manually decrement the reference count of the corresponding rule
-        # because the parent of the RuleRef will still have a reference
-        # to it
+        # Manually decrement the reference count of the corresponding rule because
+        # the parent of the RuleRef will still have a reference to it
         rule_ref.decrement_ref_count()
 
-        # Also remove the rule from the match_rules list used for matching
+        # Also remove the rule from the list used for matching
         match_rule_names = map(lambda r: r.name, self._match_rules)
         j = match_rule_names.index(rule_name)
         self._match_rules.pop(j)
