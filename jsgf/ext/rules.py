@@ -129,7 +129,7 @@ class SequenceRule(Rule):
         for e1, e2 in zip(dictation_in_seq, dictation_in_exp):
             assert isinstance(e1, Dictation) and isinstance(e2, Dictation)
             # Stop the matches(speech) method from changing current_match
-            e2.refuse_matches = True
+            e2.use_current_match = True
             e2.current_match = e1.current_match
 
         # Then collect expansions with current_match set.
