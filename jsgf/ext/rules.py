@@ -22,16 +22,18 @@ class SequenceRule(Rule):
 
         self._sequence = tuple(calculate_expansion_sequence(self.expansion))
         self._current_index = 0
+        self._refuse_matches = False
         self._original_expansion = self.expansion
         self._set_expansion_to_current()
 
     def compile(self, ignore_tags=False):
-        if self.current_is_dictation_only:
-            # This rule cannot be fully compiled to JSGF as it only has dictation
-            # expansions
-            return ""
-        else:
-            return super(SequenceRule, self).compile(ignore_tags)
+        result = ""
+        if not self.refuse_matches and not self.current_is_dictation_only:
+            # This rule can be compiled as it doesn't have any Dictation expansions
+            # and refuse_matches is not True.
+            result = super(SequenceRule, self).compile(ignore_tags)
+
+        return result
 
     @property
     def has_next_expansion(self):
@@ -50,8 +52,31 @@ class SequenceRule(Rule):
         """
         return only_dictation_in_expansion(self._sequence[self._current_index])
 
+    @property
+    def refuse_matches(self):
+        """
+        Whether or not matches on this rule can succeed.
+
+        This is set to False if set_next is called and there is a next expansion or
+        if restart_sequence is called.
+
+        This can also be manually set with the setter for situations where, for
+        example, the current expansion is a Repeat expansion with a Dictation
+        descendant.
+
+        :return: bool
+        """
+        return self._refuse_matches
+
+    @refuse_matches.setter
+    def refuse_matches(self, value):
+        self._refuse_matches = value
+
     def _set_expansion_to_current(self):
         self.expansion = self._sequence[self._current_index]
+
+        # Stop refusing matches
+        self.refuse_matches = False
 
     def set_next(self):
         """
@@ -86,14 +111,25 @@ class SequenceRule(Rule):
         """
         Return whether or not speech matches the current expansion in the sequence.
         Also sets matches for the original expansion used to create this rule.
+
+        This method will only match once and return False on calls afterward until
+        refuse_matches is False. This occurs if set_next is called and there is a
+        next expansion, restart_sequence is called, or if refuse_matches is
+        manually set to False.
+
         :type speech: str
         :return: bool
         """
-        result = super(SequenceRule, self).matches(speech)
+        result = False
+        if not self.refuse_matches:
+            result = super(SequenceRule, self).matches(speech)
 
-        # Graft the matches in the sequence onto the original expansion used to
-        # create this SequenceRule.
-        SequenceRule.graft_sequence_matches(self, self._original_expansion)
+            # Graft the matches in the sequence onto the original expansion used to
+            # create this SequenceRule.
+            SequenceRule.graft_sequence_matches(self, self._original_expansion)
+
+            # By default, don't let the current expansion be matched more than once
+            self.refuse_matches = True
 
         return result
 

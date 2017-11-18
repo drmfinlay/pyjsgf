@@ -116,6 +116,7 @@ class SequenceRuleEntireMatchProperty(unittest.TestCase):
         self.assertTrue(r1.matches("hello world"))
         self.assertEqual(r1.entire_match, "hello world")
 
+        r1.restart_sequence()
         self.assertFalse(r1.matches(""))
         self.assert_no_entire_match(r1)
 
@@ -127,6 +128,7 @@ class SequenceRuleEntireMatchProperty(unittest.TestCase):
         self.assertTrue(r1.matches("world"))
         self.assertEqual(r1.entire_match, "hello world")
 
+        r1.restart_sequence()
         self.assertFalse(r1.matches(""))
         self.assert_no_entire_match(r1)
 
@@ -245,6 +247,158 @@ class SequenceRuleMatchCase(unittest.TestCase):
         self.assert_rule_matches_speech(e1, (
             "hello world", "test"
         ))
+
+
+class SequenceRuleRefuseMatches(unittest.TestCase):
+    def setUp(self):
+        self.r1 = PublicSequenceRule("test", "test")
+        self.r2 = PublicSequenceRule("test", Dict())
+        self.r3 = PublicSequenceRule("test", Seq("test", Dict()))
+        self.rules = [self.r1, self.r2, self.r3]
+
+    def test_initial_values(self):
+        for r in self.rules:
+            self.assertFalse(
+                r.refuse_matches, "refuse_matches should initially be False")
+
+            # Test initial compile() results
+            if r.current_is_dictation_only:
+                expected = ""
+            else:
+                expected = "public <%s> = %s;" % (r.name, r.expansion.compile())
+
+            self.assertEqual(r.compile(), expected)
+
+    def test_restart_sequence(self):
+        for r in self.rules:
+            r.refuse_matches = True
+            self.assertTrue(r.refuse_matches)
+            r.restart_sequence()
+            self.assertFalse(
+                r.refuse_matches,
+                "refuse_matches should now be False even if the matches method was "
+                "not called"
+            )
+
+    def test_one_expansion(self):
+        r1, r2 = self.r1, self.r2
+
+        # Keep a copy of the compiled rule
+        r1_compiled = "public <%s> = %s;" % (r1.name, r1.expansion.compile())
+
+        # Test matching
+        self.assertTrue(r1.matches("test"))
+        self.assertTrue(r2.matches("hello"))
+
+        msg = "refuse_matches should be True after a successful match"
+        self.assertTrue(r1.refuse_matches, msg)
+        self.assertTrue(r2.refuse_matches, msg)
+
+        # Test compile()
+        msg = "result from compile() should be '' after a successful match"
+        self.assertEqual(r1.compile(), "", msg)
+        self.assertEqual(r2.compile(), "", msg)
+
+        msg = "matches() should not match if refuse_matches is True"
+        self.assertFalse(r1.matches("test"), msg)
+        self.assertFalse(r2.matches("test"), msg)
+
+        # Test manually setting refuse_matches
+        r1.refuse_matches = False
+        r2.refuse_matches = False
+        self.assertFalse(r1.refuse_matches)
+        self.assertFalse(r2.refuse_matches)
+
+        # Test compile()
+        msg = "result from compile() should be the compiled rule if " \
+              "refuse_matches is False"
+        self.assertEqual(r1.compile(), r1_compiled, msg)
+
+        # Then matches()
+        msg = "matches() should match if refuse_matches is False"
+        self.assertTrue(r1.matches("test"), msg)
+        self.assertTrue(r2.matches("hello"), msg)
+
+        # Test the effect of set_next()
+        msg = "refuse_matches should still be True after set_next()"
+        r1.set_next()  # this has no effect as r1 only has one sequence expansion
+        r2.set_next()
+        self.assertTrue(r1.refuse_matches, msg)
+        self.assertTrue(r2.refuse_matches, msg)
+
+        # Test restarting the sequences
+        r1.restart_sequence()
+        r2.restart_sequence()
+        msg = "refuse_matches should be False after restart_sequence()"
+        self.assertFalse(r1.refuse_matches, msg)
+        self.assertFalse(r2.refuse_matches, msg)
+
+        # Test no matches
+        self.assertFalse(r1.matches("hello"))
+        self.assertFalse(r2.matches(""))
+        msg = "refuse_matches should be True after a failed match"
+        self.assertTrue(r1.refuse_matches, msg)
+        self.assertTrue(r2.refuse_matches, msg)
+
+    def test_multiple_expansions(self):
+        r3 = self.r3
+
+        # Keep a copy of the compiled rule
+        r3_compiled = "public <%s> = %s;" % (r3.name, r3.expansion.compile())
+
+        # Test matching
+        self.assertTrue(r3.matches("test"))
+        self.assertTrue(r3.refuse_matches,
+                        "refuse_matches should be True after a successful match")
+
+        self.assertEqual(r3.compile(), "",
+                         "compile() should be '' if refuse_matches is True")
+
+        self.assertFalse(r3.matches("test"),
+                         "matches() should not match if refuse_matches is True")
+
+        # Test compile() output after manually setting refuse_matches
+        r3.refuse_matches = False
+        self.assertEqual(r3.compile(), r3_compiled,
+                         "result from compile() should be the compiled rule if "
+                         "refuse_matches is False")
+
+        # Test no match on first sequence expansion
+        self.assertFalse(r3.matches("hello"))
+        self.assertTrue(r3.refuse_matches,
+                        "refuse_matches should be True after a failed match")
+        self.assertEqual(r3.compile(), "",
+                         "compile() should be '' after a failed match")
+
+        # Test the effect of set_next()
+        r3.set_next()
+        self.assertFalse(r3.refuse_matches,
+                         "refuse_matches should be False after set_next()")
+        self.assertTrue(r3.matches("hello"),
+                        "matches() should match if refuse_matches is False")
+        self.assertTrue(r3.refuse_matches,
+                        "refuse_matches should be True after successful match")
+        self.assertFalse(r3.matches("hello"),
+                         "matches() should not match if called while "
+                         "refuse_matches is True")
+
+        # Test manually setting refuse_matches
+        r3.refuse_matches = False
+        self.assertFalse(r3.refuse_matches)
+        self.assertTrue(r3.matches("hello"),
+                        "matches() should match if refuse_matches is False")
+
+        # Test restarting the sequence
+        r3.restart_sequence()
+        self.assertFalse(r3.refuse_matches,
+                         "refuse_matches should be False after restart_sequence()")
+
+        # Test no match on second sequence expansion
+        self.assertFalse(r3.matches("hello"))
+        self.assertTrue(r3.refuse_matches,
+                        "refuse_matches should be True after a failed match")
+        self.assertEqual(r3.compile(), "",
+                         "compile() should be '' after a failed match")
 
 
 class SequenceRuleCompileCase(unittest.TestCase):
