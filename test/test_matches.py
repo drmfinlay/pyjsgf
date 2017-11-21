@@ -215,10 +215,23 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e1.current_match, "")
 
         self.assertFalse(r2.matches("hello hello hello"))
-        self.assertEqual(e2.current_match, "hello hello")
+        self.assertEqual(e2.current_match, None)
         self.assertEqual(e2.children[0].current_match, "hello")
         self.assertEqual(e1.current_match, "hello")
         self.assertEqual(e2.children[1].current_match, "hello")
+
+    def test_was_matched(self):
+        """
+        Test the was_matched property of the Rule class.
+        """
+        r = PublicRule("test", Sequence("hello", OptionalGrouping("hello")))
+        self.assertFalse(r.was_matched, "was_matched should initially be False")
+        self.assertTrue(r.matches("hello hello"))
+        self.assertTrue(r.was_matched, "was_matched should be True if matches() "
+                                       "returned True")
+        self.assertFalse(r.matches("hello hello world"))
+        self.assertFalse(r.was_matched, "was_matched should be False if matches() "
+                                        "returned True")
 
     def test_optional_simple(self):
         e = Sequence("hello", OptionalGrouping("there"))

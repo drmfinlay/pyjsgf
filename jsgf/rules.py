@@ -61,6 +61,14 @@ class Rule(object):
         return "%s(%s)" % (self.__class__.__name__,
                            self.expansion)
 
+    @property
+    def was_matched(self):
+        """
+        Whether this rule matched last time the matches method was called.
+        :return: bool
+        """
+        return self.expansion.current_match is not None
+
     def matches(self, speech):
         """
         Whether speech matches this rule.
@@ -72,7 +80,10 @@ class Rule(object):
         result = self.expansion.matches(speech)
 
         # Check if the rule matched completely
-        return result == "" and self.expansion.current_match is not None
+        if result != "":
+            self.expansion.current_match = None
+
+        return self.expansion.current_match is not None
 
     @property
     def dependencies(self):
