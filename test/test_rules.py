@@ -47,10 +47,16 @@ class RuleRefCount(unittest.TestCase):
 
 class OptionalOnlyRule(unittest.TestCase):
     def test_optional_only_rule(self):
-        rule = PublicRule("test", OptionalGrouping("hello"))
+        invalid_rules = [
+            PublicRule("test", OptionalGrouping("hello")),
+            PublicRule("test", KleeneStar("hello")),
+            PublicRule("test", AlternativeSet(OptionalGrouping("hello"))),
+            PublicRule("test", Sequence(OptionalGrouping("hello")))
+        ]
 
         # Rules that only have optional literals are not valid
-        self.assertRaises(CompilationError, rule.compile)
+        for rule in invalid_rules:
+            self.assertRaises(CompilationError, rule.compile)
 
 
 class ComparisonTests(unittest.TestCase):
