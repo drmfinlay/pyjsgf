@@ -38,6 +38,19 @@ class PropertiesTests(unittest.TestCase):
         grammar.add_rule(PublicRule("test", RuleRef(r)))
         self.assertEqual(1, r.reference_count, "rule '%s' is independent.")
 
+    def test_was_matched(self):
+        """
+        Test the was_matched property of the Rule class.
+        """
+        r = PublicRule("test", Sequence("hello", OptionalGrouping("hello")))
+        self.assertFalse(r.was_matched, "was_matched should initially be False")
+        self.assertTrue(r.matches("hello hello"))
+        self.assertTrue(r.was_matched, "was_matched should be True if matches() "
+                                       "returned True")
+        self.assertFalse(r.matches("hello hello world"))
+        self.assertFalse(r.was_matched, "was_matched should be False if matches() "
+                                        "returned True")
+
     def test_enable_disable(self):
         r1 = PublicRule("test", "hello")
         self.assertTrue(r1.active, "should initially be True")
