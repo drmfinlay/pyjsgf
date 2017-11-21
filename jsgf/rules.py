@@ -19,6 +19,7 @@ class Rule(object):
         self.visible = visible
         self.expansion = expansion
         self._reference_count = 0
+        self._active = True
 
     @property
     def expansion(self):
@@ -39,6 +40,9 @@ class Rule(object):
         :type ignore_tags: bool
         :rtype: str
         """
+        if not self._active:
+            return ""
+
         expansion = self.expansion.compile(ignore_tags)
         if not expansion:  # the compiled expansion is None or ""
             return ""
@@ -61,6 +65,28 @@ class Rule(object):
         return "%s(%s)" % (self.__class__.__name__,
                            self.expansion)
 
+    def enable(self):
+        """
+        Allow this rule to produce compile output and to match speech strings.
+        """
+        self._active = True
+
+    def disable(self):
+        """
+        Stop this rule from producing compile output or from matching speech strings.
+        """
+        self._active = False
+
+    @property
+    def active(self):
+        """
+        Whether this rule is enabled or not. If it is, the rule can be matched and
+        compiled, otherwise the compile and matches methods will return "" and
+        False respectively.
+        :return: bool
+        """
+        return self._active
+
     @property
     def was_matched(self):
         """
@@ -74,6 +100,9 @@ class Rule(object):
         Whether speech matches this rule.
         :type speech: str
         """
+        if not self._active:
+            return False
+
         # Strip whitespace at the start of 'speech' and lower it to match regex properly.
         speech = speech.lstrip().lower()
         self.expansion.reset_for_new_match()
