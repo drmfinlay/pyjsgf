@@ -344,12 +344,3 @@ class RootGrammar(Grammar):
 
         return super(RootGrammar, self).compile_grammar(
             charset_name, language_name, jsgf_version)
-
-    def find_matching_rules(self, speech):
-        """
-        Find each visible rule passed to the grammar that matches the 'speech'
-        string.
-        :type speech: str
-        :return: iterable
-        """
-        return filter(lambda r: r.visible and r.matches(speech), self._match_rules)
