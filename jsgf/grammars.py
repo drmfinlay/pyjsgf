@@ -177,6 +177,49 @@ class Grammar(object):
 
         self.rules.remove(rule)
 
+    def enable_rule(self, rule):
+        """
+        Enable a rule in this grammar, allowing it to appear in the compile method
+        output and to be matched with the find_matching_rules method.
+
+        Rules are enabled by default.
+
+        :param rule: Rule object or the name of a rule in this grammar
+        """
+        # Handle the rule parameter
+        if isinstance(rule, str):
+            rule_name = rule
+        else:
+            rule_name = rule.name
+            rule.enable()
+
+        if rule_name not in self.rule_names:
+            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
+
+        # Enable any rules in grammar.rules which have the given name
+        for r in filter(lambda x: x.name == rule_name, self.rules):
+            r.enable()
+
+    def disable_rule(self, rule):
+        """
+        Disable a rule in this grammar, preventing it from appearing in the compile
+        method output or being matched with the find_matching_rules method.
+        :param rule: Rule object or the name of a rule in this grammar
+        """
+        # Handle the rule parameter
+        if isinstance(rule, str):
+            rule_name = rule
+        else:
+            rule_name = rule.name
+            rule.disable()
+
+        if rule_name not in self.rule_names:
+            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
+
+        # Disable any rules in grammar.rules which have the given name
+        for r in filter(lambda x: x.name == rule_name, self.rules):
+            r.disable()
+
 
 class RootGrammar(Grammar):
     """

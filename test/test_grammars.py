@@ -54,8 +54,44 @@ class BasicGrammarCase(unittest.TestCase):
 
         rules_to_add = [HiddenRule("name", "bob"),
                         PublicRule("name", "bob")]
-        self.assertRaises(GrammarError, self.grammar.add_rules,
-                          *rules_to_add)
+        self.assertRaises(GrammarError, self.grammar.add_rules, *rules_to_add)
+
+    def test_enable_disable_rule(self):
+        self.grammar.disable_rule(self.rule1)
+        self.assertFalse(self.rule1.active)
+
+        self.grammar.enable_rule(self.rule1)
+        self.assertTrue(self.rule1.active)
+
+    def test_enable_disable_using_name(self):
+        self.grammar.disable_rule("greetWord")
+        self.assertFalse(self.rule2.active)
+
+        self.grammar.enable_rule("greetWord")
+        self.assertTrue(self.rule1.active)
+
+    def test_enable_disable_non_existent(self):
+        self.assertRaises(GrammarError, self.grammar.disable_rule, "hello")
+        self.assertRaises(GrammarError, self.grammar.enable_rule, "hello")
+
+        r = PublicRule("test", "hello")
+        self.assertRaises(GrammarError, self.grammar.disable_rule, r)
+        self.assertRaises(GrammarError, self.grammar.enable_rule, r)
+
+    def test_enable_disable_using_dup_rule(self):
+        """
+        Test that a copy of a rule in the grammar can be used to disable or enable
+        the equivalent rule in the grammar as well as the rule object passed.
+        """
+        r = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
+        self.grammar.disable_rule(r)
+        self.assertFalse(r.active, "duplicate rule should be disabled")
+        self.assertFalse(self.rule2.active, "rule in grammar should be disabled")
+
+        # Test enabling it again
+        self.grammar.enable_rule(r)
+        self.assertTrue(r.active, "duplicate rule should be enabled again")
+        self.assertTrue(self.rule2.active, "rule in grammar should be enabled")
 
 
 class SpeechMatchCase(unittest.TestCase):
