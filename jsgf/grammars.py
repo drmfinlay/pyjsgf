@@ -107,6 +107,14 @@ class Grammar(object):
         """
     )
 
+    @property
+    def match_rules(self):
+        """
+        The rules that the find_matching_rules method will match against.
+        :return: iterable
+        """
+        return self.visible_rules
+
     def __str__(self):
         rules = ", ".join(["%s" % rule for rule in self.rules])
         return "Grammar(%s) with rules: %s" % (self.name, rules)
@@ -140,13 +148,9 @@ class Grammar(object):
         """
         Find each visible rule in this grammar that matches the 'speech' string.
         :type speech: str
-        :return: list
+        :return: iterable
         """
-        matching = []
-        for rule in self.visible_rules:
-            if rule.matches(speech):
-                matching.append(rule)
-        return matching
+        return filter(lambda r: r.visible and r.matches(speech), self.match_rules)
 
     def remove_rule(self, rule):
         """
@@ -264,6 +268,14 @@ class RootGrammar(Grammar):
 
         # Keep references to the original rules for matching against later
         self._match_rules = map(lambda r: r, rules)  # use a new list
+
+    @property
+    def match_rules(self):
+        """
+        The rules that the find_matching_rules method will match against.
+        :return: iterable
+        """
+        return self._match_rules
 
     def add_rule(self, rule):
         """
