@@ -5,10 +5,10 @@ from jsgf import *
 class BasicGrammarCase(unittest.TestCase):
     def setUp(self):
         rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        rule3 = HiddenRule("name", AlternativeSet("peter", "john", "mary",
-                                                  "anna"))
-        rule1 = PublicRule("greet", RequiredGrouping(RuleRef(rule2),
-                                                     RuleRef(rule3)))
+        rule3 = HiddenRule("name", AlternativeSet(
+            "peter", "john", "mary", "anna"))
+        rule1 = PublicRule("greet", RequiredGrouping(
+            RuleRef(rule2), RuleRef(rule3)))
         self.grammar = Grammar("test")
         self.grammar.add_rules(rule1, rule2, rule3)
         self.rule1 = rule1
