@@ -15,7 +15,7 @@ class BasicGrammarCase(unittest.TestCase):
         self.rule2 = rule2
         self.rule3 = rule3
 
-    def test_basic_grammar_compile(self):
+    def test_compile(self):
         expected = "#JSGF V1.0 UTF-8 en;\n" \
                    "grammar test;\n" \
                    "public <greet> = (<greetWord> <name>);\n" \
@@ -136,16 +136,25 @@ class VisibleRulesCase(unittest.TestCase):
         self.assertListEqual(self.grammar2.visible_rules, [self.rule4, self.rule5])
 
 
-class RootGrammarCase(BasicGrammarCase):
+class RootGrammarCase(unittest.TestCase):
     def setUp(self):
-        super(RootGrammarCase, self).setUp()
+        self.grammar1 = RootGrammar(name="root")
+        self.rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
+        self.rule3 = HiddenRule("name", AlternativeSet(
+            "peter", "john", "mary", "anna"))
+        self.rule1 = PublicRule("greet", RequiredGrouping(
+            RuleRef(self.rule2), RuleRef(self.rule3)))
+        self.grammar1.add_rules(self.rule1, self.rule2, self.rule3)
+
+        self.grammar2 = RootGrammar(name="root")
         self.rule5 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
         self.rule4 = PublicRule("greet", Sequence(RuleRef(self.rule5), "there"))
-        self.rule6 = PublicRule("partingPhrase", AlternativeSet("goodbye", "see you"))
+        self.rule6 = PublicRule("partingPhrase", AlternativeSet(
+            "goodbye", "see you"))
+        self.grammar2.add_rules(self.rule4, self.rule5, self.rule6)
 
     def test_compile(self):
-        root = RootGrammar(rules=self.grammar.rules, name="root")
-
+        root = self.grammar1
         expected = "#JSGF V1.0 UTF-8 en;\n" \
                    "grammar root;\n" \
                    "public <root> = (<greet>);\n" \
@@ -201,7 +210,7 @@ class RootGrammarCase(BasicGrammarCase):
 
     def test_match(self):
         # Only rule1 should match
-        root = RootGrammar(rules=self.grammar.rules, name="root")
+        root = self.grammar1
         self.assertListEqual(root.find_matching_rules("Hello John"), [self.rule1])
         self.assertListEqual(root.find_matching_rules("HELLO mary"), [self.rule1])
         self.assertListEqual(root.find_matching_rules("hello ANNA"), [self.rule1])
@@ -251,7 +260,7 @@ class RootGrammarCase(BasicGrammarCase):
         self.assertRaises(GrammarError, root.remove_rule, root.rules[i])
 
     def test_add_rules_with_taken_names(self):
-        root = RootGrammar(rules=self.grammar.rules)
+        root = self.grammar1
         self.assertRaises(GrammarError, root.add_rule,
                           PublicRule("name", "bob"))
 
