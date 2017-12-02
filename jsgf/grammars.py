@@ -164,29 +164,25 @@ class Grammar(object):
         """
         return filter(lambda r: r.visible and r.matches(speech), self.match_rules)
 
+    def _get_rule_from_name(self, name):
+        if name not in self.rule_names:
+            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (name, self))
+
+        return self.rules[self.rule_names.index(name)]
+
     def remove_rule(self, rule):
         """
         Remove a rule from this grammar.
         :param rule: Rule object or the name of a rule in this grammar
         """
         if isinstance(rule, str):
-            rule_name = rule
-
-            if rule_name not in self.rule_names:
-                raise GrammarError(
-                    "'%s' is not a rule in Grammar '%s'" % (rule_name, self))
-
-            # Check if rule with name 'rule_name' is a dependency of another rule
-            # in this grammar.
-            i = self.rule_names.index(rule_name)
-
             # Set rule to the rule object instead of the name
-            rule = self.rules[i]
-        else:
-            if rule not in self.rules:
-                raise GrammarError(
-                    "'%s' is not a rule in Grammar '%s'" % (rule, self))
+            rule = self._get_rule_from_name(rule)
+        elif rule not in self.rules:
+            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
+        # Check if rule with name 'rule_name' is a dependency of another rule
+        # in this grammar.
         if rule.reference_count > 0:
             raise GrammarError("Cannot remove rule '%s' as it is referenced by "
                                "a RuleRef object in another rule." % rule)
