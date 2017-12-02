@@ -93,6 +93,36 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertTrue(r.active, "duplicate rule should be enabled again")
         self.assertTrue(self.rule2.active, "rule in grammar should be enabled")
 
+    def test_enable_disable_compile_output(self):
+        enabled_output = "#JSGF V1.0 UTF-8 en;\n" \
+                         "grammar test;\n" \
+                         "public <greet> = (<greetWord> <name>);\n" \
+                         "<greetWord> = (hello|hi);\n" \
+                         "<name> = (peter|john|mary|anna);\n"
+
+        self.assertEqual(self.grammar.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            enabled_output)
+
+        self.grammar.disable_rule(self.rule1)
+        self.assertFalse(self.rule1.active)
+
+        self.assertEqual(self.grammar.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            "#JSGF V1.0 UTF-8 en;\n"
+            "grammar test;\n"
+            "\n"
+            "<greetWord> = (hello|hi);\n"
+            "<name> = (peter|john|mary|anna);\n",
+            "disabled output shouldn't have the public 'greet' rule"
+        )
+
+        self.grammar.enable_rule(self.rule1)
+        self.assertTrue(self.rule1.active)
+        self.assertEqual(self.grammar.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            enabled_output)
+
 
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):
@@ -408,8 +438,6 @@ class RootGrammarCase(unittest.TestCase):
 
         self.grammar.disable_rule(self.rule1)
         self.assertFalse(self.rule1.active)
-
-        print(self.grammar.compile_grammar())
 
         self.assertEqual(self.grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
