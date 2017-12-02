@@ -90,6 +90,18 @@ class Grammar(object):
         """
         return self._rules
 
+    @property
+    def _all_rules(self):
+        """
+        Internal method used by enable and disable rule methods.
+
+        This is here to be overridden by classes like RootGrammar that do funny
+        things with rules. This way enable and disable rule methods don't need to
+        be overridden as well.
+        :return: iterable
+        """
+        return self.rules
+
     visible_rules = property(
         lambda self: filter(lambda rule: True if rule.visible else False,
                             self.rules),
@@ -200,8 +212,8 @@ class Grammar(object):
         if rule_name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
-        # Enable any rules in grammar.rules which have the given name
-        for r in filter(lambda x: x.name == rule_name, self.rules):
+        # Enable any rules in grammar._all_rules which have the given name
+        for r in filter(lambda x: x.name == rule_name, self._all_rules):
             r.enable()
 
     def disable_rule(self, rule):
@@ -220,8 +232,8 @@ class Grammar(object):
         if rule_name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
-        # Disable any rules in grammar.rules which have the given name
-        for r in filter(lambda x: x.name == rule_name, self.rules):
+        # Disable any rules in grammar._all_rules which have the given name
+        for r in filter(lambda x: x.name == rule_name, self._all_rules):
             r.disable()
 
 
@@ -276,6 +288,10 @@ class RootGrammar(Grammar):
         :return: iterable
         """
         return self._match_rules
+
+    @property
+    def _all_rules(self):
+        return self.rules + self.match_rules
 
     def add_rule(self, rule):
         """
