@@ -170,10 +170,11 @@ class Grammar(object):
 
         return self.rules[self.rule_names.index(name)]
 
-    def remove_rule(self, rule):
+    def remove_rule(self, rule, ignore_dependent=False):
         """
         Remove a rule from this grammar.
         :param rule: Rule object or the name of a rule in this grammar
+        :param ignore_dependent: whether to check if the rule has dependent rules
         """
         if isinstance(rule, str):
             # Set rule to the rule object instead of the name
@@ -183,7 +184,7 @@ class Grammar(object):
 
         # Check if rule with name 'rule_name' is a dependency of another rule
         # in this grammar.
-        if rule.reference_count > 0:
+        if rule.reference_count > 0 and not ignore_dependent:
             raise GrammarError("Cannot remove rule '%s' as it is referenced by "
                                "a RuleRef object in another rule." % rule)
 
@@ -310,7 +311,7 @@ class RootGrammar(Grammar):
             self._rule_refs.append(RuleRef(new_rule))
             self._root_rule.expansion = AlternativeSet(*self._rule_refs)
 
-    def remove_rule(self, rule):
+    def remove_rule(self, rule, ignore_dependent=False):
         """
         Remove a rule from the grammar and the alternative set in the root rule if
         it is visible.
@@ -346,7 +347,7 @@ class RootGrammar(Grammar):
         # Modify the root rule appropriately
         self._root_rule.expansion = AlternativeSet(*self._rule_refs)
 
-        super(RootGrammar, self).remove_rule(rule_ref.rule)
+        super(RootGrammar, self).remove_rule(rule_ref.rule, ignore_dependent)
 
     def compile_grammar(self, charset_name="UTF-8", language_name="en",
                         jsgf_version="1.0"):

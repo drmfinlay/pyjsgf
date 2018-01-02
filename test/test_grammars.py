@@ -45,6 +45,11 @@ class BasicGrammarCase(unittest.TestCase):
         self.grammar.remove_rule(self.rule1)
         self.assertListEqual([self.rule2, self.rule3], self.grammar.rules)
 
+        # Test that removing rule2 works using ignore_dependent=True
+        self.grammar.add_rule(self.rule1)  # add rule1 again
+        self.assertIsNone(self.grammar.remove_rule(self.rule2,
+                                                   ignore_dependent=True))
+
     def test_add_rules_with_taken_names(self):
         self.assertRaises(GrammarError, self.grammar.add_rule,
                           PublicRule("name", "bob"))
