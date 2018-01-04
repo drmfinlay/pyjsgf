@@ -38,7 +38,7 @@ class SequenceRule(Rule):
     @property
     def has_next_expansion(self):
         """
-        Whether the current sequence expansion is the last one.
+        Whether there is another sequence expansion after the current one.
         :return: bool
         """
         return self._current_index + 1 < len(self._sequence)
