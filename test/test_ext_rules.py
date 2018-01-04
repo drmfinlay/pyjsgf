@@ -48,6 +48,27 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         # Check that set_next raises an IndexError if called too much
         self.assertRaises(IndexError, r1.set_next())
 
+    def test_expansion_sequence_info(self):
+        dict_only = "dictation-only"
+        jsgf_only = "jsgf-only"
+        self.assertItemsEqual((jsgf_only, dict_only),
+                              PublicSequenceRule("test", Seq("hello", Dict()))
+                              .expansion_sequence_info)
+
+        self.assertItemsEqual([jsgf_only],
+                              PublicSequenceRule("test", Seq("hello world"))
+                              .expansion_sequence_info)
+
+        self.assertItemsEqual((dict_only, dict_only),
+                              PublicSequenceRule("test", Seq(Dict(), Dict()))
+                              .expansion_sequence_info)
+
+        self.assertItemsEqual((dict_only, jsgf_only, dict_only, jsgf_only),
+                              PublicSequenceRule("test", Seq(Dict(), "hello",
+                                                             Dict(), "world"))
+                              .expansion_sequence_info)
+
+
 
 class SequenceRuleGraftMatchMethods(unittest.TestCase):
     def test_simple(self):
