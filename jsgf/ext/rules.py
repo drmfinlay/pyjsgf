@@ -26,6 +26,14 @@ class SequenceRule(Rule):
         self._original_expansion = self.expansion
         self._set_expansion_to_current()
 
+    @property
+    def expansion_sequence(self):
+        """
+        The expansion sequence used by the rule.
+        :return: tuple
+        """
+        return self._sequence
+
     def compile(self, ignore_tags=False):
         result = ""
         if not self.refuse_matches and not self.current_is_dictation_only:
@@ -96,29 +104,6 @@ class SequenceRule(Rule):
         matches = map(lambda x: x.current_match, self._sequence)
         if all(map(lambda m: m is not None, matches)):
             return " ".join(matches)
-
-    @property
-    def expansion_sequence_info(self):
-        """
-        A tuple that denotes which expansions are dictation-only or JSGF-only.
-        Note that it should not be possible to get expansions with both dictation
-        and JSGF literals using this class (that's the whole point).
-
-        Take the following rule as an example:
-        PublicSequenceRule("test", Sequence("test", Dictation())
-        The resulting tuple for that rule would be ("jsgf-only", "dictation-only").
-        :return: tuple
-        """
-        result = []
-        for e in self._sequence:
-            if no_dictation_in_expansion(e):
-                result.append("jsgf-only")
-            elif only_dictation_in_expansion(e):
-                result.append("dictation-only")
-            else:
-                raise ExpansionError("found JSGF and dictation expansion in "
-                                     "sequence")
-        return tuple(result)
 
     def restart_sequence(self):
         """
