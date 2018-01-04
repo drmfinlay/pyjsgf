@@ -11,3 +11,5 @@ from .expansions import dictation_and_literals_in_expansion
 from .rules import SequenceRule
 from .rules import PublicSequenceRule
 from .rules import HiddenSequenceRule
+
+from .grammars import DictationGrammar
