@@ -398,6 +398,20 @@ class ExpandedDictationExpansion(unittest.TestCase):
             Seq("the", Rep(Dict()), "thing")
         ])
 
+        e4 = Seq(Opt("hey"), Dict())
+        self.assertListEqual(expand_dictation_expansion(e4), [
+            Seq(Dict()),
+            Seq("hey", Dict())
+        ])
+
+        e5 = Seq(Opt("hey"), Dict(), Opt("hey"))
+        self.assertListEqual(expand_dictation_expansion(e5), [
+            Seq(Dict()),
+            Seq(Dict(), "hey"),
+            Seq("hey", Dict()),
+            Seq("hey", Dict(), "hey")
+        ])
+
     def test_optional_with_alt_set(self):
         e1 = AS("a", "b", Seq("c", Opt(Seq("d", Dict()))))
         self.assertListEqual(expand_dictation_expansion(e1), [
@@ -411,6 +425,20 @@ class ExpandedDictationExpansion(unittest.TestCase):
             AS("a", "b", Seq("c")),
             AS("a", "b"),
             Seq("c", Rep(Seq("d", Dict())))
+        ])
+
+        e3 = AS("a", "b", Seq(Opt("c"), Seq("d", Dict())))
+        self.assertListEqual(expand_dictation_expansion(e3), [
+            AS("a", "b"),
+            Seq(Seq("d", Dict())),
+            Seq("c", Seq("d", Dict()))
+        ])
+
+        e4 = AS("a", "b", Seq(KleeneStar("c"), Seq("d", Dict())))
+        self.assertListEqual(expand_dictation_expansion(e4), [
+            AS("a", "b"),
+            Seq(Seq("d", Dict())),
+            Seq(Rep("c"), Seq("d", Dict()))
         ])
 
 

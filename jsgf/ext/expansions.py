@@ -145,9 +145,26 @@ def expand_dictation_expansion(expansion):
 
                 if jsgf_only_alt and dictation_alt:
                     return True
-        elif (isinstance(e, (OptionalGrouping, KleeneStar))
-              and dictation_in_expansion(e)):
-            return True
+        elif isinstance(e, (OptionalGrouping, KleeneStar)):
+            if dictation_in_expansion(e):
+                return True
+            else:
+                # Handle the special case of dictation-free optionals in a sequence
+                # that has a dictation expansion.
+
+                # Check if there's a sequence ancestor
+                p = e
+                while p.parent:
+                    if isinstance(p, Sequence):
+                        break
+                    p = p.parent
+
+                if not p or no_dictation_in_expansion(p):
+                    # There was no sequence ancestor or there wasn't dictation
+                    # anywhere in the sequence
+                    return False
+                else:  # e requires processing
+                    return True
         else:
             return False
 
@@ -252,14 +269,15 @@ def expand_dictation_expansion(expansion):
             if not next_unprocessed and copy not in result:
                 result.append(copy)
             else:
-                # Process the next unprocessed expansion and add the result
-                result.extend(process(next_unprocessed))
+                # Process the next unprocessed expansion and add the results.
+                # There are duplicates sometimes, so don't add them.
+                for r in process(next_unprocessed):
+                    if r not in result:
+                        result.append(r)
 
         return result
 
-    processed = process(expansion)
-
-    return processed
+    return process(expansion)
 
 
 def calculate_expansion_sequence(expansion):
