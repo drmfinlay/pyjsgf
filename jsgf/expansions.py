@@ -691,7 +691,7 @@ class OptionalGrouping(SingleChildExpansion):
         return True
 
 
-class RequiredGrouping(VariableChildExpansion):
+class RequiredGrouping(Sequence):
     def compile(self, ignore_tags=False):
         grouping = " ".join([
             e.compile(ignore_tags) for e in self.children
