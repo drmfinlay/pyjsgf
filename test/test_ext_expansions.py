@@ -5,9 +5,9 @@ from jsgf import PublicRule
 from jsgf.expansions import *
 from jsgf.ext import Dictation
 
-# Create shorthand aliases for some expansions as they're used here A LOT
 from jsgf.ext.rules import calculate_expansion_sequence, expand_dictation_expansion
 
+# Create shorthand aliases for some expansions as they're used here A LOT
 Seq = Sequence
 Opt = OptionalGrouping
 Dict = Dictation
