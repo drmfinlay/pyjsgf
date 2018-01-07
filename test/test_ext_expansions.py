@@ -379,6 +379,33 @@ class ExpandedDictationExpansion(unittest.TestCase):
             Seq(Dict(), "c", Dict(), "e")
         ])
 
+    def test_mutually_exclusive_dictation(self):
+        e1 = AS(Seq("a", Dict()), Seq(Dict(), "b"))
+        self.assertListEqual(expand_dictation_expansion(e1), [
+            Seq("a", Dict()),
+            Seq(Dict(), "b")
+        ])
+
+        e2 = AS(Seq("a", Dict()), Seq("b", Dict()))
+        self.assertListEqual(expand_dictation_expansion(e2), [
+            Seq("a", Dict()),
+            Seq("b", Dict())
+        ])
+
+        e3 = AS(Seq(Dict(), "a"), Seq(Dict(), "b"))
+        self.assertListEqual(expand_dictation_expansion(e3), [
+            Seq(Dict(), "a"),
+            Seq(Dict(), "b")
+        ])
+
+        # Also test with a JSGF only alternative
+        e4 = AS(Seq("a", Dict()), Seq("b", Dict()), "c")
+        self.assertListEqual(expand_dictation_expansion(e4), [
+            Literal("c"),  # JSGF alternatives just happen to be processed first
+            Seq("a", Dict()),
+            Seq("b", Dict())
+        ])
+
     def test_optional(self):
         e1 = Seq("hey", Opt(Dict()))
         self.assertListEqual(expand_dictation_expansion(e1), [

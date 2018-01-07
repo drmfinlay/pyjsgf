@@ -136,14 +136,18 @@ def expand_dictation_expansion(expansion):
 
             # Not necessarily dictation only, that scenario is handled by
             # expansion sequence and SequenceRule.
-            dictation_alt = False
+            dictation_alts = 0
             for c in e.children:
                 if dictation_in_expansion(c):
-                    dictation_alt = True
+                    dictation_alts += 1
                 else:
                     jsgf_only_alt = True
 
-                if jsgf_only_alt and dictation_alt:
+                if jsgf_only_alt and dictation_alts:
+                    return True
+                elif dictation_alts > 1:
+                    # An AlternativeSet that has two or more dictation expansions
+                    # needs further processing
                     return True
         elif isinstance(e, (OptionalGrouping, KleeneStar)):
             if dictation_in_expansion(e):
@@ -165,8 +169,7 @@ def expand_dictation_expansion(expansion):
                     return False
                 else:  # e requires processing
                     return True
-        else:
-            return False
+        return False
 
     def first_unprocessed_expansion(e):
         """
@@ -215,8 +218,10 @@ def expand_dictation_expansion(expansion):
             # replace the copy of the AlternativeSet currently being processed
             if len(jsgf_only_children) == 1:
                 replacements = jsgf_only_children
-            else:
+            elif len(jsgf_only_children) > 1:
                 replacements = [AlternativeSet(*jsgf_only_children)]
+            else:  # no JSGF children
+                replacements = []
             replacements.extend(dictation_children)
 
         elif isinstance(current, (OptionalGrouping, KleeneStar)):
