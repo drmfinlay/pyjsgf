@@ -173,16 +173,21 @@ def expand_dictation_expansion(expansion):
 
     def first_unprocessed_expansion(e):
         """
-        Find the first AlternativeSet or OptionalGrouping (if any) with both
-        descendants containing and not containing Dictation expansions.
+        Find the first expansion in an expansion tree for which is_unprocessed
+        returns True.
         :type e: Expansion
         :return: Expansion | None
         """
-        filtered = filter_expansion(e, is_unprocessed, TraversalOrder.PostOrder)
-        if not filtered:
-            return None
+        if isinstance(e, RuleRef):
+            return first_unprocessed_expansion(e.rule.expansion)
         else:
-            return filtered[0]
+            # Traverse in post order, i.e. children first, then e.
+            for child in e.children:
+                result = first_unprocessed_expansion(child)
+                if result:
+                    return result
+            if is_unprocessed(e):
+                return e
 
     def find_expansion(e, goal):
         result = filter_expansion(e, lambda x: x == goal)
