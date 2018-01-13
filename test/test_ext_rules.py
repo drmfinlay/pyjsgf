@@ -52,6 +52,54 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         # Check that set_next raises an IndexError if called too much
         self.assertRaises(IndexError, r1.set_next())
 
+    def test_repeating_sequence(self):
+        r2 = PublicSequenceRule("test", Rep(Seq("hello", Dict())))
+        self.assertTrue(r2.can_repeat)
+        self.assertEqual(r2.expansion, Seq("hello"))
+        r2.set_next()
+        self.assertEqual(r2.expansion, Seq(Dict()))
+
+        # Test with non-root Repeat expansions
+        r3 = PublicSequenceRule("test", Seq(Rep("hello")))
+        self.assertTrue(r3.can_repeat)
+        self.assertEqual(r3.expansion, Seq("hello"))
+
+        r4 = PublicSequenceRule("test", AS(Seq(Rep(Dict()))))
+        self.assertTrue(r4.can_repeat)
+        self.assertEqual(r4.expansion, AS(Seq(Dict())))
+
+        r5 = PublicSequenceRule("test", Seq(Rep(Seq("hello", Dict()))))
+        self.assertTrue(r5.can_repeat)
+        self.assertEqual(r5.expansion, Seq(Seq("hello")))
+        r5.set_next()
+        self.assertEqual(r5.expansion, Seq(Seq(Dict())))
+
+    def test_non_repeating_sequence(self):
+        self.assertFalse(generate_rule(Seq(Dict()))
+                         .can_repeat)
+        self.assertFalse(generate_rule(Seq("test", Rep(Dict())))
+                         .can_repeat)
+        self.assertFalse(generate_rule(Seq(Rep(Dict()), "test"))
+                         .can_repeat)
+
+    def test_original_expansion(self):
+        """
+        Test to check whether the original_expansion property yields the same
+        expansion passed to the SequenceRule's init method.
+        """
+        e1 = Seq("hello", Dict())
+        r1 = generate_rule(e1)
+        self.assertIs(r1.original_expansion, e1)
+
+        # Test with Repeats which require special handling.
+        e2 = Seq(Rep("hello"))
+        r2 = generate_rule(e2)
+        self.assertIs(r2.original_expansion, e2)
+
+        e3 = Rep(Seq("hello", Dict()))
+        r3 = generate_rule(e3)
+        self.assertIs(r3.original_expansion, e3)
+
 
 class SequenceRuleGraftMatchMethods(unittest.TestCase):
     def test_simple(self):

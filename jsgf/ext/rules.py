@@ -13,6 +13,28 @@ class SequenceRule(Rule):
         """
         super(SequenceRule, self).__init__(name, visible, expansion)
 
+        # Keep the original expansion and use a copy of it for the sequence
+        self._original_expansion = self.expansion
+        self.expansion = deepcopy(self.expansion)
+
+        # Check if the entire rule can be repeated
+        rep = self._find_root_repeat(self.expansion)
+        if rep:
+            # If it can, modify the tree so that rep is skipped over
+            parent = rep.parent
+            child = rep.children.pop(0)
+            child.parent = parent
+            if parent:
+                parent.children.remove(rep)
+                parent.children.append(child)
+                rep.parent = None
+            else:
+                # If rep had no parent, set self.expansion to rep's child
+                self.expansion = child
+            self._can_repeat = True
+        else:
+            self._can_repeat = False
+
         # Check if expansion contains unexpanded AlternativeSets or Optionals
         # with Dictation descendants
         if expand_dictation_expansion(self.expansion) != [self.expansion]:
@@ -20,10 +42,10 @@ class SequenceRule(Rule):
                                "have not been expanded with the "
                                "expand_dictation_expansion function.")
 
-        self._sequence = tuple(calculate_expansion_sequence(self.expansion))
+        # Calculate the expansion sequence without deep copying again
+        self._sequence = tuple(calculate_expansion_sequence(self.expansion, False))
         self._current_index = 0
         self._refuse_matches = False
-        self._original_expansion = self.expansion
         self._set_expansion_to_current()
 
     @property
@@ -33,6 +55,42 @@ class SequenceRule(Rule):
         :return: tuple
         """
         return self._sequence
+
+    @property
+    def can_repeat(self):
+        """
+        Whether the entire SequenceRule can be repeated multiple times.
+
+        Note that if the rule can be repeated, data from a repetition of the rule,
+        such as current_match values of each sequence expansion, should be stored
+        before restart_sequence is called for a further repetition.
+        """
+        return self._can_repeat
+
+    @staticmethod
+    def _find_root_repeat(e):
+        """
+        Recursive method to find a Repeat expansion that is an ancestor of all
+        leaves in an expansion tree. If there isn't one, return None.
+        :type e: Expansion
+        :return: Repeat | None
+        """
+        if isinstance(e, Repeat) and not e.is_optional:  # don't use optionals
+            # Check if this Repeat has any ancestors with other children
+            result = e
+            p = e.parent
+            while p:
+                if len(p.children) > 1:
+                    result = None
+                    break
+                p = p.parent
+            if result:
+                return e
+
+        for child in e.children:
+            result = SequenceRule._find_root_repeat(child)
+            if result:
+                return result
 
     def compile(self, ignore_tags=False):
         result = ""
