@@ -290,16 +290,17 @@ def expand_dictation_expansion(expansion):
     return process(expansion)
 
 
-def calculate_expansion_sequence(expansion):
+def calculate_expansion_sequence(expansion, should_deepcopy=True):
     """
     Split an expansion into 2n expansions where n is the number of Dictation
     expansions in the expansion.
 
     If there aren't any Dictation expansions, the result will be the original
     expansion.
+    :type expansion: Expansion
+    :param should_deepcopy: whether to deepcopy the expansion before using it
     :rtype: list
     """
-
     def generate_expansion_from_children(e, children):
         assert isinstance(e, Expansion)
         assert isinstance(children, (list, tuple))
@@ -400,4 +401,8 @@ def calculate_expansion_sequence(expansion):
 
         return result
 
-    return calculate_sequence(deepcopy(expansion))
+    # Only deepcopy the expansion if required
+    if should_deepcopy:
+        return calculate_sequence(deepcopy(expansion))
+    else:
+        return calculate_sequence(expansion)
