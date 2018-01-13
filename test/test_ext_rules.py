@@ -53,34 +53,53 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         self.assertRaises(IndexError, r1.set_next())
 
     def test_repeating_sequence(self):
-        r2 = PublicSequenceRule("test", Rep(Seq("hello", Dict())))
-        self.assertTrue(r2.can_repeat)
-        self.assertEqual(r2.expansion, Seq("hello"))
-        r2.set_next()
-        self.assertEqual(r2.expansion, Seq(Dict()))
+        """
+        Test that if SequenceRule is given an expansion tree with Repeat and
+        Dictation expansions, that the expansion sequence is correct and that
+        can_repeat is correct.
+        """
+        r1 = generate_rule(Rep(Seq("hello", Dict())))
+        self.assertTrue(r1.can_repeat)
+        self.assertEqual(r1.expansion, Seq("hello"))
+        r1.set_next()
+        self.assertEqual(r1.expansion, Seq(Dict()))
 
         # Test with non-root Repeat expansions
-        r3 = PublicSequenceRule("test", Seq(Rep("hello")))
+        r2 = generate_rule(Seq(Rep("hello")))
+        self.assertTrue(r2.can_repeat)
+        self.assertEqual(r2.expansion, Seq("hello"))
+
+        r3 = generate_rule(AS(Seq(Rep(Dict()))))
         self.assertTrue(r3.can_repeat)
-        self.assertEqual(r3.expansion, Seq("hello"))
+        self.assertEqual(r3.expansion, AS(Seq(Dict())))
 
-        r4 = PublicSequenceRule("test", AS(Seq(Rep(Dict()))))
+        r4 = generate_rule(Seq(Rep(Seq("hello", Dict()))))
         self.assertTrue(r4.can_repeat)
-        self.assertEqual(r4.expansion, AS(Seq(Dict())))
-
-        r5 = PublicSequenceRule("test", Seq(Rep(Seq("hello", Dict()))))
-        self.assertTrue(r5.can_repeat)
-        self.assertEqual(r5.expansion, Seq(Seq("hello")))
-        r5.set_next()
-        self.assertEqual(r5.expansion, Seq(Seq(Dict())))
+        self.assertEqual(r4.expansion, Seq(Seq("hello")))
+        r4.set_next()
+        self.assertEqual(r4.expansion, Seq(Seq(Dict())))
 
     def test_non_repeating_sequence(self):
-        self.assertFalse(generate_rule(Seq(Dict()))
-                         .can_repeat)
-        self.assertFalse(generate_rule(Seq("test", Rep(Dict())))
-                         .can_repeat)
-        self.assertFalse(generate_rule(Seq(Rep(Dict()), "test"))
-                         .can_repeat)
+        """
+        Test that if SequenceRule is given an expansion tree with Repeat and
+        Dictation expansions, that the expansion sequence is correct and that
+        can_repeat is correct.
+        """
+        r1 = generate_rule(Dict())
+        self.assertFalse(r1.can_repeat)
+
+        # Test with Repeat expansions that aren't ancestors of all leaves
+        r2 = generate_rule(Seq(Rep(Dict()), "world"))
+        self.assertFalse(r2.can_repeat)
+        self.assertEqual(r2.expansion, Seq(Rep(Dict())))
+        r2.set_next()
+        self.assertEqual(r2.expansion, Seq("world"))
+
+        r3 = generate_rule(Seq("world", Rep(Dict())))
+        self.assertFalse(r3.can_repeat)
+        self.assertEqual(r3.expansion, Seq("world"))
+        r3.set_next()
+        self.assertEqual(r3.expansion, Seq(Rep(Dict())))
 
     def test_original_expansion(self):
         """
