@@ -10,10 +10,14 @@ AS = AlternativeSet
 Rep = Repeat
 
 
+def generate_rule(e):
+    return PublicSequenceRule("test", e)
+
+
 class SequenceRulePropertiesCase(unittest.TestCase):
-    def test_one_expansion(self):
-        r1 = PublicSequenceRule("test", Dict())
-        r2 = PublicSequenceRule("test", Literal("test"))
+    def test_dictation_only_one_expansion(self):
+        r1 = generate_rule(Dict())
+        r2 = generate_rule(Literal("test"))
 
         self.assertTrue(r1.current_is_dictation_only)
         self.assertFalse(r2.current_is_dictation_only)
@@ -27,9 +31,9 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         rule.set_next()
         self.assertTrue(rule.current_is_dictation_only)
 
-    def test_complex(self):
+    def test_dictation_only_complex(self):
         e1 = Seq(Dict(), Dict())
-        r1 = PublicSequenceRule("test", e1)
+        r1 = generate_rule(e1)
         self.assertTrue(r1.current_is_dictation_only)
         self.assertTrue(r1.matches("hello"))
 
@@ -38,7 +42,7 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         self.assertTrue(r1.current_is_dictation_only)
 
     def test_next_in_sequence_methods(self):
-        r1 = PublicSequenceRule("test", Seq("hello", Dict()))
+        r1 = generate_rule(Seq("hello", Dict()))
         self.assertTrue(r1.has_next_expansion)
         r1.set_next()
         self.assertFalse(r1.has_next_expansion)
@@ -52,13 +56,13 @@ class SequenceRulePropertiesCase(unittest.TestCase):
 class SequenceRuleGraftMatchMethods(unittest.TestCase):
     def test_simple(self):
         r1 = PublicRule("test", Dict())
-        r2 = PublicSequenceRule("test", r1.expansion)
+        r2 = generate_rule(r1.expansion)
         r2.matches("hello world")
         SequenceRule.graft_sequence_matches(r2, r1.expansion)
         self.assertEqual(r1.expansion.current_match, "hello world")
 
         r3 = PublicRule("test", Seq("hello", Dict()))
-        r4 = PublicSequenceRule("test", r3.expansion)
+        r4 = generate_rule(r3.expansion)
         r4.matches("hello")
         r4.set_next()
         r4.matches("there")
@@ -67,7 +71,7 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
 
     def test_two_dictation(self):
         r1 = PublicRule("test", Seq(Dict(), Dict()))
-        r2 = PublicSequenceRule("test", r1.expansion)
+        r2 = generate_rule(r1.expansion)
         r2.matches("hello")
         r2.set_next()
         r2.matches("there")
@@ -80,7 +84,7 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         r1 = PublicRule("test", Seq(
             "test with", AS("lots of", "many"), Dict(), "and JSGF",
             "expansions", Dict(), Dict()))
-        r2 = PublicSequenceRule("test", r1.expansion)
+        r2 = generate_rule(r1.expansion)
         seq = r1.expansion
         l1, alt_set, d1, l2, l3, d2, d3 = seq.children
         r2.matches("test with lots of")
@@ -111,7 +115,7 @@ class SequenceRuleEntireMatchProperty(unittest.TestCase):
             "entire_match should be None unless all expansions match")
 
     def test_one_seq_expansion(self):
-        r1 = PublicSequenceRule("test", "hello world")
+        r1 = generate_rule("hello world")
         self.assert_no_entire_match(r1)
         self.assertTrue(r1.matches("hello world"))
         self.assertEqual(r1.entire_match, "hello world")
@@ -121,7 +125,7 @@ class SequenceRuleEntireMatchProperty(unittest.TestCase):
         self.assert_no_entire_match(r1)
 
     def test_multiple_seq_expansions(self):
-        r1 = PublicSequenceRule("test", Seq("hello", Dict()))
+        r1 = generate_rule(Seq("hello", Dict()))
         self.assert_no_entire_match(r1)
         self.assertTrue(r1.matches("hello"))
         r1.set_next()
@@ -251,9 +255,9 @@ class SequenceRuleMatchCase(unittest.TestCase):
 
 class SequenceRuleRefuseMatches(unittest.TestCase):
     def setUp(self):
-        self.r1 = PublicSequenceRule("test", "test")
-        self.r2 = PublicSequenceRule("test", Dict())
-        self.r3 = PublicSequenceRule("test", Seq("test", Dict()))
+        self.r1 = generate_rule("test")
+        self.r2 = generate_rule(Dict())
+        self.r3 = generate_rule(Seq("test", Dict()))
         self.rules = [self.r1, self.r2, self.r3]
 
     def test_initial_values(self):
@@ -473,13 +477,13 @@ class SequenceRuleCompileCase(unittest.TestCase):
 
     def test_dictation_in_alternative_set(self):
         e1 = Seq(AS(Dict(), "test", "testing"), "end")
-        self.assertRaises(GrammarError, SequenceRule, "test", True, e1)
+        self.assertRaises(GrammarError, generate_rule, e1)
 
         e2 = Seq(AS("test", Dict(), "testing"), "end")
-        self.assertRaises(GrammarError, SequenceRule, "test", True, e2)
+        self.assertRaises(GrammarError, generate_rule, e2)
 
         e3 = Seq(AS("test", "testing", Dict()), "end")
-        self.assertRaises(GrammarError, SequenceRule, "test", True, e3)
+        self.assertRaises(GrammarError, generate_rule, e3)
 
 
 if __name__ == '__main__':
