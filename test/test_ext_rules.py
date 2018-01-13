@@ -106,7 +106,6 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         r1 = PublicRule("test", Dict())
         r2 = generate_rule(r1.expansion)
         r2.matches("hello world")
-        SequenceRule.graft_sequence_matches(r2, r1.expansion)
         self.assertEqual(r1.expansion.current_match, "hello world")
 
         r3 = PublicRule("test", Seq("hello", Dict()))
@@ -114,7 +113,6 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         r4.matches("hello")
         r4.set_next()
         r4.matches("there")
-        SequenceRule.graft_sequence_matches(r4, r3.expansion)
         self.assertEqual(r3.expansion.current_match, "hello there")
 
     def test_two_dictation(self):
@@ -123,7 +121,6 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         r2.matches("hello")
         r2.set_next()
         r2.matches("there")
-        SequenceRule.graft_sequence_matches(r2, r1.expansion)
         self.assertEqual(r1.expansion.current_match, "hello there")
         self.assertEqual(r1.expansion.children[0].current_match, "hello")
         self.assertEqual(r1.expansion.children[1].current_match, "there")
@@ -144,7 +141,6 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         r2.matches("hopefully")
         r2.set_next()
         r2.matches("maybe")
-        SequenceRule.graft_sequence_matches(r2, r1.expansion)
         self.assertEqual(l1.current_match, "test with")
         self.assertEqual(alt_set.current_match, "lots of")
         self.assertEqual(d1.current_match, "dictation")
