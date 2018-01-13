@@ -633,8 +633,15 @@ class Repeat(SingleChildExpansion):
         intermediate_result = result
         while True:
             # Consume speech
+            last_intermediate_result = intermediate_result
             intermediate_result = self.child.matches(intermediate_result)
             child_match = self.child.current_match
+
+            # If the child consumed nothing and still matches, then there is a
+            # descendant that is probably a Dictation expansion. So break out of
+            # the loop.
+            if child_match and intermediate_result == last_intermediate_result:
+                break
 
             if not child_match:
                 # Restore current_match state for incomplete repetition tree
