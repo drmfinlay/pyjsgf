@@ -134,6 +134,43 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         r4.matches("there")
         self.assertEqual(r3.expansion.current_match, "hello there")
 
+    def test_repeating_dictation(self):
+        r1 = PublicRule("test", Rep(Dict()))
+        r2 = generate_rule(r1.expansion)
+        r2.matches("hello")
+        r2.refuse_matches = False
+        r2.matches("hello")
+
+        # r1 should have had r2's current_match values grafted onto it
+        self.assertEqual(r1.expansion.current_match, "hello")
+        self.assertEqual(r1.expansion.child.current_match, "hello")
+
+        # Check that a rule with a Literal also works fine
+        r3 = PublicRule("test", Rep(Seq(Dict(), "world")))
+        r4 = generate_rule(r3.expansion)
+        r4.matches("hello")
+        r4.refuse_matches = False
+        r4.matches("hello")
+        r4.set_next()
+        r4.matches("world")
+
+        # r3 should have had r4's current_match values grafted onto it
+        self.assertEqual(r3.expansion.current_match, "hello world")
+        self.assertEqual(r3.expansion.children[0].current_match, "hello world")
+        self.assertEqual(r3.expansion.children[0].children[0].current_match, "hello")
+        self.assertEqual(r3.expansion.children[0].children[1].current_match, "world")
+
+        # Check that a rule with a Repeat around a Dictation works fine
+        r5 = PublicRule("test", Seq(Rep(Dict()), "world"))
+        r6 = generate_rule(r5.expansion)
+        r6.matches("hello")
+        r6.set_next()
+        r6.matches("world")
+        self.assertEqual(r5.expansion.current_match, "hello world")
+        self.assertEqual(r5.expansion.children[0].current_match, "hello")
+        self.assertEqual(r5.expansion.children[0].child.current_match, "hello")
+        self.assertEqual(r5.expansion.children[1].current_match, "world")
+
     def test_two_dictation(self):
         r1 = PublicRule("test", Seq(Dict(), Dict()))
         r2 = generate_rule(r1.expansion)
@@ -169,6 +206,40 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         self.assertEqual(d3.current_match, "maybe")
         self.assertEqual(seq.current_match, "test with lots of dictation and jsgf "
                                             "expansions hopefully maybe")
+
+    def test_graft_matches_onto_unrelated(self):
+        """
+        Test graft_sequence_matches using a different expansion than the original
+        passed to SequenceRule's init method.
+        """
+        # Test using only Dictation
+        r1 = generate_rule(Dict())
+        r1.matches("hello world")
+        e1 = Dict()
+        SequenceRule.graft_sequence_matches(r1, e1)
+        self.assertEqual(e1.current_match, "hello world")
+
+        # Test using a Literal and a Dictation
+        r2 = generate_rule(Seq("hello", Dict()))
+        r2.matches("hello")
+        r2.set_next()
+        r2.matches("there")
+        e2 = Seq("hello", Dict())
+        SequenceRule.graft_sequence_matches(r2, e2)
+        self.assertEqual(e2.current_match, "hello there")
+        self.assertEqual(e2.children[0].current_match, "hello")
+        self.assertEqual(e2.children[1].current_match, "there")
+
+        # Test on an expansion that won't match
+        r3 = generate_rule(Seq("hello", Dict()))
+        r3.matches("hello")
+        r3.set_next()
+        r3.matches("there")
+        e3 = Seq("hello", "world")
+        SequenceRule.graft_sequence_matches(r3, e3)
+        self.assertEqual(e3.current_match, None)
+        self.assertEqual(e3.children[0].current_match, "hello")
+        self.assertEqual(e3.children[1].current_match, None)
 
 
 class SequenceRuleEntireMatchProperty(unittest.TestCase):
