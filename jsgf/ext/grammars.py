@@ -175,10 +175,11 @@ class DictationGrammar(Grammar):
         sequence rule matches.
         :return: iterable
         """
-        result = []
-        result.extend(filter(lambda x: x.visible and x.matches(speech),
-                             self._dictation_rules))
-        result.extend(self._jsgf_only_grammar.find_matching_rules(speech))
+        # Match against each match rule and remove any rules that didn't match
+        result = self.match_rules
+        for rule in tuple(result):
+            if not rule.matches(speech):
+                result.remove(rule)
 
         # Get the original rule for each rule in the result and ensure that their
         # current_match values reflect the generated rules' values.
