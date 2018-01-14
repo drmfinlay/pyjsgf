@@ -46,6 +46,17 @@ class DictationGrammar(Grammar):
         return (self._dictation_rules + self._jsgf_only_grammar.match_rules +
                 self._original_rule_map.values())
 
+    @property
+    def match_rules(self):
+        """
+        The rules that the find_matching_rules method will match against.
+        :return: iterable
+        """
+        result = []
+        result.extend(filter(lambda x: x.visible, self._dictation_rules))
+        result.extend(self._jsgf_only_grammar.match_rules)
+        return result
+
     def add_rule(self, rule):
         if rule.name in self.rule_names:
             raise GrammarError("JSGF grammar cannot have rules with the same name")
