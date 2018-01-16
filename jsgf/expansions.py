@@ -757,6 +757,17 @@ class AlternativeSet(VariableChildExpansion):
 
         return result
 
+    def __eq__(self, other):
+        if type(self) != type(other) or len(self.children) != len(other.children):
+            return False
+        else:
+            # Check that the children lists have the same contents, but the
+            # ordering can be different.
+            for child in self.children:
+                if child not in other.children:
+                    return False
+            return True
+
     @property
     def is_alternative(self):
         return True
