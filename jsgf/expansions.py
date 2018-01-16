@@ -8,40 +8,37 @@ class TraversalOrder(object):
     PreOrder, PostOrder = range(2)
 
 
-def map_expansion(e, func, order=TraversalOrder.PreOrder):
+def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     """
     Traverse an expansion tree and call func on each expansion returning a tuple
     structure with the results.
     :type e: Expansion
-    :type func: callable
+    :param func: callable (default: the identity function, f(x)->x)
     :type order: int
     :return: tuple
     """
-    def map_current(x):
-        if isinstance(x, RuleRef):
+    def map_children(x):
+        if isinstance(x, RuleRef):  # map the referenced rule
             return map_expansion(x.rule.expansion, func, order)
         else:
-            return func(x)
-
-    def map_children(x):
-        return tuple([map_expansion(child, func, order)
-                      for child in x.children])
+            return tuple([map_expansion(child, func, order)
+                          for child in x.children])
 
     if order == TraversalOrder.PreOrder:
-        return map_current(e), map_children(e)
+        return func(e), map_children(e)
     elif order == TraversalOrder.PostOrder:
-        return map_children(e), map_current(e)
+        return map_children(e), func(e)
     else:
         raise ValueError("order should be either %d for pre-order or %d for "
                          "post-order" % (TraversalOrder.PreOrder,
                                          TraversalOrder.PostOrder))
 
 
-def flat_map_expansion(e, func, order=TraversalOrder.PreOrder):
+def flat_map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     """
     Call map_expansion with the arguments and return a single flat list.
     :type e: Expansion
-    :type func: callable
+    :param func: callable (default: the identity function, f(x)->x)
     :type order: int
     :return: list
     """
@@ -55,11 +52,11 @@ def flat_map_expansion(e, func, order=TraversalOrder.PreOrder):
     return result
 
 
-def filter_expansion(e, func, order=TraversalOrder.PreOrder):
+def filter_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     """
     Find all expansions in an expansion tree for which func(x) == True.
     :type e: Expansion
-    :type func: callable
+    :param func: callable (default: the identity function, f(x)->x)
     :type order: int
     :return: list
     """
