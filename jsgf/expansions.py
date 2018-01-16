@@ -322,7 +322,7 @@ class Expansion(object):
         leaves = []
 
         def add_leaf(e):
-            if not e.children:
+            if not (e.children or isinstance(e, RuleRef)):
                 leaves.append(e)
 
         map_expansion(self, add_leaf)
