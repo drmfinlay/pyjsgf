@@ -314,6 +314,14 @@ class ExpansionTreeFunctions(unittest.TestCase):
         self.map_to_string = lambda x: "%s" % x
         self.map_to_current_match = lambda x: x.current_match
 
+    def test_default_arguments(self):
+        e = Sequence("hello")
+        self.assertEqual(map_expansion(e), (
+            e, ((Literal("hello"), ()),)
+        ))
+        self.assertEqual(flat_map_expansion(e), [e, Literal("hello")])
+        self.assertEqual(filter_expansion(e), [e, Literal("hello")])
+
     def test_base_map(self):
         e = Literal("hello")
         mapped1 = map_expansion(e, self.map_to_string, TraversalOrder.PreOrder)
@@ -335,6 +343,21 @@ class ExpansionTreeFunctions(unittest.TestCase):
         self.assertEqual(mapped2, (
             (((), "Literal('hello')"), ((), "Literal('world')")),
             "Sequence(Literal('hello'), Literal('world'))"
+        ))
+
+    def test_using_rule_ref(self):
+        """
+        Test map_expansion using a RuleRef.
+        """
+        r = HiddenRule("name", AlternativeSet("alice", "bob"))
+        e = RuleRef(r)
+        self.assertEqual(map_expansion(e), (
+            RuleRef(r), (
+                (AlternativeSet("alice", "bob"), (
+                    (Literal("alice"), ()),
+                    (Literal("bob"), ())
+                ))
+            )
         ))
 
     def test_map_with_matches(self):
