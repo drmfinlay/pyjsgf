@@ -426,11 +426,11 @@ class ExpansionTreeFunctions(unittest.TestCase):
     def test_flat_map_base(self):
         e = Literal("hello")
         self.assertEqual(
-            flat_map_expansion(e, lambda x: x, TraversalOrder.PreOrder),
+            flat_map_expansion(e, order=TraversalOrder.PreOrder),
             [e])
 
         self.assertEqual(
-            flat_map_expansion(e, lambda x: x, TraversalOrder.PostOrder),
+            flat_map_expansion(e, order=TraversalOrder.PostOrder),
             [e])
 
     def test_flat_map_simple(self):
@@ -438,11 +438,11 @@ class ExpansionTreeFunctions(unittest.TestCase):
         a, alt_set, d = e.children
         b, c = alt_set.children
         self.assertEqual(
-            flat_map_expansion(e, lambda x: x, TraversalOrder.PreOrder),
+            flat_map_expansion(e, order=TraversalOrder.PreOrder),
             [e, a, alt_set, b, c, d])
 
         self.assertEqual(
-            flat_map_expansion(e, lambda x: x, TraversalOrder.PostOrder),
+            flat_map_expansion(e, order=TraversalOrder.PostOrder),
             [a, b, c, alt_set, d, e])
 
 

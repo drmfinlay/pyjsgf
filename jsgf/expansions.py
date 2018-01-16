@@ -294,7 +294,7 @@ class Expansion(object):
         return not self.__eq__(other)
 
     def __contains__(self, item):
-        return item in flat_map_expansion(self, lambda x: x)
+        return item in flat_map_expansion(self)
 
     @property
     def is_optional(self):
