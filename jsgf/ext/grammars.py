@@ -146,7 +146,7 @@ class DictationGrammar(Grammar):
         for rule in self._jsgf_only_grammar.match_rules:
             if not isinstance(rule, SequenceRule):
                 continue
-            if rule.current_is_dictation_only or rule.refuse_matches:
+            if rule.current_is_dictation_only:
                 self._jsgf_only_grammar.remove_rule(rule)
                 self._dictation_rules.append(rule)
 

@@ -103,7 +103,7 @@ class DictationGrammarCase(unittest.TestCase):
         grammar.remove_rule(r2)
         self.assertNotIn(r2, grammar.rules)
 
-    def rearrange_rules(self):
+    def test_rearrange_rules(self):
         grammar = DictationGrammar()
         r1 = PublicRule("test1", Sequence("test", Dictation()))
         r2 = PublicRule("test2", Sequence("testing", Dictation()))
@@ -128,17 +128,19 @@ class DictationGrammarCase(unittest.TestCase):
         # Note that find_matching_rules calls rearrange_rules
         grammar.find_matching_rules("test", True)
 
+        expected2 = "#JSGF V1.0 UTF-8 en;\n" \
+                    "grammar root;\n" \
+                    "public <root> = (<test2_0>);\n" \
+                    "<test2_0> = testing;\n"
+
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            "#JSGF V1.0 UTF-8 en;\n"
-            "grammar root;\n"
-            "public <root> = (<test2_0>);\n"
-            "<test2_0> = testing;\n")
+            expected2)
 
         grammar.find_matching_rules("testing", True)
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            "")
+            expected2)
 
         # Add some more rules
         r3 = PublicRule("test3", Sequence(Dictation(), "testing"))
@@ -146,15 +148,18 @@ class DictationGrammarCase(unittest.TestCase):
         grammar.add_rules(r3, r4)
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            "")
+            expected2)
 
         grammar.find_matching_rules("hello")
+        expected3 = "#JSGF V1.0 UTF-8 en;\n" \
+                    "grammar root;\n" \
+                    "public <root> = (<test2_0>|<test3_0>);\n" \
+                    "<test2_0> = testing;\n" \
+                    "<test3_0> = testing;\n"
+
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            "#JSGF V1.0 UTF-8 en;\n"
-            "grammar root;\n"
-            "public <root> = (<test3_0>);\n"
-            "<test3_0> = testing;\n")
+            expected3)
 
     def test_find_matching_rules(self):
         grammar = DictationGrammar()
