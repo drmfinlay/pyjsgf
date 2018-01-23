@@ -1,4 +1,6 @@
 # pyjsgf
+[![Build Status](https://travis-ci.org/Danesprite/pyjsgf.svg?branch=master)](https://travis-ci.org/Danesprite/pyjsgf)
+
 JSpeech Grammar Format (JSGF) compiler and matcher for Python.
 
 JSGF is a format used to textually represent grammars for speech recognition engines. You can read the JSGF specification [here](https://www.w3.org/TR/jsgf/).
