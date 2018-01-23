@@ -60,3 +60,6 @@ target/
 *.iml
 out
 gen
+
+# Backup files
+*~
