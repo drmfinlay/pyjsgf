@@ -50,7 +50,8 @@ class Rule(object):
         # Raise a CompilationError if there are no non-optional leaves in the
         # expansion tree
         leaves = self.expansion.leaves
-        if self.expansion.is_optional or all(map(lambda l: l.is_optional, leaves)):
+
+        if self.expansion.is_optional or all([l.is_optional for l in leaves]):
             raise CompilationError("nothing in the expansion tree is required to "
                                    "be spoken.")
 

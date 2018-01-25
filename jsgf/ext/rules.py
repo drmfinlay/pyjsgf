@@ -159,8 +159,8 @@ class SequenceRule(Rule):
         method, this returns all strings that matched joined together by spaces.
         :return: str
         """
-        matches = map(lambda x: x.current_match, self._sequence)
-        if all(map(lambda m: m is not None, matches)):
+        matches = [x.current_match for x in self._sequence]
+        if all([m is not None for m in matches]):
             return " ".join(matches)
 
     def restart_sequence(self):

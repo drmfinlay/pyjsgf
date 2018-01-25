@@ -239,7 +239,7 @@ def expand_dictation_expansion(expansion):
             # Traverse up the parent tree and remove copy_x or one of its ancestors
             # where there is another child
             while ancestor:
-                if ancestor.children > 1:
+                if len(ancestor.children) > 1:
                     ancestor.children.remove(copy_x)
                     break
 

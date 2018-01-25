@@ -5,7 +5,7 @@ import re
 
 
 class TraversalOrder(object):
-    PreOrder, PostOrder = range(2)
+    PreOrder, PostOrder = list(range(2))
 
 
 def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
@@ -135,7 +135,7 @@ class Expansion(object):
             raise TypeError("'children' must be a list or tuple")
 
         # Validate each child expansion
-        self._children = map(lambda e: self.validate(e), children)
+        self._children = [self.validate(e) for e in children]
 
         # Set each child's parent as this expansion
         for child in self._children:

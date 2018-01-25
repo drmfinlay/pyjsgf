@@ -103,8 +103,7 @@ class Grammar(object):
         return self.rules
 
     visible_rules = property(
-        lambda self: filter(lambda rule: True if rule.visible else False,
-                            self.rules),
+        lambda self: [rule for rule in self.rules if rule.visible],
         doc="""
         The rules in this grammar which have the visible attribute set to True.
         :rtype: list
@@ -112,7 +111,7 @@ class Grammar(object):
     )
 
     rule_names = property(
-        lambda self: map(lambda rule: rule.name, self.rules),
+        lambda self: [rule.name for rule in self.rules],
         doc="""
         The rule names of each rule in this grammar.
         :rtype: list
@@ -162,7 +161,7 @@ class Grammar(object):
         :type speech: str
         :return: iterable
         """
-        return filter(lambda r: r.visible and r.matches(speech), self.match_rules)
+        return [r for r in self.match_rules if r.visible and r.matches(speech)]
 
     def _get_rule_from_name(self, name):
         if name not in self.rule_names:
@@ -210,7 +209,7 @@ class Grammar(object):
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
         # Enable any rules in grammar._all_rules which have the given name
-        for r in filter(lambda x: x.name == rule_name, self._all_rules):
+        for r in [x for x in self._all_rules if x.name == rule_name]:
             r.enable()
 
     def disable_rule(self, rule):
@@ -230,7 +229,7 @@ class Grammar(object):
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
         # Disable any rules in grammar._all_rules which have the given name
-        for r in filter(lambda x: x.name == rule_name, self._all_rules):
+        for r in [x for x in self._all_rules if x.name == rule_name]:
             r.disable()
 
 
@@ -261,7 +260,7 @@ class RootGrammar(Grammar):
                 rule = HiddenRule(rule.name, rule.expansion)
                 rule_refs.append(RuleRef(rule))
 
-            if rule.name in map(lambda r: r.name, new_rules):
+            if rule.name in [r.name for r in new_rules]:
                 raise GrammarError("JSGF grammar cannot have rules with the same "
                                    "name")
 
@@ -276,7 +275,7 @@ class RootGrammar(Grammar):
             self._rules.append(rule)
 
         # Keep references to the original rules for matching against later
-        self._match_rules = map(lambda r: r, rules)  # use a new list
+        self._match_rules = list(rules)  # use a new list
 
     @property
     def match_rules(self):
@@ -322,7 +321,7 @@ class RootGrammar(Grammar):
         :param rule: Rule object or the name of a rule in this grammar
         """
         # Get names used by RuleRefs
-        rule_ref_names = map(lambda r: r.rule.name, self._rule_refs)
+        rule_ref_names = [r.rule.name for r in self._rule_refs]
 
         if isinstance(rule, str):
             rule_name = rule
@@ -340,7 +339,7 @@ class RootGrammar(Grammar):
         rule_ref.decrement_ref_count()
 
         # Also remove the rule from the list used for matching
-        match_rule_names = map(lambda r: r.name, self._match_rules)
+        match_rule_names = [r.name for r in self._match_rules]
         j = match_rule_names.index(rule_name)
         self._match_rules.pop(j)
 

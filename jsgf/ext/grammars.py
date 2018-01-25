@@ -44,7 +44,7 @@ class DictationGrammar(Grammar):
         :return: iterable
         """
         return (self._dictation_rules + self._jsgf_only_grammar.match_rules +
-                self._original_rule_map.values())
+                list(self._original_rule_map.values()))
 
     @property
     def match_rules(self):
@@ -53,7 +53,7 @@ class DictationGrammar(Grammar):
         :return: iterable
         """
         result = []
-        result.extend(filter(lambda x: x.visible, self._dictation_rules))
+        result.extend([x for x in self._dictation_rules if x.visible])
         result.extend(self._jsgf_only_grammar.match_rules)
         return result
 
@@ -100,7 +100,7 @@ class DictationGrammar(Grammar):
         grammar.
         :type rule: Rule
         """
-        for k, v in self._original_rule_map.items():
+        for k, v in list(self._original_rule_map.items()):
             if v is rule:
                 yield k
 
@@ -112,7 +112,7 @@ class DictationGrammar(Grammar):
         else:
             rule_name = rule.name
 
-        for k, v in self._original_rule_map.items():
+        for k, v in list(self._original_rule_map.items()):
             if v.name == rule_name:
                 self._original_rule_map.pop(k)
 
@@ -128,7 +128,7 @@ class DictationGrammar(Grammar):
         try:
             result = self._jsgf_only_grammar.compile_grammar(
                 charset_name, language_name, jsgf_version)
-        except GrammarError, e:
+        except GrammarError as e:
             if len(self._dictation_rules) > 0:
                 result = ""
             else:
