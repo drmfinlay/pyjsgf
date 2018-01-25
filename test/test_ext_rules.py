@@ -49,9 +49,6 @@ class SequenceRulePropertiesCase(unittest.TestCase):
         r1.set_next()
         self.assertFalse(r1.has_next_expansion)
 
-        # Check that set_next raises an IndexError if called too much
-        self.assertRaises(IndexError, r1.set_next())
-
     def test_repeating_sequence(self):
         """
         Test that if SequenceRule is given an expansion tree with Repeat and
