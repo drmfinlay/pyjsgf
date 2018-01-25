@@ -146,6 +146,9 @@ class Expansion(object):
     def __add__(self, other):
         return self + other
 
+    def __hash__(self):
+        return self.__str__().__hash__()
+
     @property
     def children(self):
         return self._children
@@ -389,10 +392,16 @@ class SingleChildExpansion(Expansion):
     def child(self):
         return self.children[0]
 
+    def __hash__(self):
+        return super(SingleChildExpansion, self).__hash__()
+
 
 class VariableChildExpansion(Expansion):
     def __init__(self, *expansions):
         super(VariableChildExpansion, self).__init__(expansions)
+
+    def __hash__(self):
+        return super(VariableChildExpansion, self).__hash__()
 
 
 class Sequence(VariableChildExpansion):
@@ -407,6 +416,9 @@ class Sequence(VariableChildExpansion):
         else:
             return seq
 
+    def __hash__(self):
+        return super(Sequence, self).__hash__()
+
 
 class Literal(Expansion):
     def __init__(self, text):
@@ -419,6 +431,9 @@ class Literal(Expansion):
 
     def __str__(self):
         return "%s('%s')" % (self.__class__.__name__, self.text)
+
+    def __hash__(self):
+        return super(Literal, self).__hash__()
 
     def compile(self, ignore_tags=False):
         if self.tag and not ignore_tags:
@@ -557,6 +572,9 @@ class RuleRef(Expansion):
     def __str__(self):
         return "%s('%s')" % (self.__class__.__name__, self.rule.name)
 
+    def __hash__(self):
+        return super(RuleRef, self).__hash__()
+
     def _matches_internal(self, speech):
         # Temporarily set the parent of the referenced rule's root expansion to
         # this expansion. This is required when it is necessary to view this
@@ -601,6 +619,9 @@ class Repeat(SingleChildExpansion):
             return "(%s)+%s" % (compiled, self.tag)
         else:
             return "(%s)+" % compiled
+
+    def __hash__(self):
+        return super(Repeat, self).__hash__()
 
     @property
     def repetitions_matched(self):
@@ -678,6 +699,9 @@ class KleeneStar(Repeat):
     def is_optional(self):
         return True
 
+    def __hash__(self):
+        return super(KleeneStar, self).__hash__()
+
 
 class OptionalGrouping(SingleChildExpansion):
     """
@@ -694,6 +718,9 @@ class OptionalGrouping(SingleChildExpansion):
     def is_optional(self):
         return True
 
+    def __hash__(self):
+        return super(OptionalGrouping, self).__hash__()
+
 
 class RequiredGrouping(Sequence):
     def compile(self, ignore_tags=False):
@@ -706,6 +733,9 @@ class RequiredGrouping(Sequence):
         else:
             return "(%s)" % grouping
 
+    def __hash__(self):
+        return super(RequiredGrouping, self).__hash__()
+
 
 class AlternativeSet(VariableChildExpansion):
     def __init__(self, *expansions):
@@ -715,6 +745,9 @@ class AlternativeSet(VariableChildExpansion):
     @property
     def weights(self):
         return self._weights
+
+    def __hash__(self):
+        return super(AlternativeSet, self).__hash__()
 
     @weights.setter
     def weights(self, value):

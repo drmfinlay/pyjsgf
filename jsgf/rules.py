@@ -66,6 +66,9 @@ class Rule(object):
         return "%s(%s)" % (self.__class__.__name__,
                            self.expansion)
 
+    def __hash__(self):
+        return id(self)
+
     def enable(self):
         """
         Allow this rule to produce compile output and to match speech strings.
@@ -161,7 +164,13 @@ class PublicRule(Rule):
     def __init__(self, name, expansion):
         super(PublicRule, self).__init__(name, True, expansion)
 
+    def __hash__(self):
+        return super(PublicRule, self).__hash__()
+
 
 class HiddenRule(Rule):
     def __init__(self, name, expansion):
         super(HiddenRule, self).__init__(name, False, expansion)
+
+    def __hash__(self):
+        return super(HiddenRule, self).__hash__()
