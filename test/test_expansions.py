@@ -480,12 +480,12 @@ class LeavesProperty(unittest.TestCase):
 class LeavesAfterLiteralProperty(unittest.TestCase):
     def test_base(self):
         e = Literal("a")
-        self.assertItemsEqual(e.leaves_after, [])
+        self.assertListEqual(list(e.leaves_after), [])
 
     def test_multiple(self):
         e = Sequence("a", "b")
-        self.assertItemsEqual(e.children[0].leaves_after, [e.children[1]])
-        self.assertItemsEqual(e.children[1].leaves_after, [])
+        self.assertListEqual(list(e.children[0].leaves_after), [e.children[1]])
+        self.assertListEqual(list(e.children[1].leaves_after), [])
 
     def test_complex(self):
         x = Sequence(
@@ -499,12 +499,12 @@ class LeavesAfterLiteralProperty(unittest.TestCase):
         e = x.children[1]
         f = x.children[2].child
 
-        self.assertItemsEqual(a.leaves_after, [b, c, d, e, f])
-        self.assertItemsEqual(b.leaves_after, [c, d, e, f])
-        self.assertItemsEqual(c.leaves_after, [d, e, f])
-        self.assertItemsEqual(d.leaves_after, [e, f])
-        self.assertItemsEqual(e.leaves_after, [f])
-        self.assertItemsEqual(f.leaves_after, [])
+        self.assertListEqual(list(a.leaves_after), [b, c, d, e, f])
+        self.assertListEqual(list(b.leaves_after), [c, d, e, f])
+        self.assertListEqual(list(c.leaves_after), [d, e, f])
+        self.assertListEqual(list(d.leaves_after), [e, f])
+        self.assertListEqual(list(e.leaves_after), [f])
+        self.assertListEqual(list(f.leaves_after), [])
 
 
 class RootExpansionProperty(unittest.TestCase):

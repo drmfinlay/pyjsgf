@@ -547,7 +547,7 @@ class SequenceRuleCompileCase(unittest.TestCase):
             rule.set_next()
             compiled_rules.append(rule.compile())
 
-        self.assertItemsEqual(compiled_rules, expected)
+        self.assertListEqual(compiled_rules, list(expected))
 
     def test_only_dictation_compile(self):
         self.assert_compiled_rules_equal(Dict(), [""])
