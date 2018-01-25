@@ -7,6 +7,8 @@ JSGF is a format used to textually represent grammars for speech recognition eng
 
 This Python package can be used to construct JSGF rules and grammars, compile them into strings or files, and find rules in grammars that match given speech text. Speech text can be strings received from a recognition engine's speech hypothesis, for example.
 
+Pyjsgf has been written and tested for Python 2.7 and Python 3.5.
+
 ## Installation
 Clone or download this repository and run the following:
 ``` Shell
@@ -52,6 +54,3 @@ The first line of the grammar can be changed using the `jsgf_version`, `charset_
 
 There are more examples on ways to use this package [here](examples/).
 
-
-## Python version
-This package has been written for Python 2.7 and does not yet work with Python 3+.
