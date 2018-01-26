@@ -130,7 +130,6 @@ class Expansion(object):
     def __init__(self, children):
         self._tag = None
         self._parent = None
-        self._is_optional = False
         if not isinstance(children, (tuple, list)):
             raise TypeError("'children' must be a list or tuple")
 
@@ -167,19 +166,6 @@ class Expansion(object):
     def parent(self, value):
         if isinstance(value, Expansion) or value is None:
             self._parent = value
-
-            # Check if value is an optional expansion
-            parent = value
-            while parent:
-                if parent.is_optional:
-                    def func(x):
-                        x._is_optional = True
-
-                    # Set is_optional for self and all descendants
-                    map_expansion(self, func)
-                    break
-                parent = parent.parent
-
         else:
             raise AttributeError("'parent' must be an Expansion or None")
 
@@ -302,10 +288,12 @@ class Expansion(object):
     @property
     def is_optional(self):
         """
-        Whether or not this expansion has an OptionalGrouping or KleeneStar
-        ancestor.
+        Whether or not this expansion has an optional ancestor.
         """
-        return self._is_optional
+        result = False
+        if self.parent:
+            result = self.parent.is_optional
+        return result
 
     @property
     def is_alternative(self):
