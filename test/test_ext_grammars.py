@@ -19,8 +19,23 @@ class DictationGrammarCase(unittest.TestCase):
 
         expected = "#JSGF V1.0 UTF-8 en;\n" \
                    "grammar root;\n" \
-                   "public <root> = (<b_0>);\n" \
-                   "<b_0> = hello world;\n"
+                   "public <root> = (<b>);\n" \
+                   "<b> = hello world;\n"
+
+        self.assertEqual(grammar.compile_grammar(
+            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+            expected)
+
+        # Test that DictationGrammar correctly names rules that can be expanded.
+        grammar.add_rule(
+            PublicRule("c", AlternativeSet("hey", "hello", Dictation()))
+        )
+
+        expected = "#JSGF V1.0 UTF-8 en;\n" \
+                   "grammar root;\n" \
+                   "public <root> = (<b>|<c_0>);\n" \
+                   "<b> = hello world;\n" \
+                   "<c_0> = (hey|hello);\n"
 
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
@@ -30,7 +45,7 @@ class DictationGrammarCase(unittest.TestCase):
         grammar = DictationGrammar()
         e1 = Sequence("hello", Dictation())
         r1 = PublicRule("test", e1)
-        seq_rule = SequenceRule("test_0", True, e1)
+        seq_rule = SequenceRule("test", True, e1)
         grammar.add_rule(r1)
 
         matching = grammar.find_matching_rules("hello", False)
@@ -111,9 +126,9 @@ class DictationGrammarCase(unittest.TestCase):
 
         expected1 = "#JSGF V1.0 UTF-8 en;\n" \
                     "grammar root;\n" \
-                    "public <root> = (<test1_0>|<test2_0>);\n" \
-                    "<test1_0> = test;\n" \
-                    "<test2_0> = testing;\n"
+                    "public <root> = (<test1>|<test2>);\n" \
+                    "<test1> = test;\n" \
+                    "<test2> = testing;\n"
 
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
@@ -130,8 +145,8 @@ class DictationGrammarCase(unittest.TestCase):
 
         expected2 = "#JSGF V1.0 UTF-8 en;\n" \
                     "grammar root;\n" \
-                    "public <root> = (<test2_0>);\n" \
-                    "<test2_0> = testing;\n"
+                    "public <root> = (<test2>);\n" \
+                    "<test2> = testing;\n"
 
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
@@ -153,9 +168,9 @@ class DictationGrammarCase(unittest.TestCase):
         grammar.find_matching_rules("hello")
         expected3 = "#JSGF V1.0 UTF-8 en;\n" \
                     "grammar root;\n" \
-                    "public <root> = (<test2_0>|<test3_0>);\n" \
-                    "<test2_0> = testing;\n" \
-                    "<test3_0> = testing;\n"
+                    "public <root> = (<test2>|<test3>);\n" \
+                    "<test2> = testing;\n" \
+                    "<test3> = testing;\n"
 
         self.assertEqual(grammar.compile_grammar(
             charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
@@ -171,9 +186,9 @@ class DictationGrammarCase(unittest.TestCase):
         self.assertEqual(
             grammar.compile_grammar(),
             "#JSGF V1.0 UTF-8 en;\ngrammar root;\n"
-            "public <root> = (<test1_0>|<test2_0>);\n"
-            "<test1_0> = hello;\n"
-            "<test2_0> = hello;\n"
+            "public <root> = (<test1>|<test2>);\n"
+            "<test1> = hello;\n"
+            "<test2> = hello;\n"
         )
 
         self.assertTrue(len(grammar.find_matching_rules("hello")) == 2)
