@@ -43,8 +43,8 @@ class DictationGrammar(Grammar):
         This includes internal generated rules as well as original rules.
         :return: iterable
         """
-        return (self._dictation_rules + self._jsgf_only_grammar.match_rules +
-                list(self._original_rule_map.values()))
+        return set(self._dictation_rules + self._jsgf_only_grammar.match_rules +
+                   list(self._original_rule_map.values()))
 
     @property
     def match_rules(self):
@@ -61,11 +61,24 @@ class DictationGrammar(Grammar):
         if rule.name in self.rule_names:
             raise GrammarError("JSGF grammar cannot have rules with the same name")
 
-        # Expand rule's expansion into a list of expansions using
-        # expand_dictation_expansion, create new rules from the resulting
-        # expansions and add each to either dictation_rules or _jsgf_only_grammar
-        for i, x in enumerate(expand_dictation_expansion(rule.expansion)):
-            new_name = "%s_%d" % (rule.name, i)
+        # If the rule is not a dictation rule, add it to the JSGF only grammar and
+        # the original rule map.
+        if not dictation_in_expansion(rule.expansion):
+            self._jsgf_only_grammar.add_rule(rule)
+            self._original_rule_map[rule] = rule
+            return
+
+        # Expand the rule's expansion into a list of 1 or more expansions.
+        expanded = expand_dictation_expansion(rule.expansion)
+
+        # Otherwise create new rules from the resulting expansions and add each to
+        # either dictation_rules or _jsgf_only_grammar
+        for i, x in enumerate(expanded):
+            if len(expanded) == 1:
+                # No need to use different names in this case
+                new_name = rule.name
+            else:
+                new_name = "%s_%d" % (rule.name, i)
             if not dictation_in_expansion(x):
                 r = Rule(new_name, rule.visible, x)
 
