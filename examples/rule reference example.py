@@ -12,9 +12,9 @@ def main():
     grammar = Grammar("g")
     grammar.add_rules(rule1, rule2)
 
-    # Compile the grammar using compile_grammar()
+    # Compile the grammar using compile()
     print("Grammar '%s' compiles to:" % grammar.name)
-    print(grammar.compile_grammar())
+    print(grammar.compile())
 
     # Find rules matching 'hello'
     # rule2 will be found, but not rule1 because it is hidden

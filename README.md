@@ -27,11 +27,11 @@ rule = PublicRule("hello", Literal("hello world"))
 grammar = Grammar()
 grammar.add_rule(rule)
 
-# Compile the grammar using compile_grammar()
+# Compile the grammar using compile()
 # compile_to_file(file_path) may be used to write a compiled grammar to
 # a file instead.
 # Compilation is not required for finding matching rules.
-print(grammar.compile_grammar())
+print(grammar.compile())
 
 # Find rules in the grammar that match 'hello world'.
 matching = grammar.find_matching_rules("hello world")
@@ -50,7 +50,7 @@ Matching: PublicRule(Literal('hello world'))
 
 ```
 
-The first line of the grammar can be changed using the `jsgf_version`, `charset_name`, and `language_name` parameters of the `compile_grammar` and `compile_to_file` methods of the `Grammar` class.
+The first line of the grammar can be changed using the `jsgf_version`, `charset_name`, and `language_name` members of the `Grammar` class.
 
 There are more examples on ways to use this package [here](examples/).
 

@@ -22,9 +22,9 @@ def main():
     grammar = Grammar("g")
     grammar.add_rule(rule)
 
-    # Compile the grammar using compile_grammar()
+    # Compile the grammar using compile()
     print("Grammar '%s' compiles to:" % grammar.name)
-    print(grammar.compile_grammar())
+    print(grammar.compile())
 
     # Find rules in the grammar that match some speech strings
     print_matching(grammar, "hello there")

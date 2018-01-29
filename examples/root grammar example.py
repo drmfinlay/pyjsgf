@@ -36,7 +36,7 @@ def main():
     grammar.add_rules(name, greeting, parting_phrase, greet, goodbye)
 
     print("Root grammar compiles to the following:")
-    print(grammar.compile_grammar())
+    print(grammar.compile())
 
     # Try matching some speech strings
     print_matching(grammar, "hey john")
