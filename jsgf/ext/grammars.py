@@ -1,9 +1,11 @@
 """
 JSGF extension grammar classes
 """
+import re
+
 from .expansions import dictation_in_expansion, expand_dictation_expansion
 from .rules import SequenceRule
-from jsgf import GrammarError, Grammar, Rule, RootGrammar
+from jsgf import GrammarError, Grammar, Rule
 
 
 class DictationGrammar(Grammar):
@@ -21,11 +23,8 @@ class DictationGrammar(Grammar):
         self._original_rule_map = {}
         self._init_jsgf_only_grammar()
 
-        if not rules:
-            rules = []
-
-        for rule in rules:
-            self.add_rule(rule)
+        if rules:
+            self.add_rules(*rules)
 
     def _init_jsgf_only_grammar(self):
         """
@@ -34,7 +33,7 @@ class DictationGrammar(Grammar):
 
         Override this to use a different grammar class.
         """
-        self._jsgf_only_grammar = RootGrammar()
+        self._jsgf_only_grammar = Grammar(name=self.name)
 
     @property
     def rules(self):
@@ -135,15 +134,22 @@ class DictationGrammar(Grammar):
                 elif k in self._jsgf_only_grammar.match_rules:
                     self._jsgf_only_grammar.remove_rule(k, ignore_dependent)
 
-    def compile_grammar(self, charset_name="UTF-8", language_name="en",
-                        jsgf_version="1.0"):
+    def compile(self):
         self.rearrange_rules()
+
         try:
-            result = self._jsgf_only_grammar.compile_grammar(
-                charset_name, language_name, jsgf_version)
+            # Compile the grammar
+            result = self._jsgf_only_grammar.compile()
+
+            # Check for compiled rules
+            rule_pattern = re.compile("(public )?<.*> = .*;")
+
+            # If there are none, set result to "".
+            if not rule_pattern.search(result):
+                result = ""
         except GrammarError as e:
             if len(self._dictation_rules) > 0:
-                result = ""
+                return ""
             else:
                 raise GrammarError("no Dictation rules and JSGF only grammar "
                                    "failed to compile with error: '%s'" %

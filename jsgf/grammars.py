@@ -2,8 +2,7 @@
 Classes for compiling and importing JSpeech Grammar Format grammars
 """
 
-from .rules import Rule, PublicRule, HiddenRule
-from .expansions import RuleRef, AlternativeSet
+from .rules import Rule
 
 
 class GrammarError(Exception):
@@ -26,50 +25,51 @@ class Grammar(object):
         self.name = name
         self._rules = []
         self._imports = []
+        self.charset_name = "UTF-8"
+        self.language_name = "en"
+        self.jsgf_version = "1.0"
 
-    def compile_grammar(self, charset_name="UTF-8", language_name="en",
-                        jsgf_version="1.0"):
+    def _get_jsgf_header(self):
+        return "#JSGF V%s %s %s;\n" % (self.jsgf_version,
+                                       self.charset_name,
+                                       self.language_name)
+
+    def compile(self):
         """
         Compile this grammar's imports and rules into a string that can be
         recognised by a JSGF parser.
-        :param charset_name:
-        :param language_name:
-        :param jsgf_version:
         :rtype: str
         """
-        grammar_header = "#JSGF V%s %s %s;\n" % (jsgf_version,
-                                                 charset_name,
-                                                 language_name)
-        result = grammar_header
+        result = self._get_jsgf_header()
         result += "grammar %s;\n" % self.name
 
         for i in self._imports:
             result += "%s\n" % i.compile()
 
         for r in self._rules:
-            result += "%s\n" % r.compile()
+            compiled = r.compile()
+            if compiled:
+                result += "%s\n" % compiled
 
         return result
 
-    def compile_to_file(self, file_path, charset_name="UTF-8",
-                        language_name="en", jsgf_version="1.0"):
+    def compile_to_file(self, file_path, compile_as_root_grammar=False):
         """
-        Compile this grammar by calling compile_grammar and write the result to the
+        Compile this grammar by calling compile and write the result to the
         specified file.
-        :param file_path:
-        :param charset_name:
-        :param language_name:
-        :param jsgf_version:
-        :return:
+        :type file_path: str
+        :type compile_as_root_grammar: bool
         """
-        compiled_lines = self.compile_grammar(charset_name, language_name,
-                                              jsgf_version).splitlines()
+        if compile_as_root_grammar:
+            compiled_lines = self.compile_as_root_grammar().splitlines()
+        else:
+            compiled_lines = self.compile().splitlines()
         with open(file_path, "w+") as f:
             f.writelines(compiled_lines)
 
-    def recreate_with_root_public_rule(self):
+    def compile_as_root_grammar(self):
         """
-        Create a new grammar with one public "root" rule containing rule references
+        Compile this grammar with one public "root" rule containing rule references
         in an alternative set to every other rule as such:
         public <root> = (<rule1>|<rule2>|..|<ruleN>);
         <rule1> = ...;
@@ -78,9 +78,35 @@ class Grammar(object):
         .
         .
         <ruleN> = ...;
-        :rtype: RootGrammar
+        :rtype: str
         """
-        return RootGrammar(self.rules)
+        result = self._get_jsgf_header()
+        result += "grammar %s;\n" % self.name
+
+        # Add imports
+        for i in self._imports:
+            result += "%s\n" % i.compile()
+
+        # Build the root rule and add it to the result
+        visible_rules = self.visible_rules
+        names = [r.name for r in visible_rules if r.visible]
+        refs = ["<%s>" % name for name in names]
+        alt_set = "(%s)" % "|".join(refs)
+        result += "public <root> = %s;\n" % alt_set
+
+        # Temporarily set each visible rule to not visible
+        for rule in visible_rules:
+            rule.visible = False
+
+        # Compile each rule
+        for rule in self.rules:
+            result += "%s\n" % rule.compile()
+
+        # Set rule visibility back to normal
+        for rule in visible_rules:
+            rule.visible = True
+
+        return result
 
     @property
     def rules(self):
@@ -89,18 +115,6 @@ class Grammar(object):
         :rtype: list
         """
         return self._rules
-
-    @property
-    def _all_rules(self):
-        """
-        Internal method used by enable and disable rule methods.
-
-        This is here to be overridden by classes like RootGrammar that do funny
-        things with rules. This way enable and disable rule methods don't need to
-        be overridden as well.
-        :return: iterable
-        """
-        return self.rules
 
     visible_rules = property(
         lambda self: [rule for rule in self.rules if rule.visible],
@@ -208,8 +222,8 @@ class Grammar(object):
         if rule_name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
-        # Enable any rules in grammar._all_rules which have the given name
-        for r in [x for x in self._all_rules if x.name == rule_name]:
+        # Enable any rules in the grammar which have the given name
+        for r in [x for x in self.rules if x.name == rule_name]:
             r.enable()
 
     def disable_rule(self, rule):
@@ -228,16 +242,15 @@ class Grammar(object):
         if rule_name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
-        # Disable any rules in grammar._all_rules which have the given name
-        for r in [x for x in self._all_rules if x.name == rule_name]:
+        # Disable any rules in the grammar which have the given name
+        for r in [x for x in self.rules if x.name == rule_name]:
             r.disable()
 
 
 class RootGrammar(Grammar):
     """
     A grammar with one public "root" rule containing rule references in an
-    alternative set
-    to every other rule as such:
+    alternative set to every other rule as such:
     public <root> = (<rule1>|<rule2>|..|<ruleN>);
     <rule1> = ...;
     <rule2> = ...;
@@ -248,111 +261,17 @@ class RootGrammar(Grammar):
     """
     def __init__(self, rules=None, name="root"):
         super(RootGrammar, self).__init__(name)
-        if rules is None:
-            rules = []
+        if rules:
+            self.add_rules(*rules)
 
-        # Recreate each Public (visible) rule as a HiddenRule instead and make
-        # RuleRef objects for each new rule.
-        new_rules = []
-        rule_refs = []
-        for rule in rules:
-            if rule.visible:
-                rule = HiddenRule(rule.name, rule.expansion)
-                rule_refs.append(RuleRef(rule))
-
-            if rule.name in [r.name for r in new_rules]:
-                raise GrammarError("JSGF grammar cannot have rules with the same "
-                                   "name")
-
-            new_rules.append(rule)
-
-        # Add a new public rule as the first rule that matches any rule exactly
-        # once.
-        self._root_rule = PublicRule("root", AlternativeSet(*rule_refs))
-        self._rule_refs = rule_refs
-        self._rules.append(self._root_rule)
-        for rule in new_rules:
-            self._rules.append(rule)
-
-        # Keep references to the original rules for matching against later
-        self._match_rules = list(rules)  # use a new list
-
-    @property
-    def match_rules(self):
-        """
-        The rules that the find_matching_rules method will match against.
-        :return: iterable
-        """
-        return self._match_rules
-
-    @property
-    def _all_rules(self):
-        return self.rules + self.match_rules
+    def compile(self):
+        return self.compile_as_root_grammar()
 
     def add_rule(self, rule):
-        """
-        Add a rule to the grammar and add it as an alternative in the root rule if
-        it is visible.
+        if rule.name == "root":
+            raise GrammarError("cannot add rule with name 'root' to RootGrammar")
 
-        Raise an error if a rule already exists in the grammar with the same name.
+        super(RootGrammar, self).add_rule(rule)
 
-        :type rule: Rule
-        """
-        new_rule = HiddenRule(rule.name, rule.expansion)
-        super(RootGrammar, self).add_rule(new_rule)
-
-        # Add the original rule to the match_rules list
-        self._match_rules.append(rule)
-
-        # Add new_rule as an alternative in the root rule only if rule was
-        # originally visible
-        if rule.visible:
-            self._rule_refs.append(RuleRef(new_rule))
-            self._root_rule.expansion = AlternativeSet(*self._rule_refs)
-
-    def remove_rule(self, rule, ignore_dependent=False):
-        """
-        Remove a rule from the grammar and the alternative set in the root rule if
-        it is visible.
-
-        Raise an error if the rule to be removed is a rule that another rule is
-        dependent on or the root rule of this grammar.
-        :raises: GrammarError
-        :param rule: Rule object or the name of a rule in this grammar
-        """
-        # Get names used by RuleRefs
-        rule_ref_names = [r.rule.name for r in self._rule_refs]
-
-        if isinstance(rule, str):
-            rule_name = rule
-        else:  # assume a Rule object was passed in
-            rule_name = rule.name
-
-        if rule_name == self._root_rule.name:
-            raise GrammarError("cannot remove the root rule from RootGrammar.")
-
-        # Find the corresponding RuleRef object and remove it
-        rule_ref = self._rule_refs.pop(rule_ref_names.index(rule_name))
-
-        # Manually decrement the reference count of the corresponding rule because
-        # the parent of the RuleRef will still have a reference to it
-        rule_ref.decrement_ref_count()
-
-        # Also remove the rule from the list used for matching
-        match_rule_names = [r.name for r in self._match_rules]
-        j = match_rule_names.index(rule_name)
-        self._match_rules.pop(j)
-
-        # Modify the root rule appropriately
-        self._root_rule.expansion = AlternativeSet(*self._rule_refs)
-
-        super(RootGrammar, self).remove_rule(rule_ref.rule, ignore_dependent)
-
-    def compile_grammar(self, charset_name="UTF-8", language_name="en",
-                        jsgf_version="1.0"):
-        if len(self._rule_refs) == 0:
-            raise GrammarError("Root grammar must have at least one Public or "
-                               "visible rule.")
-
-        return super(RootGrammar, self).compile_grammar(
-            charset_name, language_name, jsgf_version)
+    def compile_to_file(self, file_path, compile_as_root_grammar=True):
+        super(RootGrammar, self).compile_to_file(file_path, compile_as_root_grammar)
