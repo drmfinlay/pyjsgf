@@ -22,9 +22,7 @@ class BasicGrammarCase(unittest.TestCase):
                    "<greetWord> = (hello|hi);\n" \
                    "<name> = (peter|john|mary|anna);\n"
 
-        compiled = self.grammar.compile_grammar(charset_name="UTF-8",
-                                                language_name="en",
-                                                jsgf_version="1.0")
+        compiled = self.grammar.compile()
         self.assertEqual(expected, compiled)
 
     def test_remove_dependent_rule(self):
@@ -105,18 +103,15 @@ class BasicGrammarCase(unittest.TestCase):
                          "<greetWord> = (hello|hi);\n" \
                          "<name> = (peter|john|mary|anna);\n"
 
-        self.assertEqual(self.grammar.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            enabled_output)
+        self.assertEqual(self.grammar.compile(), enabled_output)
 
         self.grammar.disable_rule(self.rule1)
         self.assertFalse(self.rule1.active)
 
-        self.assertEqual(self.grammar.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+        self.assertEqual(
+            self.grammar.compile(),
             "#JSGF V1.0 UTF-8 en;\n"
             "grammar test;\n"
-            "\n"
             "<greetWord> = (hello|hi);\n"
             "<name> = (peter|john|mary|anna);\n",
             "disabled output shouldn't have the public 'greet' rule"
@@ -124,9 +119,7 @@ class BasicGrammarCase(unittest.TestCase):
 
         self.grammar.enable_rule(self.rule1)
         self.assertTrue(self.rule1.active)
-        self.assertEqual(self.grammar.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            enabled_output)
+        self.assertEqual(self.grammar.compile(), enabled_output)
 
 
 class SpeechMatchCase(unittest.TestCase):
@@ -231,8 +224,7 @@ class RootGrammarCase(unittest.TestCase):
                    "<greetWord> = (hello|hi);\n" \
                    "<name> = (peter|john|mary|anna);\n"
 
-        self.assertEqual(root.compile_grammar(charset_name="UTF-8", language_name="en",
-                                              jsgf_version="1.0"), expected)
+        self.assertEqual(root.compile(), expected)
 
     def test_compile_add_remove_rule(self):
         root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
@@ -250,32 +242,21 @@ class RootGrammarCase(unittest.TestCase):
                         "<greet> = <greetWord> there;\n" \
                         "<partingPhrase> = (goodbye|see you);\n"
 
-        self.assertEqual(root.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            expected_without)
+        self.assertEqual(root.compile(), expected_without)
 
         root.add_rule(self.rule6)
-
-        self.assertEqual(root.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            expected_with)
+        self.assertEqual(root.compile(), expected_with)
 
         # Test removing the partingPhrase rule using the name
         root.remove_rule("partingPhrase")
-        self.assertEqual(root.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            expected_without)
+        self.assertEqual(root.compile(), expected_without)
 
         # Add the rule and test removing it using the rule object
         root.add_rule(self.rule6)
-        self.assertEqual(root.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            expected_with)
+        self.assertEqual(root.compile(), expected_with)
 
         root.remove_rule(self.rule6)
-        self.assertEqual(root.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            expected_without)
+        self.assertEqual(root.compile(), expected_without)
 
     def test_match(self):
         # Only rule1 should match
@@ -306,27 +287,6 @@ class RootGrammarCase(unittest.TestCase):
         root.remove_rule(self.rule6)
         self.assertListEqual(root.find_matching_rules("Goodbye"), [])
         self.assertListEqual(root.find_matching_rules("See you"), [])
-
-    def test_no_public_rules(self):
-        root = RootGrammar([self.rule5, self.rule4])
-        root.remove_rule("greet")
-        self.assertNotIn("greet", root.rule_names)
-        self.assertRaises(GrammarError, root.compile_grammar)
-        self.assertFalse(root.find_matching_rules("hello"))
-
-        root = RootGrammar([self.rule5, self.rule4])
-        root.remove_rule(self.rule4)
-        self.assertNotIn(self.rule4, root.rules)
-        self.assertRaises(GrammarError, root.compile_grammar)
-        self.assertFalse(root.find_matching_rules("hello"))
-
-    def test_erroneous_remove_rule(self):
-        root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
-
-        # Try to remove the root rule using the name and the rule object
-        self.assertRaises(GrammarError, root.remove_rule, "root")
-        i = root.rule_names.index("root")
-        self.assertRaises(GrammarError, root.remove_rule, root.rules[i])
 
     def test_add_rules_with_taken_names(self):
         root = self.grammar
@@ -361,44 +321,19 @@ class RootGrammarCase(unittest.TestCase):
                           [PublicRule("test", "testing"),
                            HiddenRule("test", "test")])
 
-    @staticmethod
-    def get_generated_rule(grammar, rule):
-        """
-        Get the rule in a grammar that was generated by the given rule.
-        :type grammar: RootGrammar
-        :param rule: Rule object or name of rule
-        :return: Rule
-        """
-        if isinstance(rule, str):
-            rule_name = rule
-        else:
-            rule_name = rule.name
-
-        result = None
-        for r in grammar.rules:
-            if r.name == rule_name:
-                result = r
-        return result
-
     def test_enable_disable_rule(self):
-        generated = self.get_generated_rule(self.grammar, self.rule1)
         self.grammar.disable_rule(self.rule1)
         self.assertFalse(self.rule1.active)
-        self.assertFalse(generated.active)
 
         self.grammar.enable_rule(self.rule1)
         self.assertTrue(self.rule1.active)
-        self.assertTrue(generated.active)
 
     def test_enable_disable_using_name(self):
-        generated = self.get_generated_rule(self.grammar, "greetWord")
         self.grammar.disable_rule("greetWord")
         self.assertFalse(self.rule2.active)
-        self.assertFalse(generated.active)
 
         self.grammar.enable_rule("greetWord")
         self.assertTrue(self.rule2.active)
-        self.assertTrue(generated.active)
 
     def test_enable_disable_non_existent(self):
         self.assertRaises(GrammarError, self.grammar.disable_rule, "hello")
@@ -413,23 +348,18 @@ class RootGrammarCase(unittest.TestCase):
         Test that a copy of a rule in the grammar can be used to disable or enable
         the equivalent rule in the grammar as well as the rule object passed.
         """
-        generated = self.get_generated_rule(self.grammar, self.rule2)
         r = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
         self.assertTrue(self.rule2.active)
-        self.assertTrue(generated.active)
         self.grammar.disable_rule(r)
         self.assertFalse(r.active, "duplicate rule should be disabled")
         self.assertFalse(self.rule2.active, "original rule should be disabled")
-        self.assertFalse(generated.active, "rule in grammar should be disabled")
 
         # Test enabling it again
         self.grammar.enable_rule(r)
         self.assertTrue(r.active, "duplicate rule should be enabled again")
         self.assertTrue(self.rule2.active, "original rule should be enabled")
-        self.assertTrue(generated.active, "rule in grammar should be enabled")
 
     def test_enable_disable_compile_output(self):
-
         enabled_output = "#JSGF V1.0 UTF-8 en;\n" \
                          "grammar root;\n" \
                          "public <root> = (<greet>);\n" \
@@ -437,15 +367,13 @@ class RootGrammarCase(unittest.TestCase):
                          "<greetWord> = (hello|hi);\n" \
                          "<name> = (peter|john|mary|anna);\n"
 
-        self.assertEqual(self.grammar.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            enabled_output)
+        self.assertEqual(self.grammar.compile(), enabled_output)
 
         self.grammar.disable_rule(self.rule1)
         self.assertFalse(self.rule1.active)
 
-        self.assertEqual(self.grammar.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
+        self.assertEqual(
+            self.grammar.compile(),
             "#JSGF V1.0 UTF-8 en;\n"
             "grammar root;\n"
             "public <root> = (<greet>);\n"
@@ -457,9 +385,7 @@ class RootGrammarCase(unittest.TestCase):
 
         self.grammar.enable_rule(self.rule1)
         self.assertTrue(self.rule1.active)
-        self.assertEqual(self.grammar.compile_grammar(
-            charset_name="UTF-8", language_name="en", jsgf_version="1.0"),
-            enabled_output)
+        self.assertEqual(self.grammar.compile(), enabled_output)
 
 
 if __name__ == '__main__':
