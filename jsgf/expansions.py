@@ -3,6 +3,8 @@ Classes for compiling JSpeech Grammar Format expansions
 """
 import re
 
+from .errors import *
+
 
 class TraversalOrder(object):
     PreOrder, PostOrder = list(range(2))
@@ -113,14 +115,6 @@ def matches_overlap(m1, m2):
     x1, y1 = m1.span()
     x2, y2 = m2.span()
     return x1 < x2 <= y1 or x2 < x1 <= y2 or x1 == x2
-
-
-class ExpansionError(Exception):
-    pass
-
-
-class MatchError(Exception):
-    pass
 
 
 class Expansion(object):

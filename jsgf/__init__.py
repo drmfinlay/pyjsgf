@@ -11,10 +11,13 @@ See the specification here: https://www.w3.org/TR/jsgf/
 This module supports compiling JSGF grammars using custom rules, imports and
 expansions, such as the Kleene Star, optional and required groupings.
 """
+from .errors import CompilationError
+from .errors import ExpansionError
+from .errors import GrammarError
+from .errors import MatchError
 
 from .expansions import AlternativeSet
 from .expansions import Expansion
-from .expansions import ExpansionError
 from .expansions import filter_expansion
 from .expansions import flat_map_expansion
 from .expansions import KleeneStar
@@ -32,7 +35,6 @@ from .expansions import TraversalOrder
 from .expansions import VariableChildExpansion
 
 from .grammars import Grammar
-from .grammars import GrammarError
 from .grammars import Import
 from .grammars import RootGrammar
 

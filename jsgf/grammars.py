@@ -3,10 +3,7 @@ Classes for compiling and importing JSpeech Grammar Format grammars
 """
 
 from .rules import Rule
-
-
-class GrammarError(Exception):
-    pass
+from .errors import GrammarError
 
 
 class Import(object):

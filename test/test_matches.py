@@ -1,7 +1,7 @@
 import unittest
 
 from jsgf import *
-from jsgf.expansions import matches_overlap, MatchError
+from jsgf.expansions import matches_overlap
 
 
 class MatchesOverlap(unittest.TestCase):

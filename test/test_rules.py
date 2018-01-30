@@ -1,7 +1,7 @@
 import unittest
 
 from jsgf import *
-from jsgf.rules import CompilationError
+from jsgf import CompilationError
 
 
 class PropertiesTests(unittest.TestCase):

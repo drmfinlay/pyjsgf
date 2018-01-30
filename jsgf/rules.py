@@ -2,10 +2,7 @@
 Classes for compiling JSpeech Grammar Format rules
 """
 from .expansions import Expansion, RuleRef
-
-
-class CompilationError(Exception):
-    pass
+from .errors import CompilationError
 
 
 class Rule(object):
