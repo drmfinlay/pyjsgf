@@ -100,8 +100,13 @@ class Grammar(object):
         for i in self._imports:
             result += "%s\n" % i.compile()
 
-        # Build the root rule and add it to the result
         visible_rules = self.visible_rules
+
+        # Return the result if there are no visible rules
+        if not visible_rules:
+            return result
+
+        # Build the root rule and add it to the result
         names = [r.name for r in visible_rules if r.visible]
         refs = ["<%s>" % name for name in names]
         alt_set = "(%s)" % "|".join(refs)
