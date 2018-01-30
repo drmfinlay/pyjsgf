@@ -74,6 +74,13 @@ class DictationMatchesCase(unittest.TestCase):
         self.assertEqual(e2.children[0].current_match, "hey")
         self.assertEqual(e2.children[1].current_match, "hello")
 
+class DictationCompilation(unittest.TestCase):
+    def test(self):
+        d = Dict()
+        d.tag = "dictation"
+        self.assertEqual(d.compile(ignore_tags=True), "")
+        self.assertEqual(d.compile(ignore_tags=False), " { dictation }")
+
 
 class ExpansionSequenceCase(unittest.TestCase):
     """

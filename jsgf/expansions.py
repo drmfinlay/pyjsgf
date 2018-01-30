@@ -147,6 +147,7 @@ class Expansion(object):
         return self._children
 
     def compile(self, ignore_tags=False):
+        self.validate_compilable()
         if self.tag and not ignore_tags:
             return self.tag
         else:
@@ -200,6 +201,13 @@ class Expansion(object):
             return e
         else:
             raise TypeError("can only take strings or Expansions")
+
+    def validate_compilable(self):
+        """
+        Check that the expansion is compilable. If it isn't, this method should
+        raise a CompilationError.
+        """
+        pass
 
     @property
     def current_match(self):
@@ -366,7 +374,14 @@ class Expansion(object):
         return False
 
 
-class SingleChildExpansion(Expansion):
+class ExpansionWithChildren(Expansion):
+    def validate_compilable(self):
+        if not self.children:
+            raise CompilationError("cannot compile %s expansion with no children"
+                                   % self.__class__.__name__)
+
+
+class SingleChildExpansion(ExpansionWithChildren):
     def __init__(self, expansion):
         super(SingleChildExpansion, self).__init__([expansion])
 
@@ -378,7 +393,7 @@ class SingleChildExpansion(Expansion):
         return super(SingleChildExpansion, self).__hash__()
 
 
-class VariableChildExpansion(Expansion):
+class VariableChildExpansion(ExpansionWithChildren):
     def __init__(self, *expansions):
         super(VariableChildExpansion, self).__init__(expansions)
 
@@ -388,6 +403,7 @@ class VariableChildExpansion(Expansion):
 
 class Sequence(VariableChildExpansion):
     def compile(self, ignore_tags=False):
+        super(Sequence, self).compile()
         seq = " ".join([
             e.compile(ignore_tags) for e in self.children
         ])
@@ -417,7 +433,14 @@ class Literal(Expansion):
     def __hash__(self):
         return super(Literal, self).__hash__()
 
+    def validate_compilable(self):
+        if not self.text:
+            raise CompilationError("%s expansion cannot be compiled with a text "
+                                   "value of '%s'"
+                                   % (self.__class__.__name__, self.text))
+
     def compile(self, ignore_tags=False):
+        super(Literal, self).compile()
         if self.tag and not ignore_tags:
             return "%s%s" % (self.text, self.tag)
         else:
@@ -546,6 +569,7 @@ class RuleRef(Expansion):
         self.rule.reference_count += 1
 
     def compile(self, ignore_tags=False):
+        super(RuleRef, self).compile()
         if self.tag and not ignore_tags:
             return "<%s>%s" % (self.rule.name, self.tag)
         else:
@@ -596,6 +620,7 @@ class Repeat(SingleChildExpansion):
         self._repetitions_matched = None
 
     def compile(self, ignore_tags=False):
+        super(Repeat, self).compile()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "(%s)+%s" % (compiled, self.tag)
@@ -671,6 +696,7 @@ class KleeneStar(Repeat):
     <kleene> = (please)* don't crash;
     """
     def compile(self, ignore_tags=False):
+        super(KleeneStar, self).compile()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "(%s)*%s" % (compiled, self.tag)
@@ -690,6 +716,7 @@ class OptionalGrouping(SingleChildExpansion):
     Expansion that can be spoken in a rule, but doesn't have to be.
     """
     def compile(self, ignore_tags=False):
+        super(OptionalGrouping, self).compile()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "[%s]%s" % (compiled, self.tag)
@@ -706,6 +733,7 @@ class OptionalGrouping(SingleChildExpansion):
 
 class RequiredGrouping(Sequence):
     def compile(self, ignore_tags=False):
+        super(RequiredGrouping, self).compile()
         grouping = " ".join([
             e.compile(ignore_tags) for e in self.children
         ])
@@ -736,6 +764,7 @@ class AlternativeSet(VariableChildExpansion):
         self._weights = value
 
     def compile(self, ignore_tags=False):
+        super(AlternativeSet, self).compile()
         if self.weights:
             # Create a string with w=weight and e=compiled expansion
             # such that:

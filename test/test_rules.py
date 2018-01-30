@@ -69,14 +69,22 @@ class PropertiesTests(unittest.TestCase):
         self.assertEqual(r1.compile(), "public <test> = hello;")
 
 
-class OptionalOnlyRule(unittest.TestCase):
-    def test_optional_only_rule(self):
+class InvalidRules(unittest.TestCase):
+    def test_invalid_rules(self):
         invalid_rules = [
             PublicRule("test", OptionalGrouping("hello")),
             PublicRule("test", KleeneStar("hello")),
             PublicRule("test", AlternativeSet(OptionalGrouping("hello"))),
-            PublicRule("test", Sequence(OptionalGrouping("hello")))
+            PublicRule("test", Sequence(OptionalGrouping("hello"))),
+            PublicRule("test", Sequence()),
+            PublicRule("test", AlternativeSet()),
+            PublicRule("test", VariableChildExpansion()),
+            PublicRule("test", "")
         ]
+
+        r = PublicRule("test", SingleChildExpansion("hello"))
+        r.expansion.children.remove(Literal("hello"))
+        invalid_rules.append(r)
 
         # Rules that only have optional literals are not valid
         for rule in invalid_rules:

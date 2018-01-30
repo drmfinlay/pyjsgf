@@ -20,6 +20,9 @@ class Dictation(Literal):
     def __str__(self):
         return "%s()" % self.__class__.__name__
 
+    def validate_compilable(self):
+        pass
+
     @property
     def use_current_match(self):
         """
