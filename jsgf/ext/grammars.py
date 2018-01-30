@@ -40,10 +40,12 @@ class DictationGrammar(Grammar):
         """
         The rules in this grammar.
         This includes internal generated rules as well as original rules.
-        :return: iterable
+        :rtype: list
         """
-        return set(self._dictation_rules + self._jsgf_only_grammar.match_rules +
-                   list(self._original_rule_map.values()))
+        return list(set(
+                self._dictation_rules + self._jsgf_only_grammar.match_rules +
+                list(self._original_rule_map.values())
+        ))
 
     @property
     def match_rules(self):
