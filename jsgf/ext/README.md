@@ -2,18 +2,52 @@
 This package contains extensions to JSGF that aren't part of the JSGF specification.
 
 ## Use grammars in conjunction with language models
-JSGF can't be used to build speech grammars where speech from a language model can be used in conjunction with grammar rules.
-For example, the speech hypothesis from a speech decoder, such as CMU Pocket Sphinx, can be used in conjunction with JSGF grammars in sequence as below:
+Standard JSGF can't be used to build or match grammar rules where arbitrary speech from a language model is used in conjunction with JSGF expansions. Most of the `jsgf.ext` package focuses on providing this functionality.
+
+Below is an example of how to use the `DictationGrammar` and `Dictation` classes to that effect:
 
 ``` Python
-PublicRule("greet", Sequence(Literal("hello"), Dictation()))
+from jsgf import PublicRule, Sequence
+from jsgf.ext import Dictation, DictationGrammar
+
+# Create a simple rule using a Dictation expansion.
+rule = PublicRule("Hello_X", Sequence("hello", Dictation()))
+
+# Create a new DictationGrammar using the simple rule.
+grammar = DictationGrammar([rule])
+
+# Print the compiled grammar
+print(grammar.compile())
+
+# Match against some speech strings.
+# find_matching_rules has an optional second parameter for advancing to
+# the next part of the rule, which is set to False here.
+matching = grammar.find_matching_rules("hello", False)
+print("Matching rule: %s" % matching[0])  # first part of rule
+
+# Go to the next part of the rule.
+matching[0].set_next()
+
+# Match the dictation part. This can be anything.
+matching = grammar.find_matching_rules("world")
+print("Matching rule: %s" % matching[0])
+
+# The entire match and the original rule's current_match value will both be
+'hello world'
+print(matching[0].entire_match)
+print(rule.expansion.current_match)
 
 ```
 
-which translates to:
+The output from the above will be:
+```
+#JSGF V1.0 UTF-8 en;
+grammar default;
+public <Hello_X> = hello;
 
-`public <greet> = hello { dictation };`
+Matching rule: SequenceRule(Sequence(Literal('hello')))
+Matching rule: SequenceRule(Sequence(Dictation()))
+hello world
+hello world
 
-
-*hello* will be recognised by a speech decoder with the grammar loaded, then another decoder can be used to recognise speech from a language model and give the hypothesis. We can use 'world' as an example:
-Speech: hello <utterance break> world
+```
