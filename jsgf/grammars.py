@@ -67,6 +67,22 @@ class Grammar(object):
         with open(file_path, "w+") as f:
             f.writelines(compiled_lines)
 
+    def compile_grammar(self, charset_name="UTF-8", language_name="en",
+                        jsgf_version="1.0"):
+        """
+        This method is *deprecated*, use `compile` instead.
+        Compile this grammar's imports and rules into a string that can be
+        recognised by a JSGF parser.
+        :param charset_name:
+        :param language_name:
+        :param jsgf_version:
+        :rtype: str
+        """
+        self.charset_name = charset_name
+        self.language_name = language_name
+        self.jsgf_version = jsgf_version
+        return self.compile()
+
     def compile_as_root_grammar(self):
         """
         Compile this grammar with one public "root" rule containing rule references
