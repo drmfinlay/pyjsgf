@@ -45,7 +45,7 @@ class Grammar(object):
 
         for r in self._rules:
             compiled = r.compile()
-            if compiled:
+            if compiled and r.active:
                 result += "%s\n" % compiled
 
         return result
@@ -100,9 +100,10 @@ class Grammar(object):
         for i in self._imports:
             result += "%s\n" % i.compile()
 
-        visible_rules = self.visible_rules
+        # Get rules in the grammar that are visible and active
+        visible_rules = list(filter(lambda x: x.active, self.visible_rules))
 
-        # Return the result if there are no visible rules
+        # Return the result if there are no rules that are visible and active
         if not visible_rules:
             return result
 
@@ -118,7 +119,9 @@ class Grammar(object):
 
         # Compile each rule
         for rule in self.rules:
-            result += "%s\n" % rule.compile()
+            compiled = rule.compile()
+            if compiled and rule.active:
+                result += "%s\n" % compiled
 
         # Set rule visibility back to normal
         for rule in visible_rules:

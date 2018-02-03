@@ -375,17 +375,28 @@ class RootGrammarCase(unittest.TestCase):
         self.assertEqual(
             self.grammar.compile(),
             "#JSGF V1.0 UTF-8 en;\n"
-            "grammar root;\n"
-            "public <root> = (<greet>);\n"
-            "\n"
-            "<greetWord> = (hello|hi);\n"
-            "<name> = (peter|john|mary|anna);\n",
-            "disabled output shouldn't have the hidden 'greet' rule"
+            "grammar root;\n",
+            "disabled output shouldn't have the originally public 'greet' rule"
         )
 
         self.grammar.enable_rule(self.rule1)
         self.assertTrue(self.rule1.active)
         self.assertEqual(self.grammar.compile(), enabled_output)
+
+        # Add another public rule and test again
+        self.grammar.add_rule(PublicRule("test", "testing"))
+        self.grammar.disable_rule(self.rule1)
+        self.assertFalse(self.rule1.active)
+        self.assertEqual(
+            self.grammar.compile(),
+            "#JSGF V1.0 UTF-8 en;\n"
+            "grammar root;\n"
+            "public <root> = (<test>);\n"
+            "<greetWord> = (hello|hi);\n"
+            "<name> = (peter|john|mary|anna);\n"
+            "<test> = testing;\n",
+            "disabled output should have the originally public 'test' rule"
+        )
 
 
 if __name__ == '__main__':
