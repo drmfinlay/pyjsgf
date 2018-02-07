@@ -158,6 +158,9 @@ class DictationGrammar(Grammar):
                                    e.message)
         return result
 
+    def compile_as_root_grammar(self):
+        return self._jsgf_only_grammar.compile_as_root_grammar()
+
     def rearrange_rules(self):
         """
         Move SequenceRules in this grammar between the dictation rules list and

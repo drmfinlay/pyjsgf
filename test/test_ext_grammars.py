@@ -34,6 +34,24 @@ class DictationGrammarCase(unittest.TestCase):
 
         self.assertEqual(grammar.compile(), expected)
 
+    def test_compile_as_root_grammar(self):
+        """
+        Test that the `compile_as_root_grammar` method works correctly.
+        """
+        grammar = DictationGrammar(rules=[
+            PublicRule("a", Dictation()),
+            PublicRule("b", "hello world"),
+            PublicRule("c", AlternativeSet("hey", "hello", Dictation()))
+        ])
+
+        expected = "#JSGF V1.0 UTF-8 en;\n" \
+                   "grammar default;\n" \
+                   "public <root> = (<b>|<c_0>);\n" \
+                   "<b> = hello world;\n" \
+                   "<c_0> = (hey|hello);\n"
+
+        self.assertEqual(grammar.compile_as_root_grammar(), expected)
+
     def test_matching_dictation_and_others(self):
         grammar = DictationGrammar()
         e1 = Sequence("hello", Dictation())
