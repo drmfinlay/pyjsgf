@@ -91,8 +91,8 @@ class Dictation(Literal):
         A regex pattern for matching this expansion.
         """
         if not self._pattern:
-            # Match one or more words separated by whitespace
-            word = "[a-zA-Z0-9?,\.\-_!;:']+"
+            # Match one or more words or digits separated by whitespace
+            word = "[\w\d?,\.\-_!;:']+"
             regex = "(\s+%s)+" % word
             self._pattern = re.compile(regex)
         return self._pattern
