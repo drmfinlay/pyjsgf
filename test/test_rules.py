@@ -137,15 +137,15 @@ class ComparisonTests(unittest.TestCase):
     def test_different_types(self):
         self.assertNotEqual(
             HiddenRule("test", "test"), PublicRule("test", "test"),
-            "rules with only different types were equal")
+            "rules with only different visibility were equal")
 
-        self.assertNotEqual(
+        self.assertEqual(
             HiddenRule("test", "test"), Rule("test", False, "test"),
-            "rules with only different types were equal")
+            "rules with only different types were not equal")
 
-        self.assertNotEqual(
+        self.assertEqual(
             PublicRule("test", "test"), Rule("test", True, "test"),
-            "rules with only different types were equal")
+            "rules with only different types were not equal")
 
 
 if __name__ == '__main__':

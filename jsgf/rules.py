@@ -149,7 +149,7 @@ class Rule(object):
         self._reference_count = value
 
     def __eq__(self, other):
-        return (type(self) == type(other) and self.name == other.name and
+        return (self.name == other.name and
                 self.expansion == other.expansion and
                 self.visible == other.visible)
 
