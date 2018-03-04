@@ -135,6 +135,7 @@ class Expansion(object):
             child.parent = self
 
         self._current_match = None
+        self.rule = None
 
     def __add__(self, other):
         return self + other

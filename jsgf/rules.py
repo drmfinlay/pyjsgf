@@ -14,9 +14,11 @@ class Rule(object):
         """
         self.name = name
         self.visible = visible
+        self._expansion = None
         self.expansion = expansion
         self._reference_count = 0
         self._active = True
+        self.grammar = None
 
     @property
     def expansion(self):
@@ -27,8 +29,15 @@ class Rule(object):
         self._set_expansion(value)
 
     def _set_expansion(self, value):
+        # Reset expansion.rule if there was a previous expansion
+        if self._expansion:
+            self._expansion.rule = None
+
         # Handle the object passed in as an expansion
         self._expansion = Expansion.make_expansion(value)
+
+        # Set expansion's rule attribute to this rule
+        self._expansion.rule = self
 
     def compile(self, ignore_tags=False):
         """

@@ -209,6 +209,7 @@ class Grammar(object):
         if rule.name in self.rule_names:
             raise GrammarError("JSGF grammar cannot have rules with the same name")
         self._rules.append(rule)
+        rule.grammar = self
 
     def add_import(self, _import):
         """
@@ -258,6 +259,7 @@ class Grammar(object):
                                "a RuleRef object in another rule." % rule)
 
         self._rules.remove(rule)
+        rule.grammar = None
 
     def enable_rule(self, rule):
         """

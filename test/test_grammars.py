@@ -166,6 +166,27 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertEqual(RootGrammar(name="test"), Grammar(name="test"),
                          "grammars with only different types should be equal")
 
+    def test_links(self):
+        """Expansion.rule and Rule.grammar attributes work correctly."""
+        hello = Literal("hello")
+        self.assertIsNone(hello.rule, "no rule will use the expansion yet")
+        r = PublicRule("test", hello)
+        self.assertEqual(hello.rule, r, "rule 'test' should use the expansion")
+        r.expansion = "hi"
+        self.assertIsNone(hello.rule, "setting r.expansion should reset "
+                                      "hello.rule")
+
+        # Test Rule.grammar
+        g = Grammar(name="g")
+        self.assertIsNone(r.grammar, "no grammar will be using the rule yet")
+
+        g.add_rule(r)
+        self.assertEqual(r.grammar, g, "adding r to a grammar should set r.grammar")
+
+        g.remove_rule(r)
+        self.assertIsNone(r.grammar, "remove r from its grammar should reset "
+                                     "r.grammar")
+
 
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):
