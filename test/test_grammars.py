@@ -1,5 +1,11 @@
+# This Python file uses the following encoding: utf-8
+# The above line is required for the MultiLingualTests class
+
 import unittest
+import copy
+
 from jsgf import *
+from jsgf.ext import Dictation
 
 
 class BasicGrammarCase(unittest.TestCase):
@@ -121,6 +127,45 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertTrue(self.rule1.active)
         self.assertEqual(self.grammar.compile(), enabled_output)
 
+    def test_comparisons(self):
+        self.assertEqual(Grammar(), Grammar())
+        self.assertNotEqual(Grammar(name="test"), Grammar(name="test2"),
+                            "grammars with different names should not be equal")
+        g1 = Grammar(name="test")
+        g1.add_import(Import("test2"))
+        self.assertNotEqual(g1, Grammar(name="test"),
+                            "grammars with different imports should not be equal")
+        g2 = Grammar()
+        g2.add_rule(PublicRule("r1", "hello"))
+        g3 = Grammar()
+        self.assertNotEqual(g1, g2,
+                            "grammars with different names, rules and imports "
+                            "should not be equal")
+
+        self.assertEqual(g2, g2, "the same grammar should be equal with itself")
+        self.assertEqual(g2, copy.copy(g2),
+                         "grammars with the same rules should be equal")
+
+        self.assertNotEqual(g2, g3, "grammars with only different rules should not "
+                                    "be equal")
+
+        # Assert that any difference in the JSGF header makes Grammar objects not
+        # equal
+        default = Grammar()
+
+        def check():
+            self.assertNotEqual(g3, default, "grammars with only different JSGF "
+                                             "headers should not be equal")
+        g3.language_name = "ru"
+        check()
+        g3.jsgf_version = "2.0"
+        check()
+        g3.charset_name = "utf-16"
+        check()
+
+        self.assertEqual(RootGrammar(name="test"), Grammar(name="test"),
+                         "grammars with only different types should be equal")
+
 
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):
@@ -172,6 +217,37 @@ class SpeechMatchCase(unittest.TestCase):
         # Rule 3
         self.assert_matches("john", rule3)
         self.assert_no_match("", rule3)
+
+
+class MultiLingualTests(unittest.TestCase):
+    """
+    Test that Unicode characters can be used in rule, import and grammar names
+    as well as in literals and that the text can be matched.
+
+    Cyrillic characters are used to test this functionality. There are various
+    Unicode character sets, each containing an enormous number of characters, so
+    it is hardly feasible to test everything. Plus, this library simply uses
+    Python's Unicode support.
+    """
+    def test_names(self):
+        """Unicode strings can be used in names and literals and can be matched."""
+        grammar = Grammar(name=u"грамматика")
+        self.assertEqual(grammar.name, u"грамматика")
+        rule = PublicRule(u"русский", AlternativeSet(
+            u"привет", u"здравствуйте", u"пожалуйста"))
+        import_ = Import(u"грамматика2")
+        self.assertEqual(import_.name, u"грамматика2")
+
+        # Test matching the rule
+        self.assertTrue(rule.matches(u"здравствуйте"))
+
+        # Test matching using the grammar
+        grammar.add_rule(rule)
+        self.assertListEqual(grammar.find_matching_rules(u"пожалуйста"), [rule])
+
+    def test_dictation(self):
+        """Dictation Expansions match Unicode strings."""
+        self.assertTrue(PublicRule(u"всё", Dictation().matches(u"это кофе")))
 
 
 class VisibleRulesCase(unittest.TestCase):
