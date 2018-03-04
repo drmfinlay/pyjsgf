@@ -21,7 +21,7 @@ def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     """
     def map_children(x):
         if isinstance(x, RuleRef):  # map the referenced rule
-            return map_expansion(x.rule.expansion, func, order)
+            return map_expansion(x.referenced_rule.expansion, func, order)
         else:
             return tuple([map_expansion(child, func, order)
                           for child in x.children])
@@ -558,25 +558,24 @@ class Literal(Expansion):
 
 
 class RuleRef(Expansion):
-    def __init__(self, rule):
+    def __init__(self, referenced_rule):
         """
-        Class for referencing another rule from a rule.
-        :param rule:
+        Class for referencing another rule.
+        :param referenced_rule:
         """
-        self.rule = rule
         super(RuleRef, self).__init__([])
-
-        self.rule.reference_count += 1
+        self.referenced_rule = referenced_rule
+        self.referenced_rule.reference_count += 1
 
     def compile(self, ignore_tags=False):
         super(RuleRef, self).compile()
         if self.tag and not ignore_tags:
-            return "<%s>%s" % (self.rule.name, self.tag)
+            return "<%s>%s" % (self.referenced_rule.name, self.tag)
         else:
-            return "<%s>" % self.rule.name
+            return "<%s>" % self.referenced_rule.name
 
     def __str__(self):
-        return "%s('%s')" % (self.__class__.__name__, self.rule.name)
+        return "%s('%s')" % (self.__class__.__name__, self.referenced_rule.name)
 
     def __hash__(self):
         return super(RuleRef, self).__hash__()
@@ -587,25 +586,26 @@ class RuleRef(Expansion):
         # expansion's tree and the referencing rule's expansion tree as one larger
         # tree. E.g. when determining mutual exclusivity of 2 expansions, if an
         # expansion is optional, if a literal is used for repetition, etc.
-        self.rule.expansion.parent = self
+        self.referenced_rule.expansion.parent = self
 
-        result = self.rule.expansion.matches(speech)
-        self.current_match = self.rule.expansion.current_match
+        result = self.referenced_rule.expansion.matches(speech)
+        self.current_match = self.referenced_rule.expansion.current_match
 
         # Reset parent
-        self.rule.expansion.parent = None
+        self.referenced_rule.expansion.parent = None
 
         return result
 
     def decrement_ref_count(self):
-        if self.rule.reference_count > 0:
-            self.rule.reference_count -= 1
+        if self.referenced_rule.reference_count > 0:
+            self.referenced_rule.reference_count -= 1
 
     def __del__(self):
         self.decrement_ref_count()
 
     def __eq__(self, other):
-        return super(RuleRef, self).__eq__(other) and self.rule == other.rule
+        return (super(RuleRef, self).__eq__(other) and
+                self.referenced_rule == other.referenced_rule)
 
 
 class Repeat(SingleChildExpansion):

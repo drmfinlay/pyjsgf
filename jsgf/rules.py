@@ -1,7 +1,7 @@
 """
 Classes for compiling JSpeech Grammar Format rules
 """
-from .expansions import Expansion, RuleRef
+from .expansions import Expansion, RuleRef, filter_expansion
 from .errors import CompilationError
 
 
@@ -121,23 +121,11 @@ class Rule(object):
         The set of rules which this rule directly and indirectly references.
         :rtype: set
         """
-        def collect_referenced_rules(expansion, result):
-            """
-            Recursively collect every RuleRef object's Rule in an Expansion tree and every
-            referenced rule in the referenced rule's Expansion tree and so on.
-            :type expansion: Expansion
-            :type result: set
-            """
-            if isinstance(expansion, RuleRef):
-                if expansion.rule not in result:  # prevent cycles
-                    result.add(expansion.rule)
-                    collect_referenced_rules(expansion.rule.expansion, result)
-            else:
-                for child in expansion.children:
-                    collect_referenced_rules(child, result)
-
-            return result
-        return collect_referenced_rules(self.expansion, set())
+        # Return the set of all rules referenced by a RuleRef
+        return set(map(
+            lambda x: x.referenced_rule,
+            filter_expansion(self.expansion, lambda x: isinstance(x, RuleRef))
+        ))
 
     @property
     def reference_count(self):

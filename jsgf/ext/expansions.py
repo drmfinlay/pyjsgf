@@ -182,7 +182,7 @@ def expand_dictation_expansion(expansion):
         :return: Expansion | None
         """
         if isinstance(e, RuleRef):
-            return first_unprocessed_expansion(e.rule.expansion)
+            return first_unprocessed_expansion(e.referenced_rule.expansion)
         else:
             # Traverse in post order, i.e. children first, then e.
             for child in e.children:
@@ -344,8 +344,9 @@ def calculate_expansion_sequence(expansion, should_deepcopy=True):
             result.append(e)
 
         elif len(e.children) == 0:
-            if isinstance(e, RuleRef) and dictation_in_expansion(e.rule.expansion):
-                result.extend(calculate_sequence(e.rule.expansion))
+            if (isinstance(e, RuleRef) and
+                    dictation_in_expansion(e.referenced_rule.expansion)):
+                result.extend(calculate_sequence(e.referenced_rule.expansion))
             else:
                 result.append(e)
         else:
