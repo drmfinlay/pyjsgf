@@ -26,7 +26,8 @@ class Grammar(object):
         self.language_name = "en"
         self.jsgf_version = "1.0"
 
-    def _get_jsgf_header(self):
+    @property
+    def jsgf_header(self):
         return "#JSGF V%s %s %s;\n" % (self.jsgf_version,
                                        self.charset_name,
                                        self.language_name)
@@ -37,7 +38,7 @@ class Grammar(object):
         recognised by a JSGF parser.
         :rtype: str
         """
-        result = self._get_jsgf_header()
+        result = self.jsgf_header
         result += "grammar %s;\n" % self.name
 
         for i in self._imports:
@@ -93,7 +94,7 @@ class Grammar(object):
         <ruleN> = ...;
         :rtype: str
         """
-        result = self._get_jsgf_header()
+        result = self.jsgf_header
         result += "grammar %s;\n" % self.name
 
         # Add imports
@@ -107,21 +108,34 @@ class Grammar(object):
         if not visible_rules:
             return result
 
-        # Build the root rule and add it to the result
-        names = [r.name for r in visible_rules if r.visible]
-        refs = ["<%s>" % name for name in names]
-        alt_set = "(%s)" % "|".join(refs)
-        result += "public <root> = %s;\n" % alt_set
-
         # Temporarily set each visible rule to not visible
         for rule in visible_rules:
             rule.visible = False
 
-        # Compile each rule
+        # Compile each rule and add its name to the names list if it compiled to
+        # something. Rules can compile to the empty string if they are disabled.
+        names = []
+        compiled_rules = ""
         for rule in self.rules:
             compiled = rule.compile()
-            if compiled and rule.active:
-                result += "%s\n" % compiled
+            if compiled:
+                compiled_rules += "%s\n" % compiled
+            if rule in visible_rules and compiled:
+                names.append(rule.name)
+
+        # If there are no names (no rule is public), then just return the result so
+        # far
+        if not names:
+            return result
+
+        # Build the root rule
+        refs = ["<%s>" % name for name in names]
+        alt_set = "(%s)" % "|".join(refs)
+        root_rule = "public <root> = %s;\n" % alt_set
+
+        # Add the root rule, then the compiled rules to result
+        result += root_rule
+        result += compiled_rules
 
         # Set rule visibility back to normal
         for rule in visible_rules:
@@ -130,12 +144,20 @@ class Grammar(object):
         return result
 
     @property
+    def imports(self):
+        """
+        Get the imports for this grammar.
+        :rtype: list
+        """
+        return list(self._imports)
+
+    @property
     def rules(self):
         """
         Get the rules added to this grammar.
         :rtype: list
         """
-        return self._rules
+        return list(self._rules)
 
     visible_rules = property(
         lambda self: [rule for rule in self.rules if rule.visible],
@@ -165,6 +187,13 @@ class Grammar(object):
         rules = ", ".join(["%s" % rule for rule in self.rules])
         return "Grammar(%s) with rules: %s" % (self.name, rules)
 
+    def __eq__(self, other):
+        return (self.name == other.name and self.jsgf_header == other.jsgf_header
+                and self.rules == other.rules and self.imports == other.imports)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def add_rules(self, *rules):
         for r in rules:
             self.add_rule(r)
@@ -188,7 +217,7 @@ class Grammar(object):
         """
         if not isinstance(_import, Import):
             raise TypeError("object '%s' was not a JSGF Import object" % _import)
-        self._rules.append(_import)
+        self._imports.append(_import)
 
     def find_matching_rules(self, speech):
         """
@@ -198,7 +227,12 @@ class Grammar(object):
         """
         return [r for r in self.match_rules if r.visible and r.matches(speech)]
 
-    def _get_rule_from_name(self, name):
+    def get_rule_from_name(self, name):
+        """
+        Get a rule object with the specified name, if one exists in the grammar.
+        :type name: str
+        :rtype: Rule
+        """
         if name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (name, self))
 
@@ -213,7 +247,7 @@ class Grammar(object):
         if not isinstance(rule, Rule):
             # Assume 'rule' is the name of a rule
             # Get the rule object with the name
-            rule = self._get_rule_from_name(rule)
+            rule = self.get_rule_from_name(rule)
         elif rule not in self.rules:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
@@ -223,7 +257,7 @@ class Grammar(object):
             raise GrammarError("Cannot remove rule '%s' as it is referenced by "
                                "a RuleRef object in another rule." % rule)
 
-        self.rules.remove(rule)
+        self._rules.remove(rule)
 
     def enable_rule(self, rule):
         """
@@ -267,6 +301,14 @@ class Grammar(object):
         # Disable any rules in the grammar which have the given name
         for r in [x for x in self.rules if x.name == rule_name]:
             r.disable()
+
+    def remove_import(self, import_):
+        """
+        Remove an Import from the grammar.
+        :type import_: Import
+        """
+        if import_ in self._imports:
+            self._imports.remove(import_)
 
 
 class RootGrammar(Grammar):
