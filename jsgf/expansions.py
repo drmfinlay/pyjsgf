@@ -127,8 +127,8 @@ class Expansion(object):
         if not isinstance(children, (tuple, list)):
             raise TypeError("'children' must be a list or tuple")
 
-        # Validate each child expansion
-        self._children = [self.validate(e) for e in children]
+        # Transform any non-expansion children into expansions
+        self._children = [self.make_expansion(e) for e in children]
 
         # Set each child's parent as this expansion
         for child in self._children:
@@ -182,25 +182,23 @@ class Expansion(object):
         # Escape '{', '}' and '\' so that tags will be processed
         # properly if they have those characters.
         # This is suggested in the JSGF specification.
-        assert isinstance(value, str)
         escaped = value.replace("{", "\\{") \
             .replace("}", "\\}") \
             .replace("\\", "\\\\")
         self._tag = "{ %s }" % escaped
 
     @staticmethod
-    def validate(e):
+    def make_expansion(e):
         """
-        Validate an Expansion object and return it.
+        Take an object, turn it into an Expansion if it isn't one and return it.
         :param e:
         :return: Expansion
         """
-        if isinstance(e, str):
-            return Literal(e)
-        elif isinstance(e, Expansion):
+        if isinstance(e, Expansion):
             return e
         else:
-            raise TypeError("can only take strings or Expansions")
+            # Assume e is a string
+            return Literal(e)
 
     def validate_compilable(self):
         """
@@ -219,7 +217,7 @@ class Expansion(object):
     @current_match.setter
     def current_match(self, value):
         # Ensure that string values have only one space between words
-        if isinstance(value, str):
+        if value:
             value = " ".join([x.strip() for x in value.split()])
 
         if not value:

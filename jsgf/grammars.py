@@ -210,8 +210,9 @@ class Grammar(object):
         :param rule: Rule object or the name of a rule in this grammar
         :param ignore_dependent: whether to check if the rule has dependent rules
         """
-        if isinstance(rule, str):
-            # Set rule to the rule object instead of the name
+        if not isinstance(rule, Rule):
+            # Assume 'rule' is the name of a rule
+            # Get the rule object with the name
             rule = self._get_rule_from_name(rule)
         elif rule not in self.rules:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
@@ -234,8 +235,8 @@ class Grammar(object):
         :param rule: Rule object or the name of a rule in this grammar
         """
         # Handle the rule parameter
-        if isinstance(rule, str):
-            rule_name = rule
+        if not isinstance(rule, Rule):
+            rule_name = rule  # assume rule is a name string
         else:
             rule_name = rule.name
             rule.enable()
@@ -254,8 +255,8 @@ class Grammar(object):
         :param rule: Rule object or the name of a rule in this grammar
         """
         # Handle the rule parameter
-        if isinstance(rule, str):
-            rule_name = rule
+        if not isinstance(rule, Rule):
+            rule_name = rule  # assume rule is a name string
         else:
             rule_name = rule.name
             rule.disable()

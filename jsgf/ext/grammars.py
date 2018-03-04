@@ -121,8 +121,8 @@ class DictationGrammar(Grammar):
     def remove_rule(self, rule, ignore_dependent=False):
         # Find the rules generated from this rule and remove them wherever they are
         # as well as the original rule
-        if isinstance(rule, str):
-            rule_name = rule
+        if not isinstance(rule, Rule):
+            rule_name = rule  # assume rule is a name string
         else:
             rule_name = rule.name
 

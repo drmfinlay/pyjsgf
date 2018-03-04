@@ -28,7 +28,7 @@ class Rule(object):
 
     def _set_expansion(self, value):
         # Handle the object passed in as an expansion
-        self._expansion = Expansion.validate(value)
+        self._expansion = Expansion.make_expansion(value)
 
     def compile(self, ignore_tags=False):
         """
