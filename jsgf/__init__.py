@@ -38,6 +38,8 @@ from .grammars import Grammar
 from .grammars import Import
 from .grammars import RootGrammar
 
+from .references import BaseRef
+
 from .rules import HiddenRule
 from .rules import PublicRule
 from .rules import Rule
