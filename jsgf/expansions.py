@@ -3,6 +3,7 @@ Classes for compiling JSpeech Grammar Format expansions
 """
 import re
 
+from .references import BaseRef
 from .errors import *
 
 
@@ -217,6 +218,9 @@ class Expansion(object):
 
     @current_match.setter
     def current_match(self, value):
+        self._set_current_match(value)
+
+    def _set_current_match(self, value):
         # Ensure that string values have only one space between words
         if value:
             value = " ".join([x.strip() for x in value.split()])
@@ -371,6 +375,66 @@ class Expansion(object):
                 if d1[alt_set] is not d2[alt_set]:
                     return True
         return False
+
+
+class NamedRuleRef(BaseRef, Expansion):
+    """
+    Class used to reference rules by name.
+    """
+    def __init__(self, name):
+        # Call both super constructors
+        BaseRef.__init__(self, name)
+        Expansion.__init__(self, [])
+
+    def compile(self, ignore_tags=False):
+        self.validate_compilable()
+        if self.tag and not ignore_tags:
+            return "<%s>%s" % (self.name, self.tag)
+        else:
+            return "<%s>" % self.name
+
+    def __str__(self):
+        return "%s('%s')" % (self.__class__.__name__, self.name)
+
+    def __hash__(self):
+        return Expansion.__hash__(self)
+
+
+class NullRef(NamedRuleRef):
+    """
+    The NULL rule is a rule that is automatically matched without the user speaking.
+    """
+    def __init__(self):
+        super(NullRef, self).__init__("NULL")
+
+    def _matches_internal(self, speech):
+        return ""
+
+    def _set_current_match(self, value):
+        self._current_match = ""
+
+    @staticmethod
+    def valid(name):
+        return name == "NULL"
+
+
+class VoidRef(NamedRuleRef):
+    """
+    The VOID rule is a rule that can never be spoken. As such, if this is used in
+    an expansion, it will not match, even if the expansion is optional.
+    """
+    def __init__(self):
+        super(VoidRef, self).__init__("VOID")
+
+    def _matches_internal(self, speech):
+        return speech
+
+    def _set_current_match(self, value):
+        self._current_match = None
+
+    @staticmethod
+    def valid(name):
+        return name == "VOID"
 
 
 class ExpansionWithChildren(Expansion):
@@ -556,28 +620,15 @@ class Literal(Expansion):
         return result
 
 
-class RuleRef(Expansion):
+class RuleRef(NamedRuleRef):
     def __init__(self, referenced_rule):
         """
-        Class for referencing another rule.
+        Class for referencing another rule by Rule object.
         :param referenced_rule:
         """
-        super(RuleRef, self).__init__([])
+        super(RuleRef, self).__init__(referenced_rule.name)
         self.referenced_rule = referenced_rule
         self.referenced_rule.reference_count += 1
-
-    def compile(self, ignore_tags=False):
-        super(RuleRef, self).compile()
-        if self.tag and not ignore_tags:
-            return "<%s>%s" % (self.referenced_rule.name, self.tag)
-        else:
-            return "<%s>" % self.referenced_rule.name
-
-    def __str__(self):
-        return "%s('%s')" % (self.__class__.__name__, self.referenced_rule.name)
-
-    def __hash__(self):
-        return super(RuleRef, self).__hash__()
 
     def _matches_internal(self, speech):
         # Temporarily set the parent of the referenced rule's root expansion to

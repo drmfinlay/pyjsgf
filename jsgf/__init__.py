@@ -33,6 +33,7 @@ from .expansions import Sequence
 from .expansions import SingleChildExpansion
 from .expansions import TraversalOrder
 from .expansions import VariableChildExpansion
+from .expansions import NamedRuleRef, NullRef, VoidRef
 
 from .grammars import Grammar
 from .grammars import Import
