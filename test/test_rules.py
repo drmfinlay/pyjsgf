@@ -25,9 +25,9 @@ class PropertiesTests(unittest.TestCase):
 
     def test_reference_count_simple(self):
         r = HiddenRule("greet", "hello")
-        rule_refs = [RuleRef(r)]
+        ref = RuleRef(r)
         self.assertEqual(1, r.reference_count)
-        rule_refs.pop()
+        ref.decrement_ref_count()
         self.assertEqual(0, r.reference_count)
 
     def test_reference_count_with_grammar(self):

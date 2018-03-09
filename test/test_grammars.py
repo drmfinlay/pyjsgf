@@ -132,7 +132,7 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertNotEqual(Grammar(name="test"), Grammar(name="test2"),
                             "grammars with different names should not be equal")
         g1 = Grammar(name="test")
-        g1.add_import(Import("test2"))
+        g1.add_import(Import("test2.*"))
         self.assertNotEqual(g1, Grammar(name="test"),
                             "grammars with different imports should not be equal")
         g2 = Grammar()
@@ -256,8 +256,8 @@ class MultiLingualTests(unittest.TestCase):
         self.assertEqual(grammar.name, u"грамматика")
         rule = PublicRule(u"русский", AlternativeSet(
             u"привет", u"здравствуйте", u"пожалуйста"))
-        import_ = Import(u"грамматика2")
-        self.assertEqual(import_.name, u"грамматика2")
+        import_ = Import(u"грамматика2.*")
+        self.assertEqual(import_.name, u"грамматика2.*")
 
         # Test matching the rule
         self.assertTrue(rule.matches(u"здравствуйте"))
