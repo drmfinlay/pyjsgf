@@ -76,15 +76,8 @@ class InvalidRules(unittest.TestCase):
             PublicRule("test", KleeneStar("hello")),
             PublicRule("test", AlternativeSet(OptionalGrouping("hello"))),
             PublicRule("test", Sequence(OptionalGrouping("hello"))),
-            PublicRule("test", Sequence()),
-            PublicRule("test", AlternativeSet()),
-            PublicRule("test", VariableChildExpansion()),
             PublicRule("test", "")
         ]
-
-        r = PublicRule("test", SingleChildExpansion("hello"))
-        r.expansion.children.remove(Literal("hello"))
-        invalid_rules.append(r)
 
         # Rules that only have optional literals are not valid
         for rule in invalid_rules:

@@ -438,10 +438,11 @@ class VoidRef(NamedRuleRef):
 
 
 class ExpansionWithChildren(Expansion):
-    def validate_compilable(self):
+    def compile(self, ignore_tags=False):
+        # Add a reference to the built-in VOID rule to produce a valid JSGF
+        # expansion that compiles, but cannot be matched.
         if not self.children:
-            raise CompilationError("cannot compile %s expansion with no children"
-                                   % self.__class__.__name__)
+            self.children.append(VoidRef())
 
 
 class SingleChildExpansion(ExpansionWithChildren):
