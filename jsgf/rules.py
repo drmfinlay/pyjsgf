@@ -1,18 +1,39 @@
+# This Python file uses the following encoding: utf-8
+
 """
 Classes for compiling JSpeech Grammar Format rules
 """
+
+from .references import BaseRef
 from .expansions import Expansion, RuleRef, filter_expansion
 from .errors import CompilationError
 
 
-class Rule(object):
+class Rule(BaseRef):
+    """
+    Base class for JSGF rules.
+
+    Rule names can be a single word containing one or more alphanumeric Unicode
+    characters and/or any of the following special characters: +-:;,=|/\()[]@#%!^&~$
+
+    For example, the following are valid rule names:
+    hello
+    Zürich
+    user_test
+    $100
+    1+2=3
+
+    There are two reserved rule names: NULL and VOID. These reserved names cannot be
+    used as rule names. You can however change the case to 'null' or 'void' to use
+    them, as names are case-sensitive.
+    """
     def __init__(self, name, visible, expansion):
         """
         :type name: str
         :type visible: bool
-        :param expansion:
+        :param expansion: a string or Expansion object
         """
-        self.name = name
+        super(Rule, self).__init__(name)
         self.visible = visible
         self._expansion = None
         self.expansion = expansion

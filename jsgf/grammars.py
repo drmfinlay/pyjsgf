@@ -2,13 +2,31 @@
 Classes for compiling and importing JSpeech Grammar Format grammars
 """
 
+from .references import BaseRef, OPTIONALLY_QUALIFIED_NAME, IMPORT_NAME
 from .rules import Rule
 from .errors import GrammarError
 
 
-class Import(object):
+class Import(BaseRef):
+    """
+    Import objects used in grammar compilation and import resolution.
+
+    Import names must be fully qualified. This means they must be in the reverse
+    domain name format that Java packages use. Wildcards may be used to import all
+    public rules in a grammar.
+
+    The following are valid rule import names:
+    com.example.grammar.rule_name
+    grammar.rule_name
+    com.example.grammar.*
+    grammar.*
+
+    There are two reserved rule names: NULL and VOID. These reserved names cannot be
+    used as import names. You can however change the case to 'null' or 'void' to use
+    them, as names are case-sensitive.
+    """
     def __init__(self, name):
-        self.name = name
+        super(Import, self).__init__(name)
 
     def compile(self):
         return "import <%s>;" % self.name
@@ -16,21 +34,49 @@ class Import(object):
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, self.name)
 
+    @staticmethod
+    def valid(name):
+        return IMPORT_NAME.matches(name)
 
-class Grammar(object):
+
+class Grammar(BaseRef):
+    """
+    Base class for JSGF grammars.
+
+    Grammar names can be either a qualified name with dots or a single name.
+    A name is defined as a single word containing one or more alphanumeric Unicode
+    characters and/or any of the following special characters: +-:;,=|/\()[]@#%!^&~$
+
+    For example, the following are valid grammar names:
+    com.example.grammar
+    grammar
+
+    There are two reserved rule names: NULL and VOID. These reserved names cannot be
+    used as grammar names. You can however change the case to 'null' or 'void' to
+    use them, as names are case-sensitive.
+    """
+    default_header_values = (
+        "1.0",
+        "UTF-8",
+        "en"
+    )
+
     def __init__(self, name="default"):
-        self.name = name
+        super(Grammar, self).__init__(name)
         self._rules = []
         self._imports = []
-        self.charset_name = "UTF-8"
-        self.language_name = "en"
-        self.jsgf_version = "1.0"
+        self.jsgf_version, self.charset_name, self.language_name =\
+            self.default_header_values
 
     @property
     def jsgf_header(self):
         return "#JSGF V%s %s %s;\n" % (self.jsgf_version,
                                        self.charset_name,
                                        self.language_name)
+
+    @staticmethod
+    def valid(name):
+        return OPTIONALLY_QUALIFIED_NAME.matches(name)
 
     def compile(self):
         """
