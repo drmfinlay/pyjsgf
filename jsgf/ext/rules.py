@@ -15,7 +15,7 @@ class SequenceRule(Rule):
 
         # Keep the original expansion and use a copy of it for the sequence
         self._original_expansion = self.expansion
-        self.expansion = deepcopy(self.expansion)
+        self.expansion = self.expansion.copy()
 
         # Check if the entire rule can be repeated
         rep = self._find_root_repeat(self.expansion)

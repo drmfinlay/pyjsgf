@@ -2,6 +2,7 @@
 Classes for compiling JSpeech Grammar Format expansions
 """
 import re
+from copy import deepcopy
 
 from .references import BaseRef
 from .errors import *
@@ -144,6 +145,35 @@ class Expansion(object):
     def __hash__(self):
         return self.__str__().__hash__()
 
+    def __copy__(self):
+        if not self.children:
+            e = type(self)([])
+        else:
+            e = type(self)(*self.children)
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo):
+        if not self.children:
+            e = type(self)([])
+        else:
+            children = [deepcopy(child, memo) for child in self.children]
+            e = type(self)(*children)
+        e.tag = self.tag
+        return e
+
+    def copy(self, shallow=False):
+        """
+        Make a copy of this expansion. This returns a deep copy by default.
+        Neither referenced rules or their expansions will be deep copied.
+        :param shallow: whether to create a shallow copy (default: False)
+        :rtype: Expansion
+        """
+        if shallow:
+            return self.__copy__()
+        else:
+            return self.__deepcopy__({})
+
     @property
     def children(self):
         return self._children
@@ -181,13 +211,16 @@ class Expansion(object):
         Sets the tag for the expansion.
         :type value: str
         """
-        # Escape '{', '}' and '\' so that tags will be processed
-        # properly if they have those characters.
-        # This is suggested in the JSGF specification.
-        escaped = value.replace("{", "\\{") \
-            .replace("}", "\\}") \
-            .replace("\\", "\\\\")
-        self._tag = "{ %s }" % escaped
+        if not value:
+            self._tag = ""
+        else:
+            # Escape '{', '}' and '\' so that tags will be processed
+            # properly if they have those characters.
+            # This is suggested in the JSGF specification.
+            escaped = value.replace("{", "\\{") \
+                .replace("}", "\\}") \
+                .replace("\\", "\\\\")
+            self._tag = "{ %s }" % escaped
 
     @staticmethod
     def make_expansion(e):
@@ -399,6 +432,14 @@ class NamedRuleRef(BaseRef, Expansion):
     def __hash__(self):
         return Expansion.__hash__(self)
 
+    def __copy__(self):
+        e = type(self)(self.name)
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo):
+        return self.__copy__()
+
 
 class NullRef(NamedRuleRef):
     """
@@ -416,6 +457,11 @@ class NullRef(NamedRuleRef):
     @staticmethod
     def valid(name):
         return name == "NULL"
+
+    def __copy__(self):
+        e = type(self)()
+        e.tag = self.tag
+        return e
 
 
 class VoidRef(NamedRuleRef):
@@ -436,6 +482,11 @@ class VoidRef(NamedRuleRef):
     def valid(name):
         return name == "VOID"
 
+    def __copy__(self):
+        e = type(self)()
+        e.tag = self.tag
+        return e
+
 
 class ExpansionWithChildren(Expansion):
     def compile(self, ignore_tags=False):
@@ -451,7 +502,10 @@ class SingleChildExpansion(ExpansionWithChildren):
 
     @property
     def child(self):
-        return self.children[0]
+        if not self.children:
+            return None  # the child has been removed
+        else:
+            return self.children[0]
 
     def __hash__(self):
         return super(SingleChildExpansion, self).__hash__()
@@ -496,6 +550,14 @@ class Literal(Expansion):
 
     def __hash__(self):
         return super(Literal, self).__hash__()
+
+    def __copy__(self):
+        e = type(self)(self.text)
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo):
+        return self.__copy__()
 
     def validate_compilable(self):
         if not self.text:
@@ -657,6 +719,15 @@ class RuleRef(NamedRuleRef):
     def __eq__(self, other):
         return (super(RuleRef, self).__eq__(other) and
                 self.referenced_rule == other.referenced_rule)
+
+    def __copy__(self):
+        e = type(self)(self.referenced_rule)
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo):
+        # Note that this implementation won't copy the referenced rule
+        return self.__copy__()
 
 
 class Repeat(SingleChildExpansion):

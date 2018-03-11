@@ -1,5 +1,4 @@
 import re
-from copy import deepcopy
 from jsgf import *
 
 
@@ -19,6 +18,14 @@ class Dictation(Literal):
 
     def __str__(self):
         return "%s()" % self.__class__.__name__
+
+    def __copy__(self):
+        e = type(self)()
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo=None):
+        return self.__copy__()
 
     def validate_compilable(self):
         pass
@@ -234,7 +241,7 @@ def expand_dictation_expansion(expansion):
 
         elif isinstance(current, (OptionalGrouping, KleeneStar)):
             # Handle not required - remove from a copy
-            copy = deepcopy(current.root_expansion)
+            copy = current.root_expansion.copy()
             copy_x = find_expansion(copy, current)
             copy_parent = copy_x.parent
             ancestor = copy_parent
@@ -265,7 +272,7 @@ def expand_dictation_expansion(expansion):
 
         for replacement in replacements:
             # Find the copy of the current AlternativeSet being processed
-            copy = deepcopy(current.root_expansion)
+            copy = current.root_expansion.copy()
             copy_x = find_expansion(copy, current)
             copy_parent = copy_x.parent
             if copy_parent:
@@ -407,6 +414,6 @@ def calculate_expansion_sequence(expansion, should_deepcopy=True):
 
     # Only deepcopy the expansion if required
     if should_deepcopy:
-        return calculate_sequence(deepcopy(expansion))
+        return calculate_sequence(expansion.copy())
     else:
         return calculate_sequence(expansion)

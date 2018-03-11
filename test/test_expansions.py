@@ -1,5 +1,8 @@
 import unittest
+from copy import deepcopy
+
 from jsgf import *
+from jsgf.ext import Dictation
 
 
 class Compilation(unittest.TestCase):
@@ -182,6 +185,70 @@ class Comparisons(unittest.TestCase):
         rule2 = Rule("test", True, "testing")
         self.assertEqual(RuleRef(rule1), RuleRef(rule1))
         self.assertNotEqual(RuleRef(rule1), RuleRef(rule2))
+
+
+class Copying(unittest.TestCase):
+    def assert_copy_works(self, e):
+        """Copy an expansion e and do some checks."""
+        # Try first with deepcopy (default)
+        e2 = e.copy()
+        self.assertIsNot(e, e2)
+        self.assertEqual(e, e2)
+
+        # Then with shallow copying
+        e3 = e.copy(shallow=True)
+        self.assertIsNot(e, e3)
+        self.assertEqual(e, e3)
+
+        for c1, c2 in zip(e.children, e3.children):
+            # Children of e and e3 should all be the same objects
+            self.assertIs(c1, c2)
+
+    def test_base(self):
+        self.assert_copy_works(Expansion([]))
+
+    def test_named_references(self):
+        self.assert_copy_works(NamedRuleRef("test"))
+        self.assert_copy_works(NullRef())
+        self.assert_copy_works(VoidRef())
+
+    def test_literals(self):
+        self.assert_copy_works(Literal("test"))
+        self.assert_copy_works(Dictation())
+
+        # Check that regex patterns are not copied
+        e1 = Literal("test")
+        e2 = Dictation()
+
+        # Initialise patterns - they are initialised lazily
+        _ = e1.matching_regex_pattern
+        _ = e2.matching_regex_pattern
+
+        # Value of internal member '_pattern' should be None for copies
+        self.assertIsNone(e1.copy()._pattern)
+        self.assertIsNone(e2.copy()._pattern)
+
+    def test_sequences(self):
+        self.assert_copy_works(Sequence("test", "testing"))
+        self.assert_copy_works(RequiredGrouping("test", "testing"))
+
+    def test_alt_set(self):
+        self.assert_copy_works(AlternativeSet("test", "testing"))
+
+    def test_rule_ref(self):
+        r1 = PublicRule("r1", "test")
+        ref = RuleRef(r1)
+        self.assert_copy_works(ref)
+
+        # Check that a copy of a RuleRef references r1, not a copy of it.
+        self.assertIs(ref.referenced_rule, ref.copy().referenced_rule)
+
+        # Check that the same is true for a deep copied rule referencing r1
+        self.assertIs(deepcopy(PublicRule("r2", ref)).expansion.referenced_rule, r1)
+
+    def test_repeat(self):
+        self.assert_copy_works(Repeat("testing"))
+        self.assert_copy_works(KleeneStar("testing"))
 
 
 class AncestorProperties(unittest.TestCase):
