@@ -169,19 +169,14 @@ class Grammar(BaseRef):
             if rule in visible_rules and compiled:
                 names.append(rule.name)
 
-        # If there are no names (no rule is public), then just return the result so
-        # far
-        if not names:
-            return result
-
-        # Build the root rule
-        refs = ["<%s>" % name for name in names]
-        alt_set = "(%s)" % "|".join(refs)
-        root_rule = "public <root> = %s;\n" % alt_set
-
-        # Add the root rule, then the compiled rules to result
-        result += root_rule
-        result += compiled_rules
+        # If there are names, then build the root rule and add it and the compiled
+        # rules to the result.
+        if names:
+            refs = ["<%s>" % name for name in names]
+            alt_set = "(%s)" % "|".join(refs)
+            root_rule = "public <root> = %s;\n" % alt_set
+            result += root_rule
+            result += compiled_rules
 
         # Set rule visibility back to normal
         for rule in visible_rules:

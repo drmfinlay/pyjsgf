@@ -136,15 +136,23 @@ class DictationGrammar(Grammar):
                 elif k in self._jsgf_only_grammar.match_rules:
                     self._jsgf_only_grammar.remove_rule(k, ignore_dependent)
 
-    def compile(self):
+    def _compile(self, compile_as_root_grammar):
+        """
+        Internal method to compile the grammar.
+        :type compile_as_root_grammar: bool
+        :return: str
+        """
         self.rearrange_rules()
 
         try:
             # Compile the grammar
-            result = self._jsgf_only_grammar.compile()
+            if compile_as_root_grammar:
+                result = self._jsgf_only_grammar.compile_as_root_grammar()
+            else:
+                result = self._jsgf_only_grammar.compile()
 
             # Check for compiled rules
-            rule_pattern = re.compile("(public )?<.*> = .*;")
+            rule_pattern = re.compile("(public )?<.+> = .+;")
 
             # If there are none, set result to "".
             if not rule_pattern.search(result):
@@ -155,11 +163,14 @@ class DictationGrammar(Grammar):
             else:
                 raise GrammarError("no Dictation rules and JSGF only grammar "
                                    "failed to compile with error: '%s'" %
-                                   e.message)
+                                   e)
         return result
 
+    def compile(self):
+        return self._compile(False)
+
     def compile_as_root_grammar(self):
-        return self._jsgf_only_grammar.compile_as_root_grammar()
+        return self._compile(True)
 
     def rearrange_rules(self):
         """
@@ -167,14 +178,14 @@ class DictationGrammar(Grammar):
         the internal grammar used for JSGF only rules depending on whether a
         SequenceRule's current expansion is dictation only or not.
         """
-        for rule in self._jsgf_only_grammar.match_rules:
+        for rule in tuple(self._jsgf_only_grammar.match_rules):
             if not isinstance(rule, SequenceRule):
                 continue
             if rule.current_is_dictation_only:
                 self._jsgf_only_grammar.remove_rule(rule)
                 self._dictation_rules.append(rule)
 
-        for rule in self._dictation_rules:
+        for rule in tuple(self._dictation_rules):
             if not rule.current_is_dictation_only:
                 self._jsgf_only_grammar.add_rule(rule)
                 self._dictation_rules.remove(rule)

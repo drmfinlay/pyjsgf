@@ -6,9 +6,9 @@ from jsgf.ext import *
 class DictationGrammarCase(unittest.TestCase):
     def test_compile_dictation_only(self):
         grammar = DictationGrammar([PublicRule("test", Dictation())])
-        self.assertEqual(grammar.compile(), "",
-                         "grammar with only Dictation rules should compile to the "
-                         "empty string")
+        msg = "grammar with only Dictation rules should compile to the empty string"
+        self.assertEqual(grammar.compile(), "", msg)
+        self.assertEqual(grammar.compile_as_root_grammar(), "", msg)
 
     def test_compile_dictation_and_others(self):
         grammar = DictationGrammar(rules=[
@@ -150,9 +150,11 @@ class DictationGrammarCase(unittest.TestCase):
         # Note that find_matching_rules calls rearrange_rules
         grammar.find_matching_rules("test", True)
         self.assertEqual(grammar.compile(), "")
+        self.assertEqual(grammar.compile_as_root_grammar(), "")
 
         grammar.find_matching_rules("hello", True)
         self.assertEqual(grammar.compile(), "")
+        self.assertEqual(grammar.compile_as_root_grammar(), "")
         grammar.reset_sequence_rules()
 
         # Add some more rules
@@ -190,6 +192,7 @@ class DictationGrammarCase(unittest.TestCase):
 
         self.assertTrue(len(grammar.find_matching_rules("hello")) == 2)
         self.assertEqual(grammar.compile(), "")
+        self.assertEqual(grammar.compile_as_root_grammar(), "")
 
 
 class DictationGrammarOriginalRule(unittest.TestCase):
