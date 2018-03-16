@@ -23,6 +23,18 @@ class PropertiesTests(unittest.TestCase):
         rule1 = PublicRule("greet", RequiredGrouping(RuleRef(rule2), RuleRef(rule5)))
         self.assertSetEqual(rule1.dependencies, {rule2, rule3, rule4, rule5})
 
+    def test_dependent_rules(self):
+        r1 = PublicRule("r1", "hi")
+        r2 = PublicRule("r2", RuleRef(r1))
+        self.assertEqual(r1.dependent_rules, set(),
+                         "r1 has no dependent rules if it isn't in a grammar")
+        g = Grammar()
+        g.add_rule(r1)
+        self.assertEqual(r1.dependent_rules, set(),
+                         "r1 has no dependent rules in its grammar")
+        g.add_rule(r2)
+        self.assertEqual(r1.dependent_rules, {r2}, "r1 has dependent rule r2")
+
     def test_reference_count_simple(self):
         r = HiddenRule("greet", "hello")
         ref = RuleRef(r)

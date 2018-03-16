@@ -158,6 +158,23 @@ class Rule(BaseRef):
         ))
 
     @property
+    def dependent_rules(self):
+        """
+        The set of rules in this rule's grammar that reference this rule.
+        Returns an empty set if this rule is not in a grammar.
+        :rtype: set
+        """
+        if not self.grammar:
+            return set()
+
+        # Find any rule in the grammar that references this rule by checking if
+        # this rule is in the dependencies set.
+        return set(filter(
+            lambda x: self in x.dependencies,
+            self.grammar.rules
+        ))
+
+    @property
     def reference_count(self):
         return self._reference_count
 
