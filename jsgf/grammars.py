@@ -295,9 +295,9 @@ class Grammar(BaseRef):
 
         # Check if rule with name 'rule_name' is a dependency of another rule
         # in this grammar.
-        if rule.reference_count > 0 and not ignore_dependent:
+        if not ignore_dependent and rule.dependent_rules:
             raise GrammarError("Cannot remove rule '%s' as it is referenced by "
-                               "a RuleRef object in another rule." % rule)
+                               "another rule." % rule)
 
         self._rules.remove(rule)
         rule.grammar = None

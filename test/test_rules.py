@@ -35,21 +35,6 @@ class PropertiesTests(unittest.TestCase):
         g.add_rule(r2)
         self.assertEqual(r1.dependent_rules, {r2}, "r1 has dependent rule r2")
 
-    def test_reference_count_simple(self):
-        r = HiddenRule("greet", "hello")
-        ref = RuleRef(r)
-        self.assertEqual(1, r.reference_count)
-        ref.decrement_ref_count()
-        self.assertEqual(0, r.reference_count)
-
-    def test_reference_count_with_grammar(self):
-        grammar = Grammar()
-        r = HiddenRule("greet", "hello")
-        grammar.add_rule(r)
-        self.assertEqual(0, r.reference_count, "rule '%s' is not independent.")
-        grammar.add_rule(PublicRule("test", RuleRef(r)))
-        self.assertEqual(1, r.reference_count, "rule '%s' is independent.")
-
     def test_was_matched(self):
         """
         Test the was_matched property of the Rule class.

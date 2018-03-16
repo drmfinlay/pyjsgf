@@ -37,7 +37,6 @@ class Rule(BaseRef):
         self.visible = visible
         self._expansion = None
         self.expansion = expansion
-        self._reference_count = 0
         self._active = True
         self.grammar = None
 
@@ -176,12 +175,11 @@ class Rule(BaseRef):
 
     @property
     def reference_count(self):
-        return self._reference_count
-
-    @reference_count.setter
-    def reference_count(self, value):
-        assert isinstance(value, int) and value >= 0
-        self._reference_count = value
+        """
+        The number of dependent rules.
+        :rtype: int
+        """
+        return len(self.dependent_rules)
 
     def __eq__(self, other):
         return (self.name == other.name and

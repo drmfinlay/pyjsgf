@@ -691,7 +691,6 @@ class RuleRef(NamedRuleRef):
         """
         super(RuleRef, self).__init__(referenced_rule.name)
         self.referenced_rule = referenced_rule
-        self.referenced_rule.reference_count += 1
 
     def _matches_internal(self, speech):
         # Temporarily set the parent of the referenced rule's root expansion to
@@ -708,13 +707,6 @@ class RuleRef(NamedRuleRef):
         self.referenced_rule.expansion.parent = None
 
         return result
-
-    def decrement_ref_count(self):
-        if self.referenced_rule.reference_count > 0:
-            self.referenced_rule.reference_count -= 1
-
-    def __del__(self):
-        self.decrement_ref_count()
 
     def __eq__(self, other):
         return (super(RuleRef, self).__eq__(other) and
