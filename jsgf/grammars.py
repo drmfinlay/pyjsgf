@@ -228,6 +228,9 @@ class Grammar(BaseRef):
         rules = ", ".join(["%s" % rule for rule in self.rules])
         return "Grammar(%s) with rules: %s" % (self.name, rules)
 
+    def __repr__(self):
+        return self.__str__()
+
     def __eq__(self, other):
         return (self.name == other.name and self.jsgf_header == other.jsgf_header
                 and self.rules == other.rules and self.imports == other.imports)
