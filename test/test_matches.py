@@ -201,6 +201,24 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e2.children[1].current_match, "bob")
         self.assertEqual(e1.current_match, "bob")
 
+    def test_multiple_rule_refs(self):
+        numbers = ["one", "two", "three", "four"]
+        r1 = Rule("numbers", False, AlternativeSet(*numbers))
+        r2 = PublicRule("commands", AlternativeSet(
+            Sequence("backspace", RuleRef(r1)),
+            Sequence("delete", OptionalGrouping(RuleRef(r1)))
+        ))
+
+        # Check that r3 matches delete without a number
+        self.assertTrue(r2.matches("delete"))
+
+        for n in numbers:
+            self.assertTrue(r1.matches(n))
+            self.assertTrue(r2.matches("backspace %s" % n),
+                            "matching 'backspace %s' failed" % n)
+            self.assertTrue(r2.matches("delete %s" % n),
+                            "matching 'delete %s' failed" % n)
+
     def test_rule_ref_ambiguous(self):
         e1 = Literal("hello")
         r1 = HiddenRule("test1", e1)
