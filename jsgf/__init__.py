@@ -20,6 +20,7 @@ from .expansions import AlternativeSet
 from .expansions import Expansion
 from .expansions import filter_expansion
 from .expansions import flat_map_expansion
+from .expansions import JointTreeContext
 from .expansions import KleeneStar
 from .expansions import Literal
 from .expansions import map_expansion

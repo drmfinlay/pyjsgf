@@ -376,9 +376,10 @@ class MutuallyExclusiveOfCase(unittest.TestCase):
         self.assertFalse(a.mutually_exclusive_of(e))
 
 
-class ExpansionTreeFunctions(unittest.TestCase):
+class ExpansionTreeConstructs(unittest.TestCase):
     """
-    Test the map_expansion, flat_map_expansion and filter_expansion functions.
+    Tests for functions and classes that operate on expansion trees, such as
+    map_expansion, flat_map_expansion, filter_expansion and JointTreeContext.
     """
     def setUp(self):
         self.map_to_string = lambda x: "%s" % x
@@ -514,6 +515,24 @@ class ExpansionTreeFunctions(unittest.TestCase):
         self.assertEqual(
             flat_map_expansion(e, order=TraversalOrder.PostOrder),
             [a, b, c, alt_set, d, e])
+
+    def test_joint_tree_context(self):
+        """JointTreeContext joins and detaches trees correctly"""
+        r1 = PublicRule("r1", "hi")
+        ref = RuleRef(r1)
+        e = AlternativeSet(ref, "hello")
+        self.assertIsNone(r1.expansion.parent)
+        self.assertFalse(r1.expansion.mutually_exclusive_of(e.children[1]),
+                         "'hi' shouldn't be mutually exclusive of 'hello' "
+                         "alternative yet")
+        with JointTreeContext(e):
+            self.assertEqual(r1.expansion.parent, ref,
+                             "parent of r1.expansion changes to ref")
+            self.assertTrue(r1.expansion.mutually_exclusive_of(e.children[1]),
+                            "'hi' should be mutually exclusive of 'hello' within a "
+                            "JointTreeContext")
+        self.assertIsNone(r1.expansion.parent)
+        self.assertFalse(r1.expansion.mutually_exclusive_of(e.children[1]))
 
 
 class LeavesProperty(unittest.TestCase):

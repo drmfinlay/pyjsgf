@@ -5,7 +5,7 @@ Classes for compiling JSpeech Grammar Format rules
 """
 
 from .references import BaseRef
-from .expansions import Expansion, RuleRef, filter_expansion
+from .expansions import Expansion, RuleRef, filter_expansion, JointTreeContext
 from .errors import CompilationError
 
 
@@ -137,10 +137,15 @@ class Rule(BaseRef):
         if not self._active:
             return False
 
-        # Strip whitespace at the start of 'speech' and lower it to match regex properly.
+        # Strip whitespace at the start of 'speech' and lower it to match regex
+        # properly.
         speech = speech.lstrip().lower()
         self.expansion.reset_for_new_match()
-        result = self.expansion.matches(speech)
+
+        # Use a JointTreeContext so that this rule's expansion tree and the
+        # expansion trees of referenced rules are joint during matching.
+        with JointTreeContext(self.expansion):
+            result = self.expansion.matches(speech)
 
         # Check if the rule matched completely
         if result != "":

@@ -119,6 +119,54 @@ def matches_overlap(m1, m2):
     return x1 < x2 <= y1 or x2 < x1 <= y2 or x1 == x2
 
 
+class JointTreeContext(object):
+    """
+    Class used during matching to temporarily join an expansion tree with the
+    expansion trees of all referenced rules.
+
+    This is required when it is necessary to view an expansion tree and the
+    expansion trees of referenced rules as one larger tree. E.g. when determining
+    mutual exclusivity of two expansions, if an expansion is optional or used for
+    repetition in the context of other trees, etc.
+
+    On __exit__, the trees will be detached recursively.
+
+    This class can be used with Python's 'with' statement:
+    with JointTreeContext(expansion):
+        pass
+    """
+
+    def __init__(self, root_expansion):
+        self._root = root_expansion
+
+    @staticmethod
+    def join_tree(x):
+        """
+        If x is a RuleRef, join its referenced rule's expansion to this tree.
+        :type x: Expansion
+        """
+        if isinstance(x, RuleRef):
+            # Set the parent of the referenced rule's root expansion to this
+            # expansion.
+            x.referenced_rule.expansion.parent = x
+
+    @staticmethod
+    def detach_tree(x):
+        """
+        If x is a RuleRef, detach its referenced rule's expansion from this tree.
+        :type x: Expansion
+        """
+        if isinstance(x, RuleRef):
+            # Reset parent
+            x.referenced_rule.expansion.parent = None
+
+    def __enter__(self):
+        map_expansion(self._root, self.join_tree)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        map_expansion(self._root, self.detach_tree)
+
+
 class Expansion(object):
     """
     Expansion base class
@@ -712,19 +760,8 @@ class RuleRef(NamedRuleRef):
         self.referenced_rule = referenced_rule
 
     def _matches_internal(self, speech):
-        # Temporarily set the parent of the referenced rule's root expansion to
-        # this expansion. This is required when it is necessary to view this
-        # expansion's tree and the referencing rule's expansion tree as one larger
-        # tree. E.g. when determining mutual exclusivity of 2 expansions, if an
-        # expansion is optional, if a literal is used for repetition, etc.
-        self.referenced_rule.expansion.parent = self
-
         result = self.referenced_rule.expansion.matches(speech)
         self.current_match = self.referenced_rule.expansion.current_match
-
-        # Reset parent
-        self.referenced_rule.expansion.parent = None
-
         return result
 
     def __eq__(self, other):
