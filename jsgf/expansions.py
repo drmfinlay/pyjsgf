@@ -38,6 +38,47 @@ def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
                                          TraversalOrder.PostOrder))
 
 
+def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
+    """
+    Find the first expansion in an expansion tree for which func(x) is True
+    and return it. Otherwise return None.
+
+    This function will stop searching once a matching expansion is found, unlike
+    filter_expansion.
+
+    :type e: Expansion
+    :param func: callable (default: the identity function, f(x)->x)
+    :type order: int
+    :return: Expansion | None
+    """
+    def find_in_children(x):
+        if isinstance(x, RuleRef):  # find in the referenced rule's tree
+            return find_expansion(x.referenced_rule.expansion, func, order)
+        else:
+            for child in x.children:
+                child_result = find_expansion(child, func, order)
+                if child_result:
+                    return child_result
+
+    if order == TraversalOrder.PreOrder:
+        # Check e first, then the children if func(e) is None.
+        if func(e):
+            return e
+        else:
+            return find_in_children(e)
+    elif order == TraversalOrder.PostOrder:
+        # Check children first, then e if find_in_children returns None.
+        result = find_in_children(e)
+        if result:
+            return result
+        elif func(e):
+            return e
+    else:
+        raise ValueError("order should be either %d for pre-order or %d for "
+                         "post-order" % (TraversalOrder.PreOrder,
+                                         TraversalOrder.PostOrder))
+
+
 def flat_map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     """
     Call map_expansion with the arguments and return a single flat list.
@@ -431,7 +472,7 @@ class Expansion(object):
             return False
 
         # Return whether self is in other's expansion tree.
-        return bool(filter_expansion(
+        return bool(find_expansion(
             other, lambda x: x is self
         ))
 
@@ -462,7 +503,7 @@ class Expansion(object):
                 # of x.
                 return e1 and e2 and e1 is not e2
 
-        return bool(filter_expansion(root, valid_alt_set))
+        return bool(find_expansion(root, valid_alt_set))
 
 
 class NamedRuleRef(BaseRef, Expansion):

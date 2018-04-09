@@ -126,7 +126,9 @@ def only_dictation_in_expansion(e):
 
 
 def no_dictation_in_expansion(e):
-    return not dictation_in_expansion(e)
+    return not bool(find_expansion(
+        e, lambda x: isinstance(x, Dictation), TraversalOrder.PostOrder
+    ))
 
 
 def dictation_and_literals_in_expansion(e):
@@ -199,12 +201,8 @@ def expand_dictation_expansion(expansion):
             if is_unprocessed(e):
                 return e
 
-    def find_expansion(e, goal):
-        result = filter_expansion(e, lambda x: x == goal)
-        if not result:
-            return None
-        else:
-            return result[0]
+    def find_goal(e, goal):
+        return find_expansion(e, lambda x: x == goal)
 
     def process(e):
         """
@@ -242,7 +240,7 @@ def expand_dictation_expansion(expansion):
         elif isinstance(current, (OptionalGrouping, KleeneStar)):
             # Handle not required - remove from a copy
             copy = current.root_expansion.copy()
-            copy_x = find_expansion(copy, current)
+            copy_x = find_goal(copy, current)
             copy_parent = copy_x.parent
             ancestor = copy_parent
 
@@ -273,7 +271,7 @@ def expand_dictation_expansion(expansion):
         for replacement in replacements:
             # Find the copy of the current AlternativeSet being processed
             copy = current.root_expansion.copy()
-            copy_x = find_expansion(copy, current)
+            copy_x = find_goal(copy, current)
             copy_parent = copy_x.parent
             if copy_parent:
                 index = copy_parent.children.index(copy_x)

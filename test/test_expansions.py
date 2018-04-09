@@ -384,6 +384,10 @@ class ExpansionTreeConstructs(unittest.TestCase):
     def setUp(self):
         self.map_to_string = lambda x: "%s" % x
         self.map_to_current_match = lambda x: x.current_match
+        self.find_letter = lambda x, l: hasattr(x, "text") and x.text == l
+        self.find_a = lambda x: self.find_letter(x, "a")
+        self.find_b = lambda x: self.find_letter(x, "b")
+        self.find_seq = lambda x: isinstance(x, Sequence)
 
     def test_default_arguments(self):
         e = Sequence("hello")
@@ -533,6 +537,74 @@ class ExpansionTreeConstructs(unittest.TestCase):
                             "JointTreeContext")
         self.assertIsNone(r1.expansion.parent)
         self.assertFalse(r1.expansion.mutually_exclusive_of(e.children[1]))
+
+    def test_find_expansion(self):
+        e = Sequence("a", "a", "b")
+        self.assertIs(find_expansion(e, self.find_a, TraversalOrder.PreOrder),
+                      e.children[0])
+        self.assertIs(find_expansion(e, self.find_a, TraversalOrder.PostOrder),
+                      e.children[0])
+        self.assertIs(find_expansion(e, self.find_b, TraversalOrder.PreOrder),
+                      e.children[2])
+        self.assertIs(find_expansion(e, self.find_b, TraversalOrder.PostOrder),
+                      e.children[2])
+
+    def test_find_expansion_rule_ref(self):
+        """find_expansion correctly traverses through referenced rules"""
+        r = Rule("n", False, AlternativeSet("a", "b", "c"))
+        e1 = RuleRef(r)
+        e2 = OptionalGrouping(RuleRef(r))
+        self.assertIs(find_expansion(e1, self.find_a, TraversalOrder.PreOrder),
+                      r.expansion.children[0])
+        self.assertIs(find_expansion(e1, self.find_a, TraversalOrder.PreOrder),
+                      r.expansion.children[0])
+        self.assertIs(find_expansion(e2, self.find_b, TraversalOrder.PreOrder),
+                      r.expansion.children[1])
+        self.assertIs(find_expansion(e2, self.find_b, TraversalOrder.PreOrder),
+                      r.expansion.children[1])
+
+    def test_find_expansion_order(self):
+        inner_seq = Sequence("a", "b")
+        e = Sequence(AlternativeSet(inner_seq, "c"))
+        self.assertIs(find_expansion(e, self.find_seq, TraversalOrder.PreOrder), e)
+        self.assertIs(find_expansion(e, self.find_seq, TraversalOrder.PostOrder),
+                      inner_seq)
+
+    def test_find_expansion_optimisation(self):
+        """find_expansion only searches until a match is found"""
+        visited = []
+        e = Sequence("a", "a", "b")
+
+        def find_a(x):
+            visited.append(x)
+            return self.find_a(x)
+
+        self.assertIs(find_expansion(e, find_a, TraversalOrder.PreOrder),
+                      e.children[0])
+        self.assertListEqual(visited, [e, e.children[0]])
+
+        # Reset the visited list and test with a post order traversal
+        visited = []
+        self.assertIs(find_expansion(e, find_a, TraversalOrder.PostOrder),
+                      e.children[0])
+        self.assertListEqual(visited, [e.children[0]])
+
+        # Test again finding 'b' instead
+        visited = []
+
+        def find_b(x):
+            visited.append(x)
+            return self.find_b(x)
+
+        self.assertIs(find_expansion(e, find_b, TraversalOrder.PreOrder),
+                      e.children[2])
+        self.assertListEqual(visited, [e] + e.children)
+
+        # Reset the visited list and test with a post order traversal
+        visited = []
+        self.assertIs(find_expansion(e, find_b, TraversalOrder.PostOrder),
+                      e.children[2])
+        self.assertListEqual(visited, e.children)
 
 
 class LeavesProperty(unittest.TestCase):
