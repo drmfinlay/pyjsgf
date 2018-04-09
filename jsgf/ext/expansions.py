@@ -56,7 +56,7 @@ class Dictation(Literal):
             return result
 
         match = None
-        for leaf in self.leaves_after:
+        for leaf in self.matchable_leaves_after:
             # Handle successive dictation
             if isinstance(leaf, Dictation):
                 if self.is_optional and not leaf.is_optional:

@@ -466,6 +466,9 @@ class NullRef(NamedRuleRef):
         e.tag = self.tag
         return e
 
+    def __hash__(self):
+        return super(NullRef, self).__hash__()
+
 
 class VoidRef(NamedRuleRef):
     """
@@ -489,6 +492,9 @@ class VoidRef(NamedRuleRef):
         e = type(self)()
         e.tag = self.tag
         return e
+
+    def __hash__(self):
+        return super(VoidRef, self).__hash__()
 
 
 class ExpansionWithChildren(Expansion):
@@ -610,6 +616,17 @@ class Literal(Expansion):
             elif self_reached:
                 yield leaf
 
+    @property
+    def matchable_leaves_after(self):
+        """
+        Generator function yielding all leaves after self that are not mutually
+        exclusive of it.
+        :return: generator
+        """
+        for leaf in self.leaves_after:
+            if not self.mutually_exclusive_of(leaf):
+                yield leaf
+
     def _matches_internal(self, speech):
         result = speech
         match = self.matching_regex_pattern.match(result)
@@ -623,10 +640,9 @@ class Literal(Expansion):
         if self.is_optional or repetition_ancestor:
             # Check if there are non-optional unprocessed leaves with only one
             # match that overlaps with this expansion's match
-            leaves_after = self.leaves_after
+            leaves_after = list(self.matchable_leaves_after)
             for leaf in leaves_after:
-                if (leaf.is_optional and not leaf.repetition_ancestor
-                        or self.mutually_exclusive_of(leaf)):
+                if leaf.is_optional and not leaf.repetition_ancestor:
                     continue
 
                 leaf_pattern = leaf.matching_regex_pattern
@@ -723,6 +739,9 @@ class RuleRef(NamedRuleRef):
     def __deepcopy__(self, memo):
         # Note that this implementation won't copy the referenced rule
         return self.__copy__()
+
+    def __hash__(self):
+        return super(RuleRef, self).__hash__()
 
 
 class Repeat(SingleChildExpansion):
