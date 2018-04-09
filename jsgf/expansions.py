@@ -421,44 +421,48 @@ class Expansion(object):
 
         return r
 
+    def is_descendant_of(self, other):
+        """
+        Whether this expansion is a descendant of another expansion.
+        :type other: Expansion
+        :rtype: bool
+        """
+        if self is other:
+            return False
+
+        # Return whether self is in other's expansion tree.
+        return bool(filter_expansion(
+            other, lambda x: x is self
+        ))
+
     def mutually_exclusive_of(self, other):
         """
-        Whether this expansion cannot be spoken with another expansion together.
+        Whether this expansion cannot be spoken with another expansion.
         :type other: Expansion
         :return: bool
         """
-        parent1 = self.parent
-        parent2 = other.parent
-        e1, e2 = self, other
-        s1, s2 = set(), set()
-        d1, d2 = {}, {}
-
-        # Add each ancestor of self and other to 2 sets and store which child of
-        # parent1/parent2 is [an ancestor of] self/e in 2 dictionaries
-        while parent1 or parent2:
-            if parent1:
-                if isinstance(parent1, AlternativeSet):
-                    s1.add(parent1)
-                    d1[parent1] = e1
-                e1 = parent1
-                parent1 = parent1.parent
-
-            if parent2:
-                if isinstance(parent2, AlternativeSet):
-                    s2.add(parent2)
-                    d2[parent2] = e2
-                e2 = parent2
-                parent2 = parent2.parent
-
-        s3 = s1.intersection(s2)
-        if len(s3) == 0:
-            # self and other are not mutually exclusive if there is no intersection
+        root = self.root_expansion
+        # Trees are not joined, so we cannot guarantee mutual exclusivity.
+        if root != other.root_expansion:
             return False
-        else:
-            for alt_set in s3:
-                if d1[alt_set] is not d2[alt_set]:
-                    return True
-        return False
+
+        def valid_alt_set(x):
+            if isinstance(x, AlternativeSet) and len(x.children) > 1:
+                e1, e2 = None, None
+                for child in x.children:
+                    # If they haven't been found, check if child is self or self's
+                    # ancestor, or if child is other or other's ancestor.
+                    if not e1 and (self.is_descendant_of(child) or self is child):
+                        e1 = child
+
+                    if not e2 and (other.is_descendant_of(child) or other is child):
+                        e2 = child
+                # This is the expansion we're looking for if self and other descend
+                # from it and if they are not both [descended from] the same child
+                # of x.
+                return e1 and e2 and e1 is not e2
+
+        return bool(filter_expansion(root, valid_alt_set))
 
 
 class NamedRuleRef(BaseRef, Expansion):
