@@ -228,6 +228,11 @@ class Expansion(object):
         self._current_match = None
         self.rule = None
 
+        # Internal member used for caching calculations. Initially None as this
+        # member is only used on root expansions, no sense in creating lots of
+        # unused dictionaries.
+        self._lookup_dict = None
+
     def __add__(self, other):
         return self + other
 
@@ -393,6 +398,51 @@ class Expansion(object):
             self.current_match = " ".join(child_matches)
             return result
 
+    def _init_lookup(self):
+        """
+        Initialises the lookup dictionary for this expansion.
+        If the lookup is already initialised, this does nothing.
+        """
+        if not self._lookup_dict:
+            self._lookup_dict = {
+                "is_optional": {},
+                "is_alternative": {},
+                "is_descendant_of": {},
+                "mutually_exclusive_of": {}
+            }
+
+    def _store_calculation(self, name, key, value):
+        """
+        Put a calculation into a named lookup dictionary.
+        :type name: str
+        :param key: object used to store the calculation result (e.g. a tuple)
+        :param value: calculation result, but not None.
+        """
+        if value is None:
+            # None shouldn't be used as it indicates that the calculation has not
+            # been done.
+            raise TypeError("don't store None as the calculation value")
+
+        # Initialise the lookup dictionary as required.
+        self._init_lookup()
+
+        # Store 'value' under the 'name' dictionary using 'key'.
+        self._lookup_dict[name][key] = value
+
+    def _lookup_calculation(self, name, key):
+        """
+        Check if there is a
+        :param name:
+        :param key:
+        :return:
+        """
+        # Initialise the lookup dictionary as required.
+        self._init_lookup()
+
+        # Return the value in the relevant dictionary or None, if it hasn't been
+        # calculated.
+        return self._lookup_dict[name].get(key, None)
+
     def __str__(self):
         descendants = ", ".join(["%s" % c for c in self.children])
         if self.tag:
@@ -484,8 +534,13 @@ class Expansion(object):
         """
         root = self.root_expansion
         # Trees are not joined, so we cannot guarantee mutual exclusivity.
-        if root != other.root_expansion:
+        if root is not other.root_expansion:
             return False
+
+        # Check if this has been calculated before.
+        calc = self._lookup_calculation("mutually_exclusive_of", (self, other))
+        if calc is not None:
+            return calc
 
         def valid_alt_set(x):
             if isinstance(x, AlternativeSet) and len(x.children) > 1:
@@ -503,7 +558,13 @@ class Expansion(object):
                 # of x.
                 return e1 and e2 and e1 is not e2
 
-        return bool(find_expansion(root, valid_alt_set))
+        # Calculate mutually exclusivity, cache the calculation in root._lookup_dict
+        # and return the result.
+        result = bool(find_expansion(root, valid_alt_set))
+        # Store this twice because mutual exclusivity is commutative.
+        root._store_calculation("mutually_exclusive_of", (self, other), result)
+        root._store_calculation("mutually_exclusive_of", (other, self), result)
+        return result
 
 
 class NamedRuleRef(BaseRef, Expansion):
