@@ -211,16 +211,19 @@ class JointTreeContext(object):
             x.referenced_rule.expansion.parent = None
 
     def __enter__(self):
-        map_expansion(self._root, self.join_tree)
+        map_expansion(self._root, self.join_tree, TraversalOrder.PostOrder)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        map_expansion(self._root, self.detach_tree)
+        map_expansion(self._root, self.detach_tree, TraversalOrder.PostOrder)
 
 
 class Expansion(object):
     """
     Expansion base class
     """
+
+    _NO_CALCULATION = object()
+
     def __init__(self, children):
         self._tag = None
         self._parent = None
@@ -409,7 +412,7 @@ class Expansion(object):
 
     def _init_lookup(self):
         """
-        Initialises the lookup dictionary for this expansion.
+        Initialises the lookup dictionary for the root expansion.
         If the lookup is already initialised, this does nothing.
         """
         if not self._lookup_dict:
@@ -423,34 +426,42 @@ class Expansion(object):
     def _store_calculation(self, name, key, value):
         """
         Put a calculation into a named lookup dictionary.
+        This method will always store calculation data in the root expansion.
         :type name: str
         :param key: object used to store the calculation result (e.g. a tuple)
         :param value: calculation result, but not None.
         """
-        if value is None:
-            # None shouldn't be used as it indicates that the calculation has not
-            # been done.
-            raise TypeError("don't store None as the calculation value")
+        # Get the root expansion.
+        root = self.root_expansion
 
         # Initialise the lookup dictionary as required.
-        self._init_lookup()
+        root._init_lookup()
 
-        # Store 'value' under the 'name' dictionary using 'key'.
-        self._lookup_dict[name][key] = value
+        if value is self._NO_CALCULATION:
+            # Drop the stored value
+            root._lookup_dict[name].pop(key, None)
+        else:
+            # Otherwise store 'value' under the 'name' dictionary using 'key'.
+            root._lookup_dict[name][key] = value
 
     def _lookup_calculation(self, name, key):
         """
-        Check if there is a
-        :param name:
-        :param key:
-        :return:
+        Check if a calculation has already been made and return it. If no
+        calculation has been made, Expansion._NO_CALCULATION will be returned.
+        This method will always check for calculations using the root expansion.
+        :type name: str
+        :param key: object used to store the calculation result (e.g. a tuple)
+        :returns: calculation result | Expansion._NO_CALCULATION
         """
+        # Get the root expansion.
+        root = self.root_expansion
+
         # Initialise the lookup dictionary as required.
-        self._init_lookup()
+        root._init_lookup()
 
         # Return the value in the relevant dictionary or None, if it hasn't been
         # calculated.
-        return self._lookup_dict[name].get(key, None)
+        return root._lookup_dict[name].get(key, self._NO_CALCULATION)
 
     def __str__(self):
         descendants = ", ".join(["%s" % c for c in self.children])
@@ -530,10 +541,15 @@ class Expansion(object):
         if self is other:
             return False
 
+        calc_name = "is_descendant_of"
+        calc = self._lookup_calculation(calc_name, (self, other))
+        if calc is not self._NO_CALCULATION:
+            return calc
+
         # Return whether self is in other's expansion tree.
-        return bool(find_expansion(
-            other, lambda x: x is self
-        ))
+        result = bool(find_expansion(other, lambda x: x is self))
+        self._store_calculation(calc_name, (self, other), result)
+        return result
 
     def mutually_exclusive_of(self, other):
         """
@@ -546,10 +562,21 @@ class Expansion(object):
         if root is not other.root_expansion:
             return False
 
-        # Check if this has been calculated before.
-        calc = self._lookup_calculation("mutually_exclusive_of", (self, other))
-        if calc is not None:
+        calc_name = "mutually_exclusive_of"
+
+        # Check if this has been calculated before. Check (other, self) too; mutual
+        # exclusivity is commutative.
+        calc = self._lookup_calculation(calc_name, (self, other))
+        if calc is self._NO_CALCULATION:
+            calc = self._lookup_calculation(calc_name, (other, self))
+
+        if calc is not self._NO_CALCULATION:
             return calc
+
+        def add_leaf(x):
+            if not x.children:
+                self._store_calculation(calc_name, (x, self), True)
+                self._store_calculation(calc_name, (x, other), True)
 
         def valid_alt_set(x):
             if isinstance(x, AlternativeSet) and len(x.children) > 1:
@@ -565,14 +592,21 @@ class Expansion(object):
                 # This is the expansion we're looking for if self and other descend
                 # from it and if they are not both [descended from] the same child
                 # of x.
-                return e1 and e2 and e1 is not e2
+                valid = e1 and e2 and e1 is not e2
+
+                if valid:
+                    # Add siblings / their leaf expansions in the expansion tree as
+                    # mutually exclusive to self and other
+                    for child in filter(lambda c: c is not e1 and c is not e2,
+                                        x.children):
+                        map_expansion(child, add_leaf, shallow=True)
+
+                return valid
 
         # Calculate mutually exclusivity, cache the calculation in root._lookup_dict
         # and return the result.
         result = bool(find_expansion(root, valid_alt_set))
-        # Store this twice because mutual exclusivity is commutative.
-        root._store_calculation("mutually_exclusive_of", (self, other), result)
-        root._store_calculation("mutually_exclusive_of", (other, self), result)
+        root._store_calculation(calc_name, (self, other), result)
         return result
 
 

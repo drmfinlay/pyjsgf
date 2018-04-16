@@ -314,6 +314,22 @@ class AncestorProperties(unittest.TestCase):
         for leaf in e6.leaves:
             self.assertTrue(leaf.is_alternative)
 
+    def test_is_descendant_of(self):
+        e1 = Sequence("hello")
+        self.assertTrue(e1.children[0].is_descendant_of(e1))
+        self.assertFalse(e1.is_descendant_of(e1))
+        self.assertFalse(e1.is_descendant_of(e1.children[0]))
+
+        r = Rule("n", False, AlternativeSet("one", "two", "three"))
+        e2 = RuleRef(r)
+        self.assertFalse(e2.is_descendant_of(e2))
+
+        # Expansions part of the 'n' rule are descendants of e2
+        def assert_descendant(x):
+            self.assertTrue(x.is_descendant_of(e2))
+
+        map_expansion(r.expansion, assert_descendant)
+
 
 class LiteralRepetitionAncestor(unittest.TestCase):
     def setUp(self):
