@@ -12,20 +12,22 @@ class TraversalOrder(object):
     PreOrder, PostOrder = list(range(2))
 
 
-def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
+def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
+                  shallow=False):
     """
     Traverse an expansion tree and call func on each expansion returning a tuple
     structure with the results.
     :type e: Expansion
     :param func: callable (default: the identity function, f(x)->x)
     :type order: int
+    :param shallow: whether to not process trees of referenced rules (default False)
     :return: tuple
     """
     def map_children(x):
-        if isinstance(x, RuleRef):  # map the referenced rule
-            return map_expansion(x.referenced_rule.expansion, func, order)
+        if isinstance(x, RuleRef) and not shallow:  # map the referenced rule
+            return map_expansion(x.referenced_rule.expansion, func, order, shallow)
         else:
-            return tuple([map_expansion(child, func, order)
+            return tuple([map_expansion(child, func, order, shallow)
                           for child in x.children])
 
     if order == TraversalOrder.PreOrder:
@@ -38,7 +40,8 @@ def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
                                          TraversalOrder.PostOrder))
 
 
-def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
+def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
+                   shallow=False):
     """
     Find the first expansion in an expansion tree for which func(x) is True
     and return it. Otherwise return None.
@@ -49,14 +52,16 @@ def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     :type e: Expansion
     :param func: callable (default: the identity function, f(x)->x)
     :type order: int
+    :param shallow: whether to not process trees of referenced rules (default False)
     :return: Expansion | None
     """
     def find_in_children(x):
-        if isinstance(x, RuleRef):  # find in the referenced rule's tree
-            return find_expansion(x.referenced_rule.expansion, func, order)
+        # Find in the referenced rule's tree
+        if isinstance(x, RuleRef) and not shallow:
+            return find_expansion(x.referenced_rule.expansion, func, order, shallow)
         else:
             for child in x.children:
-                child_result = find_expansion(child, func, order)
+                child_result = find_expansion(child, func, order, shallow)
                 if child_result:
                     return child_result
 
@@ -79,12 +84,14 @@ def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
                                          TraversalOrder.PostOrder))
 
 
-def flat_map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
+def flat_map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
+                       shallow=False):
     """
     Call map_expansion with the arguments and return a single flat list.
     :type e: Expansion
     :param func: callable (default: the identity function, f(x)->x)
     :type order: int
+    :param shallow: whether to not process trees of referenced rules (default False)
     :return: list
     """
     result = []
@@ -92,17 +99,19 @@ def flat_map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
     def flatten(x):
         result.append(func(x))
 
-    map_expansion(e, flatten, order)
+    map_expansion(e, flatten, order, shallow)
 
     return result
 
 
-def filter_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
+def filter_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
+                     shallow=False):
     """
     Find all expansions in an expansion tree for which func(x) == True.
     :type e: Expansion
     :param func: callable (default: the identity function, f(x)->x)
     :type order: int
+    :param shallow: whether to not process trees of referenced rules (default False)
     :return: list
     """
     result = []
@@ -111,7 +120,7 @@ def filter_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder):
         if func(x):
             result.append(x)
 
-    map_expansion(e, filter_, order)
+    map_expansion(e, filter_, order, shallow)
 
     return result
 
