@@ -417,8 +417,6 @@ class Expansion(object):
         """
         if not self._lookup_dict:
             self._lookup_dict = {
-                "is_optional": {},
-                "is_alternative": {},
                 "is_descendant_of": {},
                 "mutually_exclusive_of": {}
             }
@@ -429,7 +427,7 @@ class Expansion(object):
         This method will always store calculation data in the root expansion.
         :type name: str
         :param key: object used to store the calculation result (e.g. a tuple)
-        :param value: calculation result, but not None.
+        :param value: calculation result | Expansion._NO_CALCULATION
         """
         # Get the root expansion.
         root = self.root_expansion
@@ -459,9 +457,36 @@ class Expansion(object):
         # Initialise the lookup dictionary as required.
         root._init_lookup()
 
-        # Return the value in the relevant dictionary or None, if it hasn't been
-        # calculated.
+        # Return the value from the relevant dictionary or _NO_CALCULATION if it
+        # hasn't been calculated yet.
         return root._lookup_dict[name].get(key, self._NO_CALCULATION)
+
+    def invalidate_calculations(self):
+        """
+        Invalidate calculations stored in the lookup tables that involve this
+        expansion. This currently only effects `mutually_exclusive_of` and
+        `is_descendant_of`.
+
+        This should be called if a child is added to an expansion or if the
+        an expansion's parent is changed outside of what `JointTreeContext` does.
+
+        Some changes may also require invalidating descendants, the `map_expansion`
+        function can be used with this method to accomplish that:
+        `map_expansion(self, Expansion.invalidate_calculations)`
+        """
+        root = self.root_expansion
+        if not root._lookup_dict:
+            return  # nothing to invalidate
+
+        for d in root._lookup_dict.values():
+            for k, v in d.items():
+                # Assume k is either an expansion or an iterable of expansions
+                if self is k or isinstance(k, (tuple, list)) and self in k:
+                    assert isinstance(d, dict)
+                    d.pop(k)
+                # Do something similar for values
+                elif self is v or isinstance(v, (tuple, list)) and self in k:
+                    d.pop(k)
 
     def __str__(self):
         descendants = ", ".join(["%s" % c for c in self.children])
@@ -589,6 +614,9 @@ class Expansion(object):
 
                     if not e2 and (other.is_descendant_of(child) or other is child):
                         e2 = child
+
+                    if e1 and e2:
+                        break
                 # This is the expansion we're looking for if self and other descend
                 # from it and if they are not both [descended from] the same child
                 # of x.
