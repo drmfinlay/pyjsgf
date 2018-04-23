@@ -55,6 +55,6 @@ The first line of the grammar can be changed using the `jsgf_version`, `charset_
 There are more examples on ways to use this package [here](examples/).
 
 ## Multilingual support
-Due to Python's Unicode support, Pyjsgf can be used with non-English characters for grammar, import and rule names, as well as rule literals. If you need this, it is better to use Python 3 or above where all strings are Unicode strings by default.
+Due to Python's Unicode support, Pyjsgf can be used with Unicode characters for grammar, import and rule names, as well as rule literals. If you need this, it is better to use Python 3 or above where all strings are Unicode strings by default.
 
 If you must use Python 2.x, you'll need to define Unicode strings as either `u"text"` or `unicode(text, encoding)`, which is a little cumbersome. If you want to define Unicode strings in a source code file, you'll need to define the [source code file encoding](https://www.python.org/dev/peps/pep-0263/).
