@@ -1,6 +1,6 @@
 import unittest
 
-from jsgf import PublicRule
+from jsgf import PublicRule, Rule
 
 from jsgf.expansions import *
 from jsgf.ext import Dictation
@@ -474,6 +474,67 @@ class ExpandedDictationExpansion(unittest.TestCase):
             Seq(Seq("d", Dict())),
             Seq(Rep("c"), Seq("d", Dict()))
         ])
+
+    def test_copying(self):
+        """Original expansions are not used in output expansions"""
+        # Note that JSGF only expansions are not expected to pass this test;
+        # expand_dictation_expansion(e) returns exactly e.
+
+        def assert_no_identical_expansions(original_e, expanded_list):
+            """
+            Recursively check if any expanded expansion is identical to one in the
+            original expansion tree.
+            Only the immediate tree is checked (shallow traversals).
+            :type original_e: Expansion
+            :type expanded_list: list
+            """
+            original_expansions = flat_map_expansion(original_e, shallow=True)
+
+            def f(x):
+                for o in original_expansions:
+                    self.assertIsNot(x, o)
+
+            for expanded in expanded_list:
+                map_expansion(expanded, f, shallow=True)
+
+        # Test with a relatively simple expansion
+        e = AS("a", "b", Seq("c", Dict()))
+        result = expand_dictation_expansion(e)
+        self.assertListEqual(result, [
+            AS("a", "b"),
+            Seq("c", Dict())
+        ])
+        assert_no_identical_expansions(e, result)
+
+        # Test with an expansion using RuleRefs
+        n = Rule("n", False, AS("one", "two", "three"))
+        e = AS(Seq("backward", RuleRef(n)), "forward", Seq(Dict(), RuleRef(n)))
+        result = expand_dictation_expansion(e)
+        self.assertListEqual(result, [
+            AS(Seq("backward", RuleRef(n)), "forward"),
+            Seq(Dict(), RuleRef(n))
+        ])
+        assert_no_identical_expansions(e, result)
+
+        # Test with an expansion using optionals
+        e = AS("a", "b", Seq("c", Opt(Dict())))
+        result = expand_dictation_expansion(e)
+        self.assertListEqual(result, [
+            AS("a", "b", Seq("c")),
+            AS("a", "b"),
+            Seq("c", Dict())
+        ])
+        assert_no_identical_expansions(e, result)
+
+        # And again instead using KleeneStar
+        e = AS("a", "b", Seq("c", KleeneStar(Dict())))
+        result = expand_dictation_expansion(e)
+        self.assertListEqual(result, [
+            AS("a", "b", Seq("c")),
+            AS("a", "b"),
+            Seq("c", Repeat(Dict()))
+        ])
+        assert_no_identical_expansions(e, result)
 
 
 if __name__ == '__main__':

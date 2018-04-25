@@ -219,16 +219,17 @@ def expand_dictation_expansion(expansion):
 
         copies = []
         if isinstance(current, AlternativeSet):
+            # Create a replacements list with copies of the relevant children of
+            # the AlternativeSet currently being processed.
             dictation_children = []  # again, not necessarily only dictation.
             jsgf_only_children = []
             for child in current.children:
+                # Add a deep copy of each child to one of the above lists.
                 if dictation_in_expansion(child):
-                    dictation_children.append(child)
+                    dictation_children.append(child.copy())
                 else:
-                    jsgf_only_children.append(child)
+                    jsgf_only_children.append(child.copy())
 
-            # Create a replacements list, create copies of the expansion tree and
-            # replace the copy of the AlternativeSet currently being processed
             if len(jsgf_only_children) == 1:
                 replacements = jsgf_only_children
             elif len(jsgf_only_children) > 1:
@@ -262,14 +263,14 @@ def expand_dictation_expansion(expansion):
 
             # Let replacement loop handle required
             if isinstance(current, OptionalGrouping):
-                replacements = [current.child]
+                replacements = [current.child.copy()]
             else:
-                replacements = [Repeat(current.child)]
+                replacements = [Repeat(current.child.copy())]
         else:
             replacements = []
 
         for replacement in replacements:
-            # Find the copy of the current AlternativeSet being processed
+            # Find the copy of the current expansion being processed
             copy = current.root_expansion.copy()
             copy_x = find_goal(copy, current)
             copy_parent = copy_x.parent
