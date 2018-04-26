@@ -42,7 +42,7 @@ class BaseRef(object):
         self._name = name
 
     def __eq__(self, other):
-        return self.name == other.name
+        return type(self) == type(other) and self.name == other.name
 
     def __ne__(self, other):
         return not self.__eq__(other)

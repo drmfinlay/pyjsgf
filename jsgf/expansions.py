@@ -676,6 +676,9 @@ class NamedRuleRef(BaseRef, Expansion):
     def __hash__(self):
         return Expansion.__hash__(self)
 
+    def __eq__(self, other):
+        return Expansion.__eq__(self, other) and BaseRef.__eq__(self, other)
+
     def __copy__(self):
         e = type(self)(self.name)
         e.tag = self.tag
@@ -904,8 +907,8 @@ class Literal(Expansion):
                         return (l.matching_regex_pattern.pattern ==
                                 self.matching_regex_pattern.pattern)
 
-                    message = "self and leaf are ambiguous literals used by " \
-                              "one or more repetition expansions"
+                    message = "%s and %s are ambiguous literals used by " \
+                              "one or more repetition expansions" % (self, leaf)
                     if pattern_matches_self(leaf) and leaf.repetition_ancestor:
                         raise MatchError(message)
                     else:
