@@ -435,12 +435,20 @@ class Expansion(object):
         # Initialise the lookup dictionary as required.
         root._init_lookup()
 
-        if value is self._NO_CALCULATION:
-            # Drop the stored value
-            root._lookup_dict[name].pop(key, None)
+        # Always use IDs for the key instead. This way calculations are stored for
+        # exact expansions, rather than for any other comparable expansions.
+        if isinstance(key, (tuple, list)):
+            # Map each object x in 'key' to id(x)
+            id_key = tuple(map(lambda x: id(x), key))
         else:
-            # Otherwise store 'value' under the 'name' dictionary using 'key'.
-            root._lookup_dict[name][key] = value
+            id_key = id(key)
+
+        if value is self._NO_CALCULATION:
+            # Drop the stored value, if there is one.
+            root._lookup_dict[name].pop(id_key, None)
+        else:
+            # Otherwise store 'value' under the 'name' dictionary using 'id_key'.
+            root._lookup_dict[name][id_key] = value
 
     def _lookup_calculation(self, name, key):
         """
@@ -457,9 +465,17 @@ class Expansion(object):
         # Initialise the lookup dictionary as required.
         root._init_lookup()
 
+        # Always use IDs for the key instead. This way calculations are stored for
+        # exact expansions, rather than for any other comparable expansions.
+        if isinstance(key, (tuple, list)):
+            # Map each object x in 'key' to id(x)
+            id_key = tuple(map(lambda x: id(x), key))
+        else:
+            id_key = id(key)
+
         # Return the value from the relevant dictionary or _NO_CALCULATION if it
         # hasn't been calculated yet.
-        return root._lookup_dict[name].get(key, self._NO_CALCULATION)
+        return root._lookup_dict[name].get(id_key, self._NO_CALCULATION)
 
     def invalidate_calculations(self):
         """
