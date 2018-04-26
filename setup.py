@@ -23,7 +23,7 @@ setup(
     ],
     author='Dane Finlay',
     author_email='Danesprite@gmail.com',
-    version='1.2.0',
+    version='1.2.1',
     packages=['jsgf', 'jsgf.ext'],
     install_requires=["pyparsing"]
 )
