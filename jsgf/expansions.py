@@ -549,6 +549,22 @@ class Expansion(object):
             parent = parent.parent
         return False
 
+    @property
+    def repetition_ancestor(self):
+        """
+        This expansion's closest Repeat or KleeneStar ancestor, if it has one.
+        :return: Expansion
+        """
+        parent = self.parent
+        result = None
+        while parent:
+            if isinstance(parent, Repeat):
+                result = parent
+                break
+            parent = parent.parent
+
+        return result
+
     def collect_leaves(self, order=TraversalOrder.PreOrder, shallow=False):
         """
         Collect all descendants of an expansion that have no children.
@@ -563,6 +579,32 @@ class Expansion(object):
         )
 
     leaves = property(collect_leaves)
+
+    @property
+    def leaves_after(self):
+        """
+        Generator function for leaves after this one (if any).
+        :return: generator
+        """
+        self_reached = False
+        leaves = self.root_expansion.leaves
+        for leaf in leaves:
+            if leaf is self:
+                self_reached = True
+                continue
+            elif self_reached:
+                yield leaf
+
+    @property
+    def matchable_leaves_after(self):
+        """
+        Generator function yielding all leaves after self that are not mutually
+        exclusive of it.
+        :return: generator
+        """
+        for leaf in self.leaves_after:
+            if not self.mutually_exclusive_of(leaf):
+                yield leaf
 
     @property
     def root_expansion(self):
@@ -848,32 +890,6 @@ class Literal(Expansion):
             self._pattern = re.compile(regex)
         return self._pattern
 
-    @property
-    def leaves_after(self):
-        """
-        Generator function for leaves after this one (if any).
-        :return: generator
-        """
-        self_reached = False
-        leaves = self.root_expansion.leaves
-        for leaf in leaves:
-            if leaf is self:
-                self_reached = True
-                continue
-            elif self_reached:
-                yield leaf
-
-    @property
-    def matchable_leaves_after(self):
-        """
-        Generator function yielding all leaves after self that are not mutually
-        exclusive of it.
-        :return: generator
-        """
-        for leaf in self.leaves_after:
-            if not self.mutually_exclusive_of(leaf):
-                yield leaf
-
     def _matches_internal(self, speech):
         result = speech
         match = self.matching_regex_pattern.match(result)
@@ -933,22 +949,6 @@ class Literal(Expansion):
 
     def __eq__(self, other):
         return super(Literal, self).__eq__(other) and self.text == other.text
-
-    @property
-    def repetition_ancestor(self):
-        """
-        This expansion's closest Repeat or KleeneStar ancestor, if it has one.
-        :return: Expansion
-        """
-        parent = self.parent
-        result = None
-        while parent:
-            if isinstance(parent, Repeat):
-                result = parent
-                break
-            parent = parent.parent
-
-        return result
 
 
 class RuleRef(NamedRuleRef):
