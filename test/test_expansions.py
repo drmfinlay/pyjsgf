@@ -623,15 +623,16 @@ class ExpansionTreeConstructs(unittest.TestCase):
         self.assertListEqual(visited, e.children)
 
 
-class LeavesProperty(unittest.TestCase):
+class LeafProperties(unittest.TestCase):
     """
-    Test the leaves property of the Expansion classes.
+    Test the leaf properties and methods of the Expansion classes.
     """
-    def test_base(self):
+    def test_leaves_base(self):
         e = Literal("hello")
         self.assertListEqual(e.leaves, [Literal("hello")])
 
     def test_new_leaf_type(self):
+        # Make a new Expansion that has no children.
         class TestLeaf(Expansion):
             def __init__(self):
                 super(TestLeaf, self).__init__([])
@@ -639,29 +640,27 @@ class LeavesProperty(unittest.TestCase):
         e = TestLeaf()
         self.assertListEqual(e.leaves, [TestLeaf()])
 
-    def test_multiple(self):
+    def test_leaves_multiple(self):
         e = Sequence(Literal("hello"), AlternativeSet("there", "friend"))
         self.assertListEqual(e.leaves, [Literal("hello"), Literal("there"),
                                         Literal("friend")],
                              "leaves should be in sequence from left to right.")
 
-    def test_with_rule_ref(self):
+    def test_leaves_with_rule_ref(self):
         r = PublicRule("test", Literal("hi"))
         e = RuleRef(r)
-        self.assertListEqual(e.leaves, [Literal("hi")])
+        self.assertListEqual(e.leaves, [e, Literal("hi")])
 
-
-class LeavesAfterLiteralProperty(unittest.TestCase):
-    def test_base(self):
+    def test_leaves_after_base(self):
         e = Literal("a")
         self.assertListEqual(list(e.leaves_after), [])
 
-    def test_multiple(self):
+    def test_leaves_after_multiple(self):
         e = Sequence("a", "b")
         self.assertListEqual(list(e.children[0].leaves_after), [e.children[1]])
         self.assertListEqual(list(e.children[1].leaves_after), [])
 
-    def test_complex(self):
+    def test_leaves_after_complex(self):
         x = Sequence(
             AlternativeSet(Sequence("a", "b"), Sequence("c", "d")),
             "e", OptionalGrouping("f")
@@ -679,6 +678,31 @@ class LeavesAfterLiteralProperty(unittest.TestCase):
         self.assertListEqual(list(d.leaves_after), [e, f])
         self.assertListEqual(list(e.leaves_after), [f])
         self.assertListEqual(list(f.leaves_after), [])
+
+    def test_collect_leaves(self):
+        n = Rule("n", False, AlternativeSet("one", "two", "three"))
+        e = Sequence("test", RuleRef(n))
+
+        # Test with default parameters
+        self.assertListEqual(
+            e.collect_leaves(order=TraversalOrder.PreOrder, shallow=False),
+            #    test         RuleRef(n)       one, two, three
+            [e.children[0], e.children[1]] + n.expansion.children
+        )
+
+        # Test with PostOrder traversal
+        self.assertListEqual(
+            e.collect_leaves(order=TraversalOrder.PostOrder, shallow=False),
+            #     test          one, two, three        RuleRef(n)
+            [e.children[0]] + n.expansion.children + [e.children[1]]
+        )
+
+        # Test with shallow=True (order is irrelevant in this case)
+        self.assertListEqual(
+            e.collect_leaves(shallow=True),
+            #     test        RuleRef(n)
+            [e.children[0], e.children[1]]
+        )
 
 
 class RootExpansionProperty(unittest.TestCase):

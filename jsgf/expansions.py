@@ -549,17 +549,20 @@ class Expansion(object):
             parent = parent.parent
         return False
 
-    @property
-    def leaves(self):
-        leaves = []
+    def collect_leaves(self, order=TraversalOrder.PreOrder, shallow=False):
+        """
+        Collect all descendants of an expansion that have no children.
+        This can include self if it has no children. RuleRefs are also counted as
+        leaves.
+        :param order: tree traversal order (default 0: pre-order)
+        :param shallow: whether to not collect leaves from trees of referenced rules
+        :return: list
+        """
+        return filter_expansion(
+            self, lambda x: not x.children, order=order, shallow=shallow
+        )
 
-        def add_leaf(e):
-            if not (e.children or isinstance(e, RuleRef)):
-                leaves.append(e)
-
-        map_expansion(self, add_leaf)
-
-        return leaves
+    leaves = property(collect_leaves)
 
     @property
     def root_expansion(self):
@@ -886,7 +889,9 @@ class Literal(Expansion):
             # match that overlaps with this expansion's match
             leaves_after = list(self.matchable_leaves_after)
             for leaf in leaves_after:
-                if leaf.is_optional and not leaf.repetition_ancestor:
+                # Also skip any RuleRefs
+                if isinstance(leaf, RuleRef) or (leaf.is_optional and
+                                                 not leaf.repetition_ancestor):
                     continue
 
                 leaf_pattern = leaf.matching_regex_pattern
