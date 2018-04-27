@@ -389,26 +389,25 @@ class Expansion(object):
         Match speech with this expansion, set current_match to the first matched
         substring and return the remainder of the string.
 
+        If the required descendants of an expansion don't match, the match data for
+        the expansion and all of its descendants will be reset and the original
+        speech string will be returned.
+
         :type speech: str
-        :return: str
+        :return: consumed / unconsumed speech string
         """
         result = speech.lstrip()
         return self._matches_internal(result).strip()
 
     def _matches_internal(self, speech):
-        result = speech
-        for child in self.children:
-            # Consume speech
-            result = child.matches(result)
-
-        # Check if any children returned None as the match
-        child_matches = [child.current_match for child in self.children]
-        if None in child_matches:
-            self.current_match = None
-            return speech
-        else:
-            self.current_match = " ".join(child_matches)
-            return result
+        """
+        Expansion subclasses should override this internal method to set the
+        current_match values for self and for any children.
+        :type speech: str
+        :return: consumed / unconsumed speech string
+        """
+        # Don't consume speech strings by default.
+        return speech
 
     def _init_lookup(self):
         """
@@ -830,6 +829,27 @@ class Sequence(VariableChildExpansion):
         else:
             return seq
 
+    def _matches_internal(self, speech):
+        result = speech
+        for child in self.children:
+            # Consume speech
+            result = child.matches(result)
+
+            # Child was non-optional and did not match, so break.
+            if child.current_match is None:
+                break
+
+        # Check if any children returned None as the match
+        child_matches = [child.current_match for child in self.children]
+        if None in child_matches:
+            # Reset match data for this subtree and return the original speech
+            # string; this was an incomplete match.
+            self.reset_for_new_match()
+            return speech
+        else:
+            self.current_match = " ".join(child_matches)
+            return result
+
     def __hash__(self):
         return super(Sequence, self).__hash__()
 
@@ -1097,6 +1117,20 @@ class OptionalGrouping(SingleChildExpansion):
         else:
             return "[%s]" % compiled
 
+    def _matches_internal(self, speech):
+        # Consume speech
+        result = self.child.matches(speech)
+
+        # Check if child has None or '' as the match
+        if not self.child.current_match:
+            # Reset match data for this subtree and return the original speech
+            # string; this was an incomplete match.
+            self.reset_for_new_match()
+            return speech
+        else:
+            self.current_match = self.child.current_match
+            return result
+
     @property
     def is_optional(self):
         return True
@@ -1169,8 +1203,13 @@ class AlternativeSet(VariableChildExpansion):
             if child_match:
                 self.current_match = child_match
                 break
+            else:
+                # This alternative didn't match, so set the match values of
+                # descendants to None or ''.
+                child.reset_for_new_match()
 
-        if self.current_match is None:
+        # No children matched.
+        if not self.current_match:
             result = speech
 
         return result

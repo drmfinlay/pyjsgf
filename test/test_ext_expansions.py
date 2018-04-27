@@ -33,6 +33,12 @@ class DictationMatchesCase(unittest.TestCase):
         self.assertEqual(e2.children[2].current_match, "c")
         self.assertEqual(e2.current_match, "a b c")
 
+        # Test with strings that don't match for e1 and e2
+        self.assertFalse(r1.matches("test testing"))
+        map_expansion(e1, lambda x: self.assertIsNone(x.current_match))
+        self.assertFalse(r2.matches("test testing"))
+        map_expansion(e2, lambda x: self.assertIsNone(x.current_match))
+
     def test_matches_as_optional(self):
         e1 = Seq("hello", Opt(Dict()))
         r1 = PublicRule("test", e1)
@@ -40,6 +46,12 @@ class DictationMatchesCase(unittest.TestCase):
         self.assertEqual(e1.current_match, "hello")
         self.assertEqual(e1.children[0].current_match, "hello")
         self.assertEqual(e1.children[1].current_match, "")
+
+        # Test no match
+        self.assertFalse(r1.matches("test testing"))
+        map_expansion(
+            e1, lambda x: self.assertTrue(x.current_match in [None, ""])
+        )
 
     def test_successive_dictation(self):
         e1 = Seq(Dict(), Dict())

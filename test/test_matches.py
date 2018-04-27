@@ -101,9 +101,9 @@ class CurrentMatchCase(unittest.TestCase):
         e = Sequence("hello", "world")
         r = PublicRule("test", e)
         self.assertFalse(r.matches("hello"))
-        self.assertEqual(e.children[0].current_match, "hello",
-                         "current_match should still be set even if the whole "
-                         "rule didn't match")
+        self.assertEqual(e.children[0].current_match, None,
+                         "current_match should be None if the whole rule didn't "
+                         "match")
         self.assertEqual(e.children[1].current_match, None)
 
     def test_alt_set_simple(self):
@@ -120,6 +120,7 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[0].current_match, None)
 
         self.assertFalse(r.matches("hey"))
+        map_expansion(e, lambda x: self.assertIsNone(x.current_match))
 
     def test_alt_set_complex(self):
         e = Sequence(
@@ -140,14 +141,9 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[1].children[0].current_match, "there")
         self.assertEqual(e.children[1].children[1].current_match, None)
 
+        # If a speech string doesn't match, then no match values should be set.
         self.assertFalse(r.matches("hi"))
-        self.assertEqual(e.current_match, None)
-        self.assertEqual(e.children[0].current_match, "hi")
-        self.assertEqual(e.children[0].children[0].current_match, None)
-        self.assertEqual(e.children[0].children[1].current_match, "hi")
-        self.assertEqual(e.children[1].current_match, None)
-        self.assertEqual(e.children[1].children[0].current_match, None)
-        self.assertEqual(e.children[1].children[1].current_match, None)
+        map_expansion(e, lambda x: self.assertIsNone(x.current_match))
 
     def test_skip_mutually_exclusive(self):
         """
@@ -201,6 +197,11 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e2.children[1].current_match, "bob")
         self.assertEqual(e1.current_match, "bob")
 
+        # Test with a partial match. No match values should be set.
+        # This will also test e1's expansions.
+        self.assertFalse(r.matches("hi there"))
+        map_expansion(e2, lambda x: self.assertIsNone(x.current_match))
+
     def test_multiple_rule_refs(self):
         numbers = ["one", "two", "three", "four"]
         r1 = Rule("numbers", False, AlternativeSet(*numbers))
@@ -248,8 +249,8 @@ class CurrentMatchCase(unittest.TestCase):
 
         self.assertFalse(r.matches("there"))
         self.assertEqual(e.current_match, None)
-        self.assertEqual(e.children[1].current_match, "there")
         self.assertEqual(e.children[0].current_match, None)
+        self.assertEqual(e.children[1].current_match, '')
 
     def test_optional_complex(self):
         root = Sequence(
@@ -594,7 +595,7 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e1.children[0].child.current_match, None)
         self.assertEqual(e1.children[1].current_match, None)
         self.assertEqual(e1.children[1].child.current_match, None)
-        self.assertEqual(e1.children[2].current_match, "a")
+        self.assertEqual(e1.children[2].current_match, None)
         self.assertEqual(e1.current_match, None)
 
         # For the moment, an error should be raised for ambiguous repetition

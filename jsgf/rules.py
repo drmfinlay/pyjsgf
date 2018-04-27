@@ -140,6 +140,8 @@ class Rule(BaseRef):
         # Strip whitespace at the start of 'speech' and lower it to match regex
         # properly.
         speech = speech.lstrip().lower()
+
+        # Reset match data for this rule and referenced rules.
         self.expansion.reset_for_new_match()
 
         # Use a JointTreeContext so that this rule's expansion tree and the

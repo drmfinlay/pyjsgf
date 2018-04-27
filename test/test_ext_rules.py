@@ -235,7 +235,7 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         e3 = Seq("hello", "world")
         SequenceRule.graft_sequence_matches(r3, e3)
         self.assertEqual(e3.current_match, None)
-        self.assertEqual(e3.children[0].current_match, "hello")
+        self.assertEqual(e3.children[0].current_match, None)
         self.assertEqual(e3.children[1].current_match, None)
 
 
