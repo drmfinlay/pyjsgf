@@ -617,5 +617,44 @@ class SequenceRuleCompileCase(unittest.TestCase):
         self.assertRaises(GrammarError, generate_rule, e3)
 
 
+class ComparisonTests(unittest.TestCase):
+    def test_hashing(self):
+        h = hash
+        e = Seq(Dict())
+        f = Seq("a", Dict())
+
+        # Rules that are the same should generate the same hash
+        self.assertEqual(h(PublicSequenceRule("a", e)),
+                         h(PublicSequenceRule("a", e.copy())))
+
+        # The same hash value should be generated regardless of the expansion
+        # in the sequence.
+        r = PublicSequenceRule("b", f)
+        value = h(r)
+        r.set_next()
+        self.assertEqual(value, h(r))
+
+        # Rules with only a different type should generate the same hash value
+        self.assertEqual(h(PublicSequenceRule("a", e.copy())),
+                         h(SequenceRule("a", True, e.copy())))
+
+        # Rules that are different should generate different values
+        self.assertNotEqual(h(PublicSequenceRule("a", e.copy())),
+                            h(HiddenSequenceRule("a", e.copy())))
+        self.assertNotEqual(h(PublicSequenceRule("a", e.copy())),
+                            h(SequenceRule("a", False, e.copy())))
+        self.assertNotEqual(h(PublicSequenceRule("a", e.copy())),
+                            h(PublicSequenceRule("b", e.copy())))
+        self.assertNotEqual(h(PublicSequenceRule("a", e.copy())),
+                            h(PublicSequenceRule("a", f.copy())))
+        self.assertNotEqual(h(PublicSequenceRule("a", e.copy())),
+                            h(PublicSequenceRule("b", f.copy())))
+
+        # Test that a normal Rule with the same expansion generates the same
+        # hash as a SequenceRule.
+        self.assertEqual(h(PublicRule("b", f.copy())),
+                         h(PublicSequenceRule("b", f.copy())))
+
+
 if __name__ == '__main__':
     unittest.main()

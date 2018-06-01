@@ -54,7 +54,10 @@ class SequenceRule(Rule):
                 self.name, self.visible, self.original_expansion)
 
     def __hash__(self):
-        return super(SequenceRule, self).__hash__()
+        # The hash of a rule is the hash of its name, visibility and original
+        # expansion hashes combined.
+        return hash("%s%s%s" % (hash(self.name), hash(self.visible),
+                                hash(self.original_expansion)))
 
     @property
     def expansion_sequence(self):

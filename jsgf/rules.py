@@ -97,7 +97,10 @@ class Rule(BaseRef):
         return self.__str__()
 
     def __hash__(self):
-        return id(self)
+        # The hash of a rule is the hash of its name, visibility and expansion
+        # hashes combined.
+        return hash("%s%s%s" % (hash(self.name),
+                                hash(self.visible), hash(self.expansion)))
 
     def enable(self):
         """
