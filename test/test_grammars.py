@@ -402,10 +402,13 @@ class RootGrammarCase(unittest.TestCase):
         self.assertRaises(GrammarError, root.add_rule, PublicRule("root", "test"))
 
     def test_create_grammar_with_rule_name_conflicts(self):
-        # Try with duplicate rules
-        self.assertRaises(GrammarError, RootGrammar,
-                          [PublicRule("test", "test"),
-                           PublicRule("test", "test")])
+        # Try with duplicate rules (should fail silently)
+        g = RootGrammar()
+        r = PublicRule("test", "test")
+        g.add_rule(r)
+        self.assertListEqual(g.rules, [r])
+        g.add_rule(PublicRule("test", "test"))
+        self.assertListEqual(g.rules, [r])
 
         # Try with slightly different rules
         self.assertRaises(GrammarError, RootGrammar,

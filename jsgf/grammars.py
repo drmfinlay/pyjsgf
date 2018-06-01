@@ -252,8 +252,16 @@ class Grammar(BaseRef):
         if not isinstance(rule, Rule):
             raise TypeError("object '%s' was not a JSGF Rule object" % rule)
 
+        # Check if the same rule is already in the grammar.
         if rule.name in self.rule_names:
-            raise GrammarError("JSGF grammar cannot have rules with the same name")
+            if rule in self.rules:
+                # Silently return if the rule is comparable to another in the
+                # grammar.
+                return
+            else:
+                raise GrammarError("JSGF grammars cannot have multiple rules with "
+                                   "the same name")
+
         self._rules.append(rule)
         rule.grammar = self
 

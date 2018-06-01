@@ -61,13 +61,36 @@ class DictationGrammar(Grammar):
         return result
 
     def add_rule(self, rule):
+        if not isinstance(rule, Rule):
+            raise TypeError("object '%s' was not a JSGF Rule object" % rule)
+
+        # Check if the same rule is already in the grammar.
         if rule.name in self.rule_names:
-            raise GrammarError("JSGF grammar cannot have rules with the same name")
+            if rule in self.rules:
+                # Silently return if the rule is comparable to another in the
+                # grammar.
+                return
+            else:
+                # This is not strictly true for DictationGrammar, but still holds
+                # for match_rules and output from the compile methods.
+                raise GrammarError("JSGF grammars cannot have multiple rules with "
+                                   "the same name")
 
         # If the rule is not a dictation rule, add it to the JSGF only grammar and
         # the original rule map.
         if not dictation_in_expansion(rule.expansion):
             self._jsgf_only_grammar.add_rule(rule)
+            self._original_rule_map[rule] = rule
+            return
+
+        # Check if the rule is a SequenceRule already and do a few things with it.
+        if isinstance(rule, SequenceRule):
+            if not rule.current_is_dictation_only:
+                # The sequence starts with a JSGF only rule and can be
+                # spoken like a normal rule
+                self._jsgf_only_grammar.add_rule(rule)
+            else:
+                self._dictation_rules.append(rule)
             self._original_rule_map[rule] = rule
             return
 
