@@ -89,9 +89,9 @@ class Rule(BaseRef):
             return result
 
     def __str__(self):
-        return "%s(%s, %s)" % (self.__class__.__name__,
-                               self.name,
-                               self.expansion)
+        return "%s(name='%s', visible=%s, expansion=%s)" %\
+               (self.__class__.__name__,
+                self.name, self.visible, self.expansion)
 
     def __repr__(self):
         return self.__str__()
@@ -208,6 +208,10 @@ class PublicRule(Rule):
     def __hash__(self):
         return super(PublicRule, self).__hash__()
 
+    def __str__(self):
+        return "%s(name='%s', expansion=%s)" %\
+               (self.__class__.__name__, self.name, self.expansion)
+
 
 class HiddenRule(Rule):
     def __init__(self, name, expansion):
@@ -215,3 +219,7 @@ class HiddenRule(Rule):
 
     def __hash__(self):
         return super(HiddenRule, self).__hash__()
+
+    def __str__(self):
+        return "%s(name='%s', expansion=%s)" %\
+               (self.__class__.__name__, self.name, self.expansion)

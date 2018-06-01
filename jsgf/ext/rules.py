@@ -48,6 +48,11 @@ class SequenceRule(Rule):
         self._refuse_matches = False
         self._set_expansion_to_current()
 
+    def __str__(self):
+        return "%s(name='%s', visible=%s, expansion=%s)" %\
+               (self.__class__.__name__,
+                self.name, self.visible, self.original_expansion)
+
     def __hash__(self):
         return super(SequenceRule, self).__hash__()
 
@@ -257,6 +262,10 @@ class PublicSequenceRule(SequenceRule):
     def __hash__(self):
         return super(PublicSequenceRule, self).__hash__()
 
+    def __str__(self):
+        return "%s(name='%s', expansion=%s)" %\
+               (self.__class__.__name__, self.name, self.original_expansion)
+
 
 class HiddenSequenceRule(SequenceRule):
     def __init__(self, name, expansion):
@@ -264,3 +273,7 @@ class HiddenSequenceRule(SequenceRule):
 
     def __hash__(self):
         return super(HiddenSequenceRule, self).__hash__()
+
+    def __str__(self):
+        return "%s(name='%s', expansion=%s)" %\
+               (self.__class__.__name__, self.name, self.original_expansion)
