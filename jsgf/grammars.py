@@ -2,6 +2,8 @@
 Classes for compiling and importing JSpeech Grammar Format grammars
 """
 
+from six import string_types
+
 from .references import BaseRef, OPTIONALLY_QUALIFIED_NAME, IMPORT_NAME
 from .rules import Rule
 from .errors import GrammarError
@@ -315,8 +317,8 @@ class Grammar(BaseRef):
         :param rule: Rule object or the name of a rule in this grammar
         """
         # Handle the rule parameter
-        if not isinstance(rule, Rule):
-            rule_name = rule  # assume rule is a name string
+        if isinstance(rule, string_types):
+            rule_name = rule
         else:
             rule_name = rule.name
             rule.enable()
@@ -324,9 +326,8 @@ class Grammar(BaseRef):
         if rule_name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
-        # Enable any rules in the grammar which have the given name
-        for r in [x for x in self.rules if x.name == rule_name]:
-            r.enable()
+        # Enable the rule
+        self.get_rule_from_name(rule_name).enable()
 
     def disable_rule(self, rule):
         """
@@ -335,8 +336,8 @@ class Grammar(BaseRef):
         :param rule: Rule object or the name of a rule in this grammar
         """
         # Handle the rule parameter
-        if not isinstance(rule, Rule):
-            rule_name = rule  # assume rule is a name string
+        if isinstance(rule, string_types):
+            rule_name = rule
         else:
             rule_name = rule.name
             rule.disable()
@@ -344,9 +345,8 @@ class Grammar(BaseRef):
         if rule_name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (rule, self))
 
-        # Disable any rules in the grammar which have the given name
-        for r in [x for x in self.rules if x.name == rule_name]:
-            r.disable()
+        # Disable the rule
+        self.get_rule_from_name(rule_name).disable()
 
     def remove_import(self, import_):
         """

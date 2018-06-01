@@ -25,5 +25,5 @@ setup(
     author_email='Danesprite@gmail.com',
     version='1.2.2',
     packages=['jsgf', 'jsgf.ext'],
-    install_requires=["pyparsing"]
+    install_requires=["pyparsing", "six"]
 )

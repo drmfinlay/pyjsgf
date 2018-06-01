@@ -3,6 +3,8 @@ JSGF extension grammar classes
 """
 import re
 
+from six import string_types
+
 from .expansions import dictation_in_expansion, expand_dictation_expansion
 from .rules import SequenceRule
 from jsgf import GrammarError, Grammar, Rule
@@ -121,8 +123,8 @@ class DictationGrammar(Grammar):
     def remove_rule(self, rule, ignore_dependent=False):
         # Find the rules generated from this rule and remove them wherever they are
         # as well as the original rule
-        if not isinstance(rule, Rule):
-            rule_name = rule  # assume rule is a name string
+        if isinstance(rule, string_types):
+            rule_name = rule
         else:
             rule_name = rule.name
 
