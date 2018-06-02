@@ -2,7 +2,9 @@
 Classes for compiling JSpeech Grammar Format expansions
 """
 import re
+
 from copy import deepcopy
+from six import string_types
 
 from .references import BaseRef
 from .errors import *
@@ -337,9 +339,11 @@ class Expansion(object):
         """
         if isinstance(e, Expansion):
             return e
-        else:
-            # Assume e is a string
+        elif isinstance(e, string_types):
             return Literal(e)
+        else:
+            raise TypeError("expected a string or Expansion, got %s instead"
+                            % e)
 
     def validate_compilable(self):
         """
@@ -360,9 +364,11 @@ class Expansion(object):
         self._set_current_match(value)
 
     def _set_current_match(self, value):
-        # Ensure that string values have only one space between words
-        if value:
+        if isinstance(value, string_types):
+            # Ensure that string values have only one space between words
             value = " ".join([x.strip() for x in value.split()])
+        elif value is not None:
+            raise TypeError("current_match must be a string or None")
 
         if not value:
             if self.is_optional:

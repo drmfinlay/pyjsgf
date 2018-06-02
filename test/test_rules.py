@@ -137,6 +137,28 @@ class ComparisonTests(unittest.TestCase):
             PublicRule("test", "test"), Rule("test", True, "test"),
             "rules with only different types were not equal")
 
+    def test_hashing(self):
+        h = hash
+        # Rules that are the same should generate the same hash
+        self.assertEqual(h(PublicRule("a", "a")),
+                         h(PublicRule("a", "a")))
+
+        # Rules with only a different type should generate the same hash value
+        self.assertEqual(h(PublicRule("a", "a")),
+                         h(Rule("a", True, "a")))
+
+        # Rules that are different should generate different values
+        self.assertNotEqual(h(PublicRule("a", "a")),
+                            h(HiddenRule("a", "a")))
+        self.assertNotEqual(h(PublicRule("a", "a")),
+                            h(Rule("a", False, "a")))
+        self.assertNotEqual(h(PublicRule("a", "a")),
+                            h(PublicRule("b", "a")))
+        self.assertNotEqual(h(PublicRule("a", "a")),
+                            h(PublicRule("a", "b")))
+        self.assertNotEqual(h(PublicRule("a", "a")),
+                            h(PublicRule("b", "b")))
+
 
 if __name__ == '__main__':
     unittest.main()
