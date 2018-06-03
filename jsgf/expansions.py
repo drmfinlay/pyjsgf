@@ -251,7 +251,12 @@ class Expansion(object):
         return self + other
 
     def __hash__(self):
-        return self.__str__().__hash__()
+        # The hash of an expansion is a combination of the class name, tag and
+        # hashes of children, similar to expansion string representations.
+        child_hashes = [hash(c) for c in self.children]
+        return hash(
+            "%s(%s)%s" % (self.__class__.__name__, child_hashes, self.tag)
+        )
 
     def __copy__(self):
         if not self.children:
@@ -724,7 +729,7 @@ class NamedRuleRef(BaseRef, Expansion):
         return "%s('%s')" % (self.__class__.__name__, self.name)
 
     def __hash__(self):
-        return Expansion.__hash__(self)
+        return hash("%s" % self)
 
     def __eq__(self, other):
         return Expansion.__eq__(self, other) and BaseRef.__eq__(self, other)
@@ -901,7 +906,7 @@ class Literal(Expansion):
         return "%s('%s')" % (self.__class__.__name__, self.text)
 
     def __hash__(self):
-        return super(Literal, self).__hash__()
+        return hash("%s" % self)
 
     def __copy__(self):
         e = type(self)(self.text)
@@ -1033,7 +1038,8 @@ class RuleRef(NamedRuleRef):
         return self.__copy__()
 
     def __hash__(self):
-        return super(RuleRef, self).__hash__()
+        return hash("%s%s" % (self.__class__.__name__,
+                              hash(self.referenced_rule)))
 
 
 class Repeat(SingleChildExpansion):
@@ -1198,12 +1204,19 @@ class AlternativeSet(VariableChildExpansion):
     def weights(self):
         return self._weights
 
-    def __hash__(self):
-        return super(AlternativeSet, self).__hash__()
-
     @weights.setter
     def weights(self, value):
         self._weights = value
+
+    def __hash__(self):
+        # The hash of an Alt.Set is a combination of the class name, tag and
+        # hashes of children, similar to expansion string representations.
+        # Hashes of children are sorted so that the same value is returned
+        # regardless of child order.
+        child_hashes = sorted([hash(c) for c in self.children])
+        return hash(
+            "%s(%s)%s" % (self.__class__.__name__, child_hashes, self.tag)
+        )
 
     def compile(self, ignore_tags=False):
         super(AlternativeSet, self).compile()
@@ -1254,10 +1267,7 @@ class AlternativeSet(VariableChildExpansion):
         else:
             # Check that the children lists have the same contents, but the
             # ordering can be different.
-            for child in self.children:
-                if child not in other.children:
-                    return False
-            return True
+            return set(self.children) == set(other.children)
 
     @property
     def is_alternative(self):

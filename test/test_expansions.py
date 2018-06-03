@@ -2,6 +2,8 @@ import unittest
 from copy import deepcopy
 
 from jsgf import *
+from jsgf.expansions import ExpansionWithChildren, SingleChildExpansion,\
+    VariableChildExpansion
 from jsgf.ext import Dictation
 
 
@@ -186,7 +188,95 @@ class Comparisons(unittest.TestCase):
         rule1 = Rule("test", True, "test")
         rule2 = Rule("test", True, "testing")
         self.assertEqual(RuleRef(rule1), RuleRef(rule1))
+        self.assertEqual(RuleRef(rule1), RuleRef(deepcopy(rule1)))
         self.assertNotEqual(RuleRef(rule1), RuleRef(rule2))
+
+    def test_set_equality(self):
+        # Test with only literals
+        self.assertSetEqual({Literal("a"), Literal("z"), Literal("b")},
+                            {Literal("a"), Literal("b"), Literal("z")})
+
+        # Test with other items
+        self.assertSetEqual({"a", Literal("z"), Literal("a"), "b"},
+                            {"a", "b", Literal("a"), Literal("z")})
+
+        # Test with child expansions
+        self.assertSetEqual(
+            {Sequence("a", "b"), Literal("c"), OptionalGrouping("d")},
+            {Literal("c"), Sequence("a", "b"), OptionalGrouping("d")})
+        self.assertSetEqual({AlternativeSet("a", "b")}, {AlternativeSet("b", "a")})
+
+
+class Hashing(unittest.TestCase):
+    def test_alt_set(self):
+        # Test that ordering doesn't matter for hashing.
+        self.assertEqual(hash(AlternativeSet("hello", "hi")),
+                         hash(AlternativeSet("hi", "hello")))
+
+        # Test more complex expansions
+        self.assertEqual(hash(Sequence(AlternativeSet("a", "b"), "c")),
+                         hash(Sequence(AlternativeSet("b", "a"), "c")))
+        self.assertEqual(hash(Sequence(AlternativeSet("a", Dictation(), "b"), "c")),
+                         hash(Sequence(AlternativeSet("b", "a", Dictation()), "c")))
+
+        # Test that different sets produce different hashes
+        self.assertNotEqual(hash(AlternativeSet("a", "b")),
+                            hash(AlternativeSet("a", "b", "c")))
+
+    def test_hashable(self):
+        # Test that all expansion types are hashable
+        def assert_hashable(x):
+            # Check that a copy of x generates the same hash value.
+            # hash(x) will raise a TypeError if x cannot be hashed, making the test
+            # fail.
+            self.assertEqual(hash(x), hash(x.copy()))
+
+        # Test single child types
+        for T in [SingleChildExpansion, OptionalGrouping, Repeat, KleeneStar]:
+            assert_hashable(T("a"))
+
+        # Test variable child types
+        for T in [VariableChildExpansion, AlternativeSet, Sequence,
+                  RequiredGrouping]:
+            assert_hashable(T("a", "b", "c"))
+
+        # Test childless types
+        for T in [VoidRef, NullRef, Dictation]:
+            assert_hashable(T())
+
+        # Test special classes
+        assert_hashable(Expansion([]))
+        assert_hashable(ExpansionWithChildren(["a"]))
+        assert_hashable(Literal("abc"))
+        assert_hashable(NamedRuleRef("name"))
+        assert_hashable(RuleRef(Rule("test", False, "abc")))
+
+    def test_sequence(self):
+        # Test that the same sequences produce the same hashes
+        self.assertEqual(hash(Sequence("a", "b")),
+                         hash(Sequence("a", "b")))
+
+        # Test that ordering does matter for hashing sequences.
+        self.assertNotEqual(hash(Sequence("a", "b")),
+                            hash(Sequence("b", "a")))
+
+        # Test more complex expansions
+        self.assertNotEqual(
+            hash(AlternativeSet(Sequence("a", "b"), "c")),
+            hash(AlternativeSet(Sequence("b", "a"), "c")))
+        self.assertEqual(
+            hash(AlternativeSet(Sequence("a", "b"), "c")),
+            hash(AlternativeSet("c", Sequence("a", "b"))))
+
+    def test_rule_ref(self):
+        self.assertEqual(RuleRef(Rule("test", True, "test")),
+                         RuleRef(Rule("test", True, "test")))
+        self.assertNotEqual(RuleRef(Rule("test", False, "test")),
+                            RuleRef(Rule("test", True, "test")))
+        self.assertNotEqual(RuleRef(Rule("test", True, "testing")),
+                            RuleRef(Rule("test", True, "test")))
+        self.assertNotEqual(RuleRef(Rule("testing", True, "test")),
+                            RuleRef(Rule("test", True, "test")))
 
 
 class Copying(unittest.TestCase):
