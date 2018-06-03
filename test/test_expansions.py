@@ -206,6 +206,7 @@ class Copying(unittest.TestCase):
 
     def test_base(self):
         self.assert_copy_works(Expansion([]))
+        self.assert_copy_works(Expansion(["a"]))
 
     def test_named_references(self):
         self.assert_copy_works(NamedRuleRef("test"))

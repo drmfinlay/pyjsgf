@@ -257,7 +257,7 @@ class Expansion(object):
         if not self.children:
             e = type(self)([])
         else:
-            e = type(self)(*self.children)
+            e = type(self)(self.children)
         e.tag = self.tag
         return e
 
@@ -266,7 +266,7 @@ class Expansion(object):
             e = type(self)([])
         else:
             children = [deepcopy(child, memo) for child in self.children]
-            e = type(self)(*children)
+            e = type(self)(children)
         e.tag = self.tag
         return e
 
@@ -813,6 +813,17 @@ class SingleChildExpansion(ExpansionWithChildren):
     def __hash__(self):
         return super(SingleChildExpansion, self).__hash__()
 
+    def __copy__(self):
+        # This should raise an error if self.child is None.
+        e = type(self)(self.child)
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo):
+        e = type(self)(deepcopy(self.child, memo))
+        e.tag = self.tag
+        return e
+
 
 class VariableChildExpansion(ExpansionWithChildren):
     def __init__(self, *expansions):
@@ -820,6 +831,23 @@ class VariableChildExpansion(ExpansionWithChildren):
 
     def __hash__(self):
         return super(VariableChildExpansion, self).__hash__()
+
+    def __copy__(self):
+        if not self.children:
+            e = type(self)()
+        else:
+            e = type(self)(*self.children)
+        e.tag = self.tag
+        return e
+
+    def __deepcopy__(self, memo):
+        if not self.children:
+            e = type(self)()
+        else:
+            children = [deepcopy(child, memo) for child in self.children]
+            e = type(self)(*children)
+        e.tag = self.tag
+        return e
 
 
 class Sequence(VariableChildExpansion):
