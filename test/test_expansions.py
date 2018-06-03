@@ -143,13 +143,15 @@ class Comparisons(unittest.TestCase):
         self.assertNotEqual(Literal("hey"), Sequence(Literal("hello")))
 
     def test_alt_sets(self):
-        self.assertEqual(AlternativeSet("hello", "hi"), AlternativeSet("hello", "hi"))
+        self.assertEqual(AlternativeSet("hello", "hi"),
+                         AlternativeSet("hello", "hi"))
         self.assertNotEqual(AlternativeSet("hello", "hi"), AlternativeSet("hello"))
         self.assertNotEqual(AlternativeSet("hello", "hi"), AlternativeSet("hello"))
         self.assertNotEqual(AlternativeSet("hello", "hi"), Literal("hello"))
 
         # Test that child ordering doesn't matter
-        self.assertEqual(AlternativeSet("hello", "hi"), AlternativeSet("hi", "hello"))
+        self.assertEqual(AlternativeSet("hello", "hi"),
+                         AlternativeSet("hi", "hello"))
 
     def test_optional(self):
         self.assertEqual(OptionalGrouping("hello"), OptionalGrouping("hello"))

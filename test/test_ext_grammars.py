@@ -142,7 +142,6 @@ class DictationGrammarCase(unittest.TestCase):
         r1 = SequenceRule("test1", True, Sequence("test", Dictation()))
         r2 = SequenceRule("test2", True, Sequence(Dictation(), "test", ))
         grammar.add_rules(r1, r2)
-        print(grammar.rules)
         self.assertSetEqual(set(grammar.rules), {r1, r2})
 
     def test_rearrange_rules(self):
