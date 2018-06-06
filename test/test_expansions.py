@@ -12,12 +12,12 @@ class Compilation(unittest.TestCase):
         e1 = AlternativeSet("a")
         e1.tag = "t"
         self.assertEqual(e1.compile(ignore_tags=True), "(a)")
-        self.assertEqual(e1.compile(ignore_tags=False), "(a { t })")
+        self.assertEqual(e1.compile(ignore_tags=False), "(a) { t }")
 
         e2 = AlternativeSet("a b")
         e2.tag = "t"
         self.assertEqual(e2.compile(ignore_tags=True), "(a b)")
-        self.assertEqual(e2.compile(ignore_tags=False), "(a b { t })")
+        self.assertEqual(e2.compile(ignore_tags=False), "(a b) { t }")
 
         e3 = AlternativeSet("a", "b")
         e3.children[0].tag = "t1"
@@ -65,12 +65,12 @@ class Compilation(unittest.TestCase):
         e1 = RequiredGrouping("a")
         e1.tag = "blah"
         self.assertEqual(e1.compile(ignore_tags=True), "(a)")
-        self.assertEqual(e1.compile(ignore_tags=False), "(a { blah })")
+        self.assertEqual(e1.compile(ignore_tags=False), "(a) { blah }")
 
         e2 = RequiredGrouping("a b")
         e2.tag = "t"
         self.assertEqual(e2.compile(ignore_tags=True), "(a b)")
-        self.assertEqual(e2.compile(ignore_tags=False), "(a b { t })")
+        self.assertEqual(e2.compile(ignore_tags=False), "(a b) { t }")
 
         e3 = RequiredGrouping("a", "b")
         e3.children[0].tag = "t1"

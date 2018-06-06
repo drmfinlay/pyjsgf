@@ -1200,7 +1200,7 @@ class RequiredGrouping(Sequence):
         ])
 
         if self.tag and not ignore_tags:
-            return "(%s%s)" % (grouping, self.compiled_tag)
+            return "(%s)%s" % (grouping, self.compiled_tag)
         else:
             return "(%s)" % grouping
 
@@ -1249,7 +1249,7 @@ class AlternativeSet(VariableChildExpansion):
             ])
 
         if self.tag and not ignore_tags:
-            return "(%s%s)" % (alt_set, self.compiled_tag)
+            return "(%s)%s" % (alt_set, self.compiled_tag)
         else:
             return "(%s)" % alt_set
 
