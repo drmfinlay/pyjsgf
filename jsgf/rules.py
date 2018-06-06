@@ -159,6 +159,35 @@ class Rule(BaseRef):
         return self.expansion.current_match is not None
 
     @property
+    def tags(self):
+        """
+        The set of JSGF tags in this rule's expansion.
+        This does not include tags in referenced rules.
+        :rtype: set
+        """
+        # Get tagged expansions
+        tagged_expansions = filter_expansion(
+            self.expansion, lambda e: e.tag, shallow=True
+        )
+
+        # Return a set containing the tags of each tagged expansion.
+        return set(map(lambda e: e.tag, tagged_expansions))
+
+    def has_tag(self, tag):
+        """
+        Check whether there are expansions in this rule that use a given JSGF tag.
+        :type tag: str
+        :rtype: bool
+        """
+        # Empty or whitespace-only strings are not valid tags.
+        tag = tag.strip()
+        if not tag:
+            return False
+
+        # Return whether the specified is used in this rule.
+        return tag in self.tags
+
+    @property
     def dependencies(self):
         """
         The set of rules which this rule directly and indirectly references.

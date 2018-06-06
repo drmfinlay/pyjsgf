@@ -211,6 +211,21 @@ class SequenceRule(Rule):
         return result
 
     @property
+    def tags(self):
+        """
+        The set of JSGF tags in this rule's expansion.
+        This does not include tags in referenced rules.
+        :rtype: set
+        """
+        # Get tagged expansions
+        tagged_expansions = filter_expansion(
+            self.original_expansion, lambda e: e.tag, shallow=True
+        )
+
+        # Return a set containing the tags of each tagged expansion.
+        return set(map(lambda e: e.tag, tagged_expansions))
+
+    @property
     def original_expansion(self):
         return self._original_expansion
 

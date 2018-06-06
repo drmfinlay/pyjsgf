@@ -160,5 +160,44 @@ class ComparisonTests(unittest.TestCase):
                             h(PublicRule("b", "b")))
 
 
+class HasTagTests(unittest.TestCase):
+    def test_simple(self):
+        r = PublicRule("hello", "hello world")
+        r.expansion.tag = "greet"
+        self.assertTrue(r.has_tag("greet"))
+
+    def test_no_tag(self):
+        # Empty or whitespace-only strings are not valid JSGF tags.
+        r = PublicRule("hello", "hello world")
+        r.expansion.tag = ""
+        self.assertFalse(r.has_tag(""))
+        r.expansion.tag = "  "
+        self.assertFalse(r.has_tag("  "))
+
+    def test_referenced(self):
+        n = Rule("n", False, AlternativeSet("one", "two", "three"))
+        n.expansion.tag = "number"
+        r = PublicRule("numbers", Repeat(RuleRef(n)))
+        self.assertTrue(n.has_tag("number"))
+        self.assertFalse(r.has_tag("number"))
+
+    def test_whitespace(self):
+        # Any leading or trailing whitespace should be trimmed by the Expansion.tag
+        # setter and the Rule.has_tag method.
+        r = PublicRule("hello", "hello world")
+        r.expansion.tag = "  greet     "
+        self.assertEqual(r.expansion.tag, "greet")
+        self.assertTrue(r.has_tag("greet"))
+        self.assertTrue(r.has_tag("  greet     "))
+
+    def test_tags_property(self):
+        e = AlternativeSet("a", "b", "one")
+        e.children[0].tag = "letter"
+        e.children[1].tag = "letter"
+        e.children[2].tag = "number"
+        r = PublicRule("r", e)
+        self.assertSetEqual(r.tags, {"letter", "number"})
+
+
 if __name__ == '__main__':
     unittest.main()

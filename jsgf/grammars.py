@@ -282,6 +282,18 @@ class Grammar(BaseRef):
         """
         return [r for r in self.match_rules if r.visible and r.matches(speech)]
 
+    def find_tagged_rules(self, tag, include_hidden=False):
+        """
+        Find each rule in this grammar that has the specified JSGF tag.
+        :type tag: str
+        :param include_hidden: whether to include hidden rules (default False).
+        :return: iterable
+        """
+        if include_hidden:
+            return [r for r in self.rules if r.has_tag(tag)]
+        else:
+            return [r for r in self.match_rules if r.has_tag(tag)]
+
     def get_rule_from_name(self, name):
         """
         Get a rule object with the specified name, if one exists in the grammar.

@@ -188,6 +188,46 @@ class BasicGrammarCase(unittest.TestCase):
                                      "r.grammar")
 
 
+class TagTests(unittest.TestCase):
+    """
+    Test the Grammar.find_tagged_rules method.
+    """
+    def test_simple(self):
+        g = Grammar()
+        r = Rule("r", True, "test")
+        r.expansion.tag = "tag"
+        g.add_rule(r)
+        self.assertListEqual(g.find_tagged_rules("tag"), [r])
+
+    def test_hidden_rule(self):
+        g = Grammar()
+        r = Rule("r", False, "test")
+        r.expansion.tag = "tag"
+        g.add_rule(r)
+        self.assertListEqual(g.find_tagged_rules("tag"), [])
+        self.assertListEqual(g.find_tagged_rules("tag", include_hidden=True), [r])
+
+    def test_no_tag(self):
+        g = Grammar()
+        r = PublicRule("hello", "hello world")
+        self.assertListEqual(g.find_tagged_rules(""), [])
+        r.expansion.tag = ""
+        self.assertListEqual(g.find_tagged_rules(""), [])
+        self.assertListEqual(g.find_tagged_rules(" "), [])
+        r.expansion.tag = " "
+        self.assertListEqual(g.find_tagged_rules(" "), [])
+
+    def test_whitespace(self):
+        # Leading or trailing whitespace should be ignored by find_tagged_rules.
+        g = Grammar()
+        r = PublicRule("r", "test")
+        r.expansion.tag = " tag  "
+        g.add_rule(r)
+        self.assertEqual(r.expansion.tag, "tag")
+        self.assertListEqual(g.find_tagged_rules("tag"), [r])
+        self.assertListEqual(g.find_tagged_rules("  tag "), [r])
+
+
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):
         self.assertTrue(rule.matches(speech))

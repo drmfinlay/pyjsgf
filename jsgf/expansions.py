@@ -227,7 +227,7 @@ class Expansion(object):
     _NO_CALCULATION = object()
 
     def __init__(self, children):
-        self._tag = None
+        self._tag = ""
         self._parent = None
         if not isinstance(children, (tuple, list)):
             raise TypeError("'children' must be a list or tuple")
@@ -294,7 +294,7 @@ class Expansion(object):
     def compile(self, ignore_tags=False):
         self.validate_compilable()
         if self.tag and not ignore_tags:
-            return self.tag
+            return self.compiled_tag
         else:
             return ""
 
@@ -311,12 +311,11 @@ class Expansion(object):
 
     @property
     def tag(self):
-        # If the tag is set, return it with a space before it
-        # Otherwise return the empty string
-        if self._tag:
-            return " " + self._tag
-        else:
-            return ""
+        """
+        JSGF tag for this expansion.
+        :rtype: str
+        """
+        return self._tag
 
     @tag.setter
     def tag(self, value):
@@ -326,14 +325,28 @@ class Expansion(object):
         """
         if not value:
             self._tag = ""
+        elif isinstance(value, string_types):
+            self._tag = value.strip()
+        else:
+            raise TypeError("expected JSGF tag string, got %s instead" % value)
+
+    @property
+    def compiled_tag(self):
+        """
+        Get the compiled tag for this expansion if it has one. The empty string is
+        returned if there is no tag set.
+        :rtype: str
+        """
+        if not self.tag:
+            return ""
         else:
             # Escape '{', '}' and '\' so that tags will be processed
             # properly if they have those characters.
             # This is suggested in the JSGF specification.
-            escaped = value.replace("{", "\\{") \
+            escaped = self.tag.replace("{", "\\{") \
                 .replace("}", "\\}") \
                 .replace("\\", "\\\\")
-            self._tag = "{ %s }" % escaped
+            return " { %s }" % escaped
 
     @staticmethod
     def make_expansion(e):
@@ -721,7 +734,7 @@ class NamedRuleRef(BaseRef, Expansion):
     def compile(self, ignore_tags=False):
         self.validate_compilable()
         if self.tag and not ignore_tags:
-            return "<%s>%s" % (self.name, self.tag)
+            return "<%s>%s" % (self.name, self.compiled_tag)
         else:
             return "<%s>" % self.name
 
@@ -864,7 +877,7 @@ class Sequence(VariableChildExpansion):
 
         # Return the sequence and the tag if there is one
         if self.tag and not ignore_tags:
-            return "%s%s" % (seq, self.tag)
+            return "%s%s" % (seq, self.compiled_tag)
         else:
             return seq
 
@@ -925,7 +938,7 @@ class Literal(Expansion):
     def compile(self, ignore_tags=False):
         super(Literal, self).compile()
         if self.tag and not ignore_tags:
-            return "%s%s" % (self.text, self.tag)
+            return "%s%s" % (self.text, self.compiled_tag)
         else:
             return self.text
 
@@ -1057,7 +1070,7 @@ class Repeat(SingleChildExpansion):
         super(Repeat, self).compile()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
-            return "(%s)+%s" % (compiled, self.tag)
+            return "(%s)+%s" % (compiled, self.compiled_tag)
         else:
             return "(%s)+" % compiled
 
@@ -1133,7 +1146,7 @@ class KleeneStar(Repeat):
         super(KleeneStar, self).compile()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
-            return "(%s)*%s" % (compiled, self.tag)
+            return "(%s)*%s" % (compiled, self.compiled_tag)
         else:
             return "(%s)*" % compiled
 
@@ -1153,7 +1166,7 @@ class OptionalGrouping(SingleChildExpansion):
         super(OptionalGrouping, self).compile()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
-            return "[%s]%s" % (compiled, self.tag)
+            return "[%s]%s" % (compiled, self.compiled_tag)
         else:
             return "[%s]" % compiled
 
@@ -1187,7 +1200,7 @@ class RequiredGrouping(Sequence):
         ])
 
         if self.tag and not ignore_tags:
-            return "(%s%s)" % (grouping, self.tag)
+            return "(%s%s)" % (grouping, self.compiled_tag)
         else:
             return "(%s)" % grouping
 
@@ -1236,7 +1249,7 @@ class AlternativeSet(VariableChildExpansion):
             ])
 
         if self.tag and not ignore_tags:
-            return "(%s%s)" % (alt_set, self.tag)
+            return "(%s%s)" % (alt_set, self.compiled_tag)
         else:
             return "(%s)" % alt_set
 
