@@ -160,7 +160,7 @@ class ComparisonTests(unittest.TestCase):
                             h(PublicRule("b", "b")))
 
 
-class HasTagTests(unittest.TestCase):
+class TagTests(unittest.TestCase):
     def test_simple(self):
         r = PublicRule("hello", "hello world")
         r.expansion.tag = "greet"
@@ -179,7 +179,7 @@ class HasTagTests(unittest.TestCase):
         n.expansion.tag = "number"
         r = PublicRule("numbers", Repeat(RuleRef(n)))
         self.assertTrue(n.has_tag("number"))
-        self.assertFalse(r.has_tag("number"))
+        self.assertTrue(r.has_tag("number"))
 
     def test_whitespace(self):
         # Any leading or trailing whitespace should be trimmed by the Expansion.tag
@@ -190,13 +190,43 @@ class HasTagTests(unittest.TestCase):
         self.assertTrue(r.has_tag("greet"))
         self.assertTrue(r.has_tag("  greet     "))
 
-    def test_tags_property(self):
-        e = AlternativeSet("a", "b", "one")
-        e.children[0].tag = "letter"
-        e.children[1].tag = "letter"
-        e.children[2].tag = "number"
-        r = PublicRule("r", e)
-        self.assertSetEqual(r.tags, {"letter", "number"})
+    def test_tag_properties(self):
+        a, b, one = map(Literal, ["a", "b", "one"])
+        a.tag = "letter"
+        b.tag = "letter"
+        one.tag = "number"
+        e = AlternativeSet(a, b, one)
+        e.tag = "alt_set"
+        r = PublicRule("r", Repeat(e))
+
+        # Tags should be in the order in which they would be compiled left-to-right
+        # and the list should not be distinct in case someone wants to use tags like
+        # that for some reason.
+        self.assertListEqual(r.tags, ["letter", "letter", "number", "alt_set"])
+
+        # Test matched_tags property
+        self.assertListEqual(r.matched_tags, [])  # nothing matched yet
+        r.matches("a")
+        self.assertListEqual(r.matched_tags, ["letter", "alt_set"])
+        r.matches("one")
+        self.assertListEqual(r.matched_tags, ["number", "alt_set"])
+
+        # Test that returned tags are not de-duplicated (this also tests Repeat)
+        r.matches("a b")
+        self.assertListEqual(r.matched_tags, ["letter", "letter", "alt_set"])
+
+    def test_get_tags_matching(self):
+        # Test with a simple rule
+        e = AlternativeSet("open", "close")
+        e.children[0].tag = "OPEN"
+        e.children[1].tag = "CLOSE"
+        cmd = PublicRule("command", Sequence(e, "the file"))
+        self.assertListEqual(cmd.get_tags_matching("open the file"), ["OPEN"])
+
+        # Test that a referenced rule also works
+        op = Rule("operation", False, e.copy())
+        cmd = PublicRule("command", Sequence(RuleRef(op), "the file"))
+        self.assertListEqual(cmd.get_tags_matching("open the file"), ["OPEN"])
 
 
 if __name__ == '__main__':

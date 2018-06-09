@@ -5,8 +5,8 @@ Classes for compiling JSpeech Grammar Format rules
 """
 
 from .references import BaseRef
-from .expansions import Expansion, RuleRef, filter_expansion, JointTreeContext,\
-    map_expansion
+from .expansions import Expansion, RuleRef, filter_expansion, JointTreeContext, \
+    map_expansion, TraversalOrder
 from .errors import CompilationError
 
 
@@ -165,21 +165,40 @@ class Rule(BaseRef):
     @property
     def tags(self):
         """
-        The set of JSGF tags in this rule's expansion.
-        This does not include tags in referenced rules.
-        :rtype: set
+        A list of JSGF tags used by this rule and any referenced rules. The returned
+        list will be in the order in which tags appear in the compiled rule.
+        :rtype: list
         """
         # Get tagged expansions
         tagged_expansions = filter_expansion(
-            self.expansion, lambda e: e.tag, shallow=True
+            self.expansion, lambda e: e.tag, TraversalOrder.PostOrder
         )
 
-        # Return a set containing the tags of each tagged expansion.
-        return set(map(lambda e: e.tag, tagged_expansions))
+        # Return a list containing the tags of each expansion.
+        return list(map(lambda e: e.tag, tagged_expansions))
+
+    @property
+    def matched_tags(self):
+        """
+        A list of JSGF tags whose expansions have been matched. The returned list
+        will be in the order in which tags appear in the compiled rule.
+
+        This includes matching tags in referenced rules.
+        :rtype: list
+        """
+        # Get tagged and matching expansions in this rule and referenced rules.
+        tagged_expansions = filter_expansion(
+            self.expansion, lambda e: e.tag and e.had_match,
+            TraversalOrder.PostOrder
+        )
+
+        # Return a list containing the tags of each expansion.
+        return list(map(lambda e: e.tag, tagged_expansions))
 
     def has_tag(self, tag):
         """
-        Check whether there are expansions in this rule that use a given JSGF tag.
+        Check whether there are expansions in this rule or referenced rules that use
+        a given JSGF tag.
         :type tag: str
         :rtype: bool
         """
@@ -188,8 +207,18 @@ class Rule(BaseRef):
         if not tag:
             return False
 
-        # Return whether the specified is used in this rule.
+        # Return whether the specified tag is used in this rule or referenced rules.
         return tag in self.tags
+
+    def get_tags_matching(self, speech):
+        """
+        Match a speech string and return a list of any matching tags in this rule
+        and in any referenced rules.
+        :type speech: str
+        :rtype: list
+        """
+        self.matches(speech)
+        return self.matched_tags
 
     @property
     def dependencies(self):
