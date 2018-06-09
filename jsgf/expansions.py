@@ -433,6 +433,23 @@ class Expansion(object):
         # Don't consume speech strings by default.
         return speech
 
+    @property
+    def had_match(self):
+        """
+        Whether this expansion has a current_match value that is not '' or None.
+        This will also check if this expansion was part of a complete repetition if
+        it has a Repeat or KleeneStar ancestor.
+        :rtype: bool
+        """
+        if self.current_match:
+            return True
+
+        rep = self.repetition_ancestor
+        if rep and any(rep.get_expansion_matches(self)):
+            return True
+        else:
+            return False
+
     def _init_lookup(self):
         """
         Initialises the lookup dictionary for the root expansion.
@@ -1086,8 +1103,7 @@ class Repeat(SingleChildExpansion):
     """
     def __init__(self, expansion):
         super(Repeat, self).__init__(expansion)
-        self._repetition_limit = None
-        self._repetitions_matched = None
+        self._repetitions_matched = []
 
     def compile(self, ignore_tags=False):
         super(Repeat, self).compile()
@@ -1104,9 +1120,19 @@ class Repeat(SingleChildExpansion):
     def repetitions_matched(self):
         """
         :The number of repetitions last matched.
-        :return:
+        :rtype: int
         """
-        return self._repetitions_matched
+        return len(self._repetitions_matched)
+
+    def get_expansion_matches(self, e):
+        """
+        Get a list of an expansion's current_match values for each repetition.
+        :rtype: list
+        """
+        if e.is_descendant_of(self):
+            return [values[e] for values in self._repetitions_matched]
+        else:
+            return []
 
     def _matches_internal(self, speech):
         """
@@ -1122,7 +1148,7 @@ class Repeat(SingleChildExpansion):
 
         # Accept N complete repetitions
         matches = []
-        self._repetitions_matched = 0
+        self._repetitions_matched = []
 
         # Use a copy of result for repetitions
         intermediate_result = result
@@ -1141,22 +1167,24 @@ class Repeat(SingleChildExpansion):
             if not child_match:
                 # Restore current_match state for incomplete repetition tree
                 # without overriding current_match strings with None
-                restore_current_matches(self, values, override_none=False)
+                restore_current_matches(self.child, values, override_none=False)
                 break
             else:
                 matches.append(child_match)
-                self._repetitions_matched += 1
 
                 # Save current_match state for complete repetition and update
                 # repetitions_matched
-                values = save_current_matches(self)
+                values = save_current_matches(self.child)
+
+                # Keep a copy of 'values' in the
+                self._repetitions_matched.append(values.copy())
 
         self.current_match = " ".join(matches)
         return intermediate_result
 
     def reset_match_data(self):
         super(Repeat, self).reset_match_data()
-        self._repetitions_matched = None
+        self._repetitions_matched = []
 
 
 class KleeneStar(Repeat):

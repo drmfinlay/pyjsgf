@@ -632,6 +632,39 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertRaises(MatchError, r3.matches, "a a")
         self.assertRaises(MatchError, r3.matches, "a a a")
 
+    def test_repetition_match_methods(self):
+        """
+        Test the Expansion.had_match and Repeat.get_expansion_matches methods.
+        """
+        a, b, c = map(Literal, "abc")
+        e = Repeat(AlternativeSet(a, b, c))
+
+        # Match a string using all three alternatives
+        self.assertEqual(e.matches("a b c"), "")
+
+        # Test expansions a, b and c
+        # All three expansions should have had a match and get_expansions_matches
+        # should return a list of length 3 for each; there were 3 repetitions of
+        # the alternative set.
+        self.assertTrue(a.had_match)
+        self.assertListEqual(
+            e.get_expansion_matches(a),
+            ["a", None, None]
+        )
+        self.assertTrue(b.had_match)
+        self.assertListEqual(
+            e.get_expansion_matches(b),
+            [None, "b", None]
+        )
+        self.assertTrue(c.had_match)
+        self.assertListEqual(
+            e.get_expansion_matches(c),
+            [None, None, "c"]
+        )
+
+        # Test with get_expansion_matches an expansion that isn't a descendant
+        self.assertListEqual(e.get_expansion_matches(Literal("d")), [])
+
     def test_forward_searching_complex(self):
         e = Sequence("a", Sequence(
             OptionalGrouping("b"), OptionalGrouping("c"),
