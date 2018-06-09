@@ -722,9 +722,9 @@ class Expansion(object):
         return result
 
 
-class NamedRuleRef(BaseRef, Expansion):
+class BaseExpansionRef(BaseRef, Expansion):
     """
-    Class used to reference rules by name.
+    Base class which RuleRef, NamedRuleRef, NullRef and VoidRef inherit from.
     """
     def __init__(self, name):
         # Call both super constructors
@@ -756,7 +756,29 @@ class NamedRuleRef(BaseRef, Expansion):
         return self.__copy__()
 
 
-class NullRef(NamedRuleRef):
+class NamedRuleRef(BaseExpansionRef):
+    """
+    Class used to reference rules by name.
+    """
+    @property
+    def referenced_rule(self):
+        """
+        Find and return the rule this expansion references in the grammar.
+        :raises: GrammarError
+        :rtype: Rule
+        """
+        if self.rule and self.rule.grammar:
+            return self.rule.grammar.get_rule_from_name(self.name)
+        else:
+            raise GrammarError()
+
+    def _matches_internal(self, speech):
+        result = self.referenced_rule.expansion.matches(speech)
+        self.current_match = self.referenced_rule.expansion.current_match
+        return result
+
+
+class NullRef(BaseExpansionRef):
     """
     The NULL rule is a rule that is automatically matched without the user speaking.
     """
@@ -782,7 +804,7 @@ class NullRef(NamedRuleRef):
         return super(NullRef, self).__hash__()
 
 
-class VoidRef(NamedRuleRef):
+class VoidRef(BaseExpansionRef):
     """
     The VOID rule is a rule that can never be spoken. As such, if this is used in
     an expansion, it will not match, even if the expansion is optional.
@@ -977,8 +999,8 @@ class Literal(Expansion):
             # match that overlaps with this expansion's match
             leaves_after = list(self.matchable_leaves_after)
             for leaf in leaves_after:
-                # Also skip any NamedRuleRefs (or sub class instances)
-                if isinstance(leaf, NamedRuleRef) or\
+                # Skip any non-literals (dictation counts as a literal)
+                if not isinstance(leaf, Literal) or\
                         (leaf.is_optional and not leaf.repetition_ancestor):
                     continue
 
@@ -1024,18 +1046,19 @@ class Literal(Expansion):
 
 
 class RuleRef(NamedRuleRef):
+    """
+    Class for referencing another rule by Rule object.
+    """
     def __init__(self, referenced_rule):
         """
-        Class for referencing another rule by Rule object.
         :param referenced_rule:
         """
         super(RuleRef, self).__init__(referenced_rule.name)
-        self.referenced_rule = referenced_rule
+        self._referenced_rule = referenced_rule
 
-    def _matches_internal(self, speech):
-        result = self.referenced_rule.expansion.matches(speech)
-        self.current_match = self.referenced_rule.expansion.current_match
-        return result
+    @property
+    def referenced_rule(self):
+        return self._referenced_rule
 
     def __eq__(self, other):
         return (super(RuleRef, self).__eq__(other) and

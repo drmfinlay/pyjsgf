@@ -5,7 +5,8 @@ Classes for compiling JSpeech Grammar Format rules
 """
 
 from .references import BaseRef
-from .expansions import Expansion, RuleRef, filter_expansion, JointTreeContext
+from .expansions import Expansion, RuleRef, filter_expansion, JointTreeContext,\
+    map_expansion
 from .errors import CompilationError
 
 
@@ -56,8 +57,11 @@ class Rule(BaseRef):
         # Handle the object passed in as an expansion
         self._expansion = Expansion.make_expansion(value)
 
-        # Set expansion's rule attribute to this rule
-        self._expansion.rule = self
+        # Set the rule attribute for the rule's expansions
+        def set_rule(x):
+            x.rule = self
+
+        map_expansion(self._expansion, set_rule, shallow=True)
 
     def compile(self, ignore_tags=False):
         """

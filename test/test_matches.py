@@ -220,6 +220,28 @@ class CurrentMatchCase(unittest.TestCase):
             self.assertTrue(r2.matches("delete %s" % n),
                             "matching 'delete %s' failed" % n)
 
+    def test_named_rule_ref(self):
+        g = Grammar()
+        test = Rule("test", False, "b")
+        r = Rule("r", True, Sequence("a", NamedRuleRef("test")))
+
+        # An error should be raised if a NamedRuleRef cannot be resolved
+        self.assertRaises(GrammarError, r.expansion.matches, "a")
+        self.assertRaises(GrammarError, r.expansion.matches, "a b")
+        self.assertRaises(GrammarError, r.matches, "a b")
+        self.assertRaises(GrammarError, r.matches, "a b")
+
+        # Test that 'r' being part of a Grammar still raises an error if
+        # the 'test' rule doesn't exist in it.
+        g.add_rule(r)
+        self.assertRaises(GrammarError, r.matches, "a b")
+        self.assertRaises(GrammarError, r.expansion.matches, "a b")
+
+        # Add the 'test' rule to the grammar and test again
+        g.add_rule(test)
+        self.assertTrue(r.matches("a b"))
+        self.assertEqual(r.expansion.matches("a b"), "")
+
     def test_rule_ref_ambiguous(self):
         e1 = Literal("hello")
         r1 = HiddenRule("test1", e1)

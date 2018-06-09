@@ -2,8 +2,8 @@ import unittest
 from copy import deepcopy
 
 from jsgf import *
-from jsgf.expansions import ExpansionWithChildren, SingleChildExpansion,\
-    VariableChildExpansion
+from jsgf.expansions import ExpansionWithChildren, SingleChildExpansion, \
+    VariableChildExpansion, BaseExpansionRef
 from jsgf.ext import Dictation
 
 
@@ -248,6 +248,7 @@ class Hashing(unittest.TestCase):
         assert_hashable(Expansion([]))
         assert_hashable(ExpansionWithChildren(["a"]))
         assert_hashable(Literal("abc"))
+        assert_hashable(BaseExpansionRef("name"))
         assert_hashable(NamedRuleRef("name"))
         assert_hashable(RuleRef(Rule("test", False, "abc")))
 
