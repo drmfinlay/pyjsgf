@@ -977,9 +977,9 @@ class Literal(Expansion):
             # match that overlaps with this expansion's match
             leaves_after = list(self.matchable_leaves_after)
             for leaf in leaves_after:
-                # Also skip any RuleRefs
-                if isinstance(leaf, RuleRef) or (leaf.is_optional and
-                                                 not leaf.repetition_ancestor):
+                # Also skip any NamedRuleRefs (or sub class instances)
+                if isinstance(leaf, NamedRuleRef) or\
+                        (leaf.is_optional and not leaf.repetition_ancestor):
                     continue
 
                 leaf_pattern = leaf.matching_regex_pattern

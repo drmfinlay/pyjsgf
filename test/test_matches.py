@@ -622,6 +622,32 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.children[0].current_match, "a")
         self.assertEqual(e.children[1].current_match, "b c a")
 
+    def test_forward_searching_special(self):
+        # Test that special NullRef and VoidRef expansions are handled properly
+        e = Sequence(OptionalGrouping("a"), NullRef(), OptionalGrouping("a"))
+        r = Rule("r", True, e)
+        self.assertTrue(r.matches("a a"))
+        self.assertEqual(e.current_match, "a")
+        self.assertEqual(e.children[0].child.current_match, "a")
+        self.assertEqual(e.children[1].current_match, "")
+        self.assertEqual(e.children[2].current_match, "")
+        self.assertTrue(r.matches("a a"))
+        self.assertEqual(e.current_match, "a")
+        self.assertEqual(e.children[0].child.current_match, "a")
+        self.assertEqual(e.children[1].current_match, "")
+        self.assertEqual(e.children[2].current_match, "")
+
+        e = Sequence(OptionalGrouping("a"), VoidRef())
+        r = Rule("r", True, e)
+        self.assertFalse(r.matches("a a"))
+        self.assertEqual(e.current_match, None)
+        self.assertEqual(e.children[0].child.current_match, "")
+        self.assertEqual(e.children[1].current_match, None)
+        self.assertFalse(r.matches("a a a"))
+        self.assertEqual(e.current_match, None)
+        self.assertEqual(e.children[0].child.current_match, "")
+        self.assertEqual(e.children[1].current_match, None)
+
 
 if __name__ == '__main__':
     unittest.main()
