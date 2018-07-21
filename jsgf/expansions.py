@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 from six import string_types
 
-from .references import BaseRef
+from .references import BaseRef, optionally_qualified_name, words as words_parser
 from .errors import *
 
 
@@ -229,15 +229,10 @@ class Expansion(object):
     def __init__(self, children):
         self._tag = ""
         self._parent = None
-        if not isinstance(children, (tuple, list)):
-            raise TypeError("'children' must be a list or tuple")
 
-        # Transform any non-expansion children into expansions
-        self._children = [self.make_expansion(e) for e in children]
-
-        # Set each child's parent as this expansion
-        for child in self._children:
-            child.parent = self
+        # Set children, letting the setter handle validation.
+        self._children = None
+        self.children = children
 
         self._current_match = None
         self.rule = None
@@ -290,6 +285,21 @@ class Expansion(object):
     @property
     def children(self):
         return self._children
+
+    @children.setter
+    def children(self, value):
+        if not isinstance(value, (tuple, list)):
+            raise TypeError("'children' must be a list or tuple")
+
+        # Transform any non-expansion children into expansions
+        children = [self.make_expansion(e) for e in value]
+
+        # Set each child's parent as this expansion.
+        for child in children:
+            child.parent = self
+
+        # Set the internal list.
+        self._children = children
 
     def compile(self, ignore_tags=False):
         self.validate_compilable()
@@ -747,6 +757,10 @@ class BaseExpansionRef(BaseRef, Expansion):
         # Call both super constructors
         BaseRef.__init__(self, name)
         Expansion.__init__(self, [])
+
+    @staticmethod
+    def valid(name):
+        return optionally_qualified_name.matches(name)
 
     def compile(self, ignore_tags=False):
         self.validate_compilable()

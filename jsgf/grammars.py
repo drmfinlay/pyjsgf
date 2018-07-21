@@ -4,7 +4,7 @@ Classes for compiling and importing JSpeech Grammar Format grammars
 
 from six import string_types
 
-from .references import BaseRef, OPTIONALLY_QUALIFIED_NAME, IMPORT_NAME
+from .references import BaseRef, import_name, grammar_name
 from .rules import Rule
 from .errors import GrammarError
 
@@ -38,7 +38,7 @@ class Import(BaseRef):
 
     @staticmethod
     def valid(name):
-        return IMPORT_NAME.matches(name)
+        return import_name.matches(name)
 
 
 class Grammar(BaseRef):
@@ -78,7 +78,7 @@ class Grammar(BaseRef):
 
     @staticmethod
     def valid(name):
-        return OPTIONALLY_QUALIFIED_NAME.matches(name)
+        return grammar_name.matches(name)
 
     def compile(self):
         """
