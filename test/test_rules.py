@@ -21,7 +21,41 @@ class PropertiesTests(unittest.TestCase):
         rule5 = HiddenRule("name", RequiredGrouping(RuleRef(rule3),
                                                     OptionalGrouping(RuleRef(rule4))))
         rule1 = PublicRule("greet", RequiredGrouping(RuleRef(rule2), RuleRef(rule5)))
+
+        # Test dependencies for each rule.
         self.assertSetEqual(rule1.dependencies, {rule2, rule3, rule4, rule5})
+        self.assertSetEqual(rule5.dependencies, {rule3, rule4})
+        self.assertSetEqual(rule2.dependencies, set())
+        self.assertSetEqual(rule3.dependencies, set())
+        self.assertSetEqual(rule4.dependencies, set())
+
+    def test_dependencies_named_rule_ref(self):
+        rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
+        rule3 = HiddenRule("firstName", AlternativeSet("peter", "john", "mary", "anna"))
+        rule4 = HiddenRule("lastName", AlternativeSet("smith", "ryan", "king", "turner"))
+        rule5 = HiddenRule("name", RequiredGrouping(
+            NamedRuleRef("firstName"), OptionalGrouping(NamedRuleRef("lastName"))
+        ))
+        rule1 = PublicRule("greet", RequiredGrouping(NamedRuleRef("greetWord"),
+                                                     NamedRuleRef("name")))
+
+        # Add all rules to a grammar so that NamedRuleRefs can be matched and so
+        # that testing <Rule>.dependent_rules works.
+        grammar = Grammar()
+        grammar.add_rules(rule1, rule2, rule3, rule4, rule5)
+
+        # Test dependencies.
+        self.assertSetEqual(rule1.dependencies, {rule2, rule3, rule4, rule5})
+        self.assertSetEqual(rule5.dependencies, {rule3, rule4})
+        self.assertSetEqual(rule2.dependencies, set())
+        self.assertSetEqual(rule3.dependencies, set())
+        self.assertSetEqual(rule4.dependencies, set())
+
+        # Test dependent rules.
+        self.assertSetEqual(rule2.dependent_rules, {rule1})
+        self.assertSetEqual(rule3.dependent_rules, {rule1, rule5})
+        self.assertSetEqual(rule4.dependent_rules, {rule1, rule5})
+        self.assertSetEqual(rule5.dependent_rules, {rule1})
 
     def test_dependent_rules(self):
         r1 = PublicRule("r1", "hi")

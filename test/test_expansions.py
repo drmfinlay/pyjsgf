@@ -545,6 +545,24 @@ class ExpansionTreeConstructs(unittest.TestCase):
             )
         ))
 
+    def test_using_named_rule_ref(self):
+        """
+        Test map_expansion using a NamedRuleRef.
+        """
+        # NamedRuleRefs require rules to be in grammars for mapping to work.
+        r1 = HiddenRule("name", AlternativeSet("alice", "bob"))
+        r2 = PublicRule("test", NamedRuleRef("name"))
+        g = Grammar()
+        g.add_rules(r1, r2)
+        self.assertEqual(map_expansion(r2.expansion), (
+            r2.expansion, (
+                (AlternativeSet("alice", "bob"), (
+                    (Literal("alice"), ()),
+                    (Literal("bob"), ())
+                ))
+            )
+        ))
+
     def test_map_with_matches(self):
         e = Sequence("hello", "world")
         e.matches("hello world")  # assuming matches tests pass

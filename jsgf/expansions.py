@@ -1,5 +1,5 @@
 """
-Classes for compiling JSpeech Grammar Format expansions
+Classes for compiling and matching Java Speech Grammar Format expansions.
 """
 import re
 
@@ -26,7 +26,7 @@ def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
     :return: tuple
     """
     def map_children(x):
-        if isinstance(x, RuleRef) and not shallow:  # map the referenced rule
+        if isinstance(x, NamedRuleRef) and not shallow:  # map the referenced rule
             return map_expansion(x.referenced_rule.expansion, func, order, shallow)
         else:
             return tuple([map_expansion(child, func, order, shallow)
@@ -59,7 +59,7 @@ def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
     """
     def find_in_children(x):
         # Find in the referenced rule's tree
-        if isinstance(x, RuleRef) and not shallow:
+        if isinstance(x, NamedRuleRef) and not shallow:
             return find_expansion(x.referenced_rule.expansion, func, order, shallow)
         else:
             for child in x.children:
@@ -194,10 +194,10 @@ class JointTreeContext(object):
     @staticmethod
     def join_tree(x):
         """
-        If x is a RuleRef, join its referenced rule's expansion to this tree.
+        If x is a NamedRuleRef, join its referenced rule's expansion to this tree.
         :type x: Expansion
         """
-        if isinstance(x, RuleRef):
+        if isinstance(x, NamedRuleRef):
             # Set the parent of the referenced rule's root expansion to this
             # expansion.
             x.referenced_rule.expansion.parent = x
@@ -205,10 +205,11 @@ class JointTreeContext(object):
     @staticmethod
     def detach_tree(x):
         """
-        If x is a RuleRef, detach its referenced rule's expansion from this tree.
+        If x is a NamedRuleRef, detach its referenced rule's expansion from this
+        tree.
         :type x: Expansion
         """
-        if isinstance(x, RuleRef):
+        if isinstance(x, NamedRuleRef):
             # Reset parent
             x.referenced_rule.expansion.parent = None
 
