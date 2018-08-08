@@ -5,8 +5,8 @@ Classes for compiling JSpeech Grammar Format rules
 """
 
 from .references import BaseRef
-from .expansions import Expansion, RuleRef, filter_expansion, JointTreeContext, \
-    map_expansion, TraversalOrder
+from .expansions import Expansion, NamedRuleRef, filter_expansion, \
+    JointTreeContext, map_expansion, TraversalOrder
 from .errors import CompilationError
 
 
@@ -229,7 +229,8 @@ class Rule(BaseRef):
         # Return the set of all rules referenced by a RuleRef
         return set(map(
             lambda x: x.referenced_rule,
-            filter_expansion(self.expansion, lambda x: isinstance(x, RuleRef))
+            filter_expansion(self.expansion,
+                             lambda x: isinstance(x, NamedRuleRef))
         ))
 
     @property

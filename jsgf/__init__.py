@@ -41,6 +41,9 @@ from .grammars import Grammar
 from .grammars import Import
 from .grammars import RootGrammar
 
+from .parser import parse_grammar_string, parse_grammar_file, valid_grammar
+from .parser import parse_expansion_string, parse_rule_string
+
 from .references import BaseRef
 
 from .rules import HiddenRule

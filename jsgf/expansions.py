@@ -1,12 +1,12 @@
 """
-Classes for compiling JSpeech Grammar Format expansions
+Classes for compiling and matching Java Speech Grammar Format expansions.
 """
 import re
 
 from copy import deepcopy
 from six import string_types
 
-from .references import BaseRef
+from .references import BaseRef, optionally_qualified_name, words as words_parser
 from .errors import *
 
 
@@ -26,7 +26,7 @@ def map_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
     :return: tuple
     """
     def map_children(x):
-        if isinstance(x, RuleRef) and not shallow:  # map the referenced rule
+        if isinstance(x, NamedRuleRef) and not shallow:  # map the referenced rule
             return map_expansion(x.referenced_rule.expansion, func, order, shallow)
         else:
             return tuple([map_expansion(child, func, order, shallow)
@@ -59,7 +59,7 @@ def find_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
     """
     def find_in_children(x):
         # Find in the referenced rule's tree
-        if isinstance(x, RuleRef) and not shallow:
+        if isinstance(x, NamedRuleRef) and not shallow:
             return find_expansion(x.referenced_rule.expansion, func, order, shallow)
         else:
             for child in x.children:
@@ -194,10 +194,10 @@ class JointTreeContext(object):
     @staticmethod
     def join_tree(x):
         """
-        If x is a RuleRef, join its referenced rule's expansion to this tree.
+        If x is a NamedRuleRef, join its referenced rule's expansion to this tree.
         :type x: Expansion
         """
-        if isinstance(x, RuleRef):
+        if isinstance(x, NamedRuleRef):
             # Set the parent of the referenced rule's root expansion to this
             # expansion.
             x.referenced_rule.expansion.parent = x
@@ -205,10 +205,11 @@ class JointTreeContext(object):
     @staticmethod
     def detach_tree(x):
         """
-        If x is a RuleRef, detach its referenced rule's expansion from this tree.
+        If x is a NamedRuleRef, detach its referenced rule's expansion from this
+        tree.
         :type x: Expansion
         """
-        if isinstance(x, RuleRef):
+        if isinstance(x, NamedRuleRef):
             # Reset parent
             x.referenced_rule.expansion.parent = None
 
@@ -229,15 +230,10 @@ class Expansion(object):
     def __init__(self, children):
         self._tag = ""
         self._parent = None
-        if not isinstance(children, (tuple, list)):
-            raise TypeError("'children' must be a list or tuple")
 
-        # Transform any non-expansion children into expansions
-        self._children = [self.make_expansion(e) for e in children]
-
-        # Set each child's parent as this expansion
-        for child in self._children:
-            child.parent = self
+        # Set children, letting the setter handle validation.
+        self._children = None
+        self.children = children
 
         self._current_match = None
         self.rule = None
@@ -290,6 +286,21 @@ class Expansion(object):
     @property
     def children(self):
         return self._children
+
+    @children.setter
+    def children(self, value):
+        if not isinstance(value, (tuple, list)):
+            raise TypeError("'children' must be a list or tuple")
+
+        # Transform any non-expansion children into expansions
+        children = [self.make_expansion(e) for e in value]
+
+        # Set each child's parent as this expansion.
+        for child in children:
+            child.parent = self
+
+        # Set the internal list.
+        self._children = children
 
     def compile(self, ignore_tags=False):
         self.validate_compilable()
@@ -747,6 +758,10 @@ class BaseExpansionRef(BaseRef, Expansion):
         # Call both super constructors
         BaseRef.__init__(self, name)
         Expansion.__init__(self, [])
+
+    @staticmethod
+    def valid(name):
+        return optionally_qualified_name.matches(name)
 
     def compile(self, ignore_tags=False):
         self.validate_compilable()
