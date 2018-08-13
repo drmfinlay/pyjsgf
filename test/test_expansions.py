@@ -1,6 +1,8 @@
 import unittest
 from copy import deepcopy
 
+from six import text_type
+
 from jsgf import *
 from jsgf.expansions import ExpansionWithChildren, SingleChildExpansion, \
     VariableChildExpansion, BaseExpansionRef, ChildList
@@ -489,6 +491,42 @@ class Copying(unittest.TestCase):
     def test_repeat(self):
         self.assert_copy_works(Repeat("testing"))
         self.assert_copy_works(KleeneStar("testing"))
+
+
+class LiteralProperties(unittest.TestCase):
+    """
+    Tests for the Literal class properties.
+    """
+    def test_set_text(self):
+        e = Literal("a")
+        e.text = "b"
+        self.assertEqual(e.text, "b")
+
+    def test_text_lowercase(self):
+        """Literal.text gets and sets lowercase strings."""
+        e = Literal("A")
+        self.assertEqual(e.text, "a")
+        e.text = "A"
+        self.assertEqual(e.text, "a")
+
+    def test_set_text_valid_type(self):
+        """Literal.text accepts string types."""
+        l = Literal("")
+        l.text = text_type("a")
+        self.assertEqual(l.text, "a")
+        l.text = str("b")
+        self.assertEqual(l.text, "b")
+
+    def test_set_text_invalid_types(self):
+        l = Literal("")
+
+        # Make a local function for testing assignments.
+        def test_assignment(x):
+            l.text = x
+
+        self.assertRaises(TypeError, test_assignment, object())
+        self.assertRaises(TypeError, test_assignment, 1)
+        self.assertRaises(TypeError, test_assignment, None)
 
 
 class AncestorProperties(unittest.TestCase):

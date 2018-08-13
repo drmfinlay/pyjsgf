@@ -1079,11 +1079,13 @@ class Sequence(VariableChildExpansion):
 
 
 class Literal(Expansion):
+    """
+    Expansion class for literals.
+    """
     def __init__(self, text):
-        # CMU Sphinx recognizers use dictionaries with lower case words only
-        # So use lower() to fix errors similar to:
-        # "The word 'HELLO' is missing in the dictionary"
-        self.text = text.lower()
+        # Set _text and use the text setter to validate the input.
+        self._text = ""
+        self.text = text
         self._pattern = None
         super(Literal, self).__init__([])
 
@@ -1092,6 +1094,23 @@ class Literal(Expansion):
 
     def __hash__(self):
         return hash("%s" % self)
+
+    @property
+    def text(self):
+        """
+        Text to match/compile.
+        Text will be put in lowercase. Override this property's setter to change
+        that behaviour.
+        """
+        return self._text
+
+    @text.setter
+    def text(self, value):
+        if not isinstance(value, string_types):
+            raise TypeError("expected string, got %s instead" % value)
+
+        # Use lowercase text by convention.
+        self._text = value.lower()
 
     def __copy__(self):
         e = type(self)(self.text)
