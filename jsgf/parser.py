@@ -44,11 +44,11 @@ line_delimiter = Suppress(OneOrMore(
 
 def _post_process(tokens):
     """Do post-processing on the expansion tree produced by the parser."""
-    def flatten_chain(lst):
+    def flatten_chain(lst, inst):
         children = []
         for x in lst:
-            if isinstance(x, (AlternativeSet, Sequence)):
-                children.extend(flatten_chain(x.children))
+            if isinstance(x, inst):
+                children.extend(flatten_chain(x.children, inst))
             else:
                 children.append(x)
         return children
@@ -73,10 +73,10 @@ def _post_process(tokens):
         # Flatten any alternative set or sequence chains.
         if len(e.children) >= 1 and isinstance(e, AlternativeSet) and \
                 isinstance(e.children[1], AlternativeSet):
-            e.children = flatten_chain(e.children)
+            e.children = flatten_chain(e.children, AlternativeSet)
         elif len(e.children) > 1 and isinstance(e, Sequence) and \
                 isinstance(e.children[1], Sequence):
-            e.children = flatten_chain(e.children)
+            e.children = flatten_chain(e.children, Sequence)
 
         return result
 
