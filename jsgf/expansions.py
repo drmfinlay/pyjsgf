@@ -4,9 +4,9 @@ Classes for compiling and matching Java Speech Grammar Format expansions.
 import re
 
 from copy import deepcopy
-from six import string_types
+from six import string_types, PY2, PY3
 
-from .references import BaseRef, optionally_qualified_name, words as words_parser
+from .references import BaseRef, optionally_qualified_name
 from .errors import *
 
 
@@ -220,6 +220,123 @@ class JointTreeContext(object):
         map_expansion(self._root, self.detach_tree, TraversalOrder.PostOrder)
 
 
+class ChildList(list):
+    """
+    List subclass for expansion child lists.
+    """
+
+    def __init__(self, expansion, seq=()):
+        # Ensure that 'expansion' is an expansion.
+        self._expansion = Expansion.make_expansion(expansion)
+
+        # If seq is specified, map each element in the sequence to an Expansion
+        # (if possible) and set each expanion's parent to self._expansion.
+        if seq:
+            def f(x):
+                x = Expansion.make_expansion(x)
+                x.parent = self._expansion
+                return x
+
+            seq = map(f, seq)
+        super(ChildList, self).__init__(seq)
+
+    def append(self, e):
+        e = Expansion.make_expansion(e)
+        super(ChildList, self).append(e)
+        e.parent = self._expansion
+
+    def clear(self):
+        """
+        Remove all expansions from this list and unset their parent attributes.
+        """
+        # Clear the list using remove().
+        for c in tuple(self):
+            self.remove(c)
+
+    def orphan_children(self):
+        """
+        Set each child's parent to None.
+        """
+        for c in self:
+            c.parent = None
+
+    def extend(self, iterable):
+        # Make each item in the iterable into an Expansion.
+        iterable = [Expansion.make_expansion(e) for e in iterable]
+
+        # Set the parent of each to self._expansion.
+        for e in iterable:
+            e.parent = self._expansion
+
+        # Call the super method to extend the list.
+        super(ChildList, self).extend(iterable)
+
+    def insert(self, index, e):
+        # Make e an Expansion, call the super method and set e's parent.
+        e = Expansion.make_expansion(e)
+        super(ChildList, self).insert(index, e)
+        e.parent = self._expansion
+
+    def pop(self, index=-1):
+        # Pop item at the specified index (default -1), set its parent to None
+        # and return it.
+        e = super(ChildList, self).pop(index)
+        e.parent = None
+        return e
+
+    def remove(self, value):
+        # Set the parent before removing the expansion.
+        # 'value' is not necessarily in the list, so we can't use that.
+        self[self.index(value)].parent = None
+        super(ChildList, self).remove(value)
+
+    def __setslice__(self, i, j, sequence):
+        """
+        Method for setting a list slice compatible with Python 2 and 3.
+        :type i: int
+        :type j: int
+        :type sequence: iterable
+        """
+        # Convert the sequence to a sequence of Expansions if it isn't one.
+        sequence = [Expansion.make_expansion(e) for e in sequence]
+
+        # Orphan the old children :-(
+        def orphan(x):
+            x.parent = None
+
+        [orphan(c) for c in self[i:j]]
+
+        # Call the appropriate super method for the Python version.
+        if PY2:
+            super(ChildList, self).__setslice__(i, j, sequence)
+        else:
+            super(ChildList, self).__setitem__(slice(i, j), sequence)
+
+        # Adopt the new children :-)
+        def adopt(x):
+            x.parent = self._expansion
+
+        [adopt(c) for c in sequence]
+
+    def __setitem__(self, i, value):
+        # Handle setting slices separately for my sanity.
+        if isinstance(i, slice):
+            self.__setslice__(i.start, i.stop, value)
+            return
+
+        # Convert value to Expansion appropriately.
+        value = Expansion.make_expansion(value)
+
+        # Orphan the old child :-(
+        self[i].parent = None
+
+        # Call the super method to set the Expansion.
+        super(ChildList, self).__setitem__(i, value)
+
+        # Adopt the new child :-)
+        self[i].parent = self._expansion
+
+
 class Expansion(object):
     """
     Expansion base class
@@ -285,6 +402,10 @@ class Expansion(object):
 
     @property
     def children(self):
+        """
+        List of children.
+        :rtype: ChildList
+        """
         return self._children
 
     @children.setter
@@ -292,15 +413,12 @@ class Expansion(object):
         if not isinstance(value, (tuple, list)):
             raise TypeError("'children' must be a list or tuple")
 
-        # Transform any non-expansion children into expansions
-        children = [self.make_expansion(e) for e in value]
+        # Orphan current children if applicable.
+        if self._children:
+            self._children.orphan_children()
 
-        # Set each child's parent as this expansion.
-        for child in children:
-            child.parent = self
-
-        # Set the internal list.
-        self._children = children
+        # Set a new ChildList. This will handle setting the parent attributes.
+        self._children = ChildList(self, value)
 
     def compile(self, ignore_tags=False):
         self.validate_compilable()
@@ -961,11 +1079,13 @@ class Sequence(VariableChildExpansion):
 
 
 class Literal(Expansion):
+    """
+    Expansion class for literals.
+    """
     def __init__(self, text):
-        # CMU Sphinx recognizers use dictionaries with lower case words only
-        # So use lower() to fix errors similar to:
-        # "The word 'HELLO' is missing in the dictionary"
-        self.text = text.lower()
+        # Set _text and use the text setter to validate the input.
+        self._text = ""
+        self.text = text
         self._pattern = None
         super(Literal, self).__init__([])
 
@@ -974,6 +1094,23 @@ class Literal(Expansion):
 
     def __hash__(self):
         return hash("%s" % self)
+
+    @property
+    def text(self):
+        """
+        Text to match/compile.
+        Text will be put in lowercase. Override this property's setter to change
+        that behaviour.
+        """
+        return self._text
+
+    @text.setter
+    def text(self, value):
+        if not isinstance(value, string_types):
+            raise TypeError("expected string, got %s instead" % value)
+
+        # Use lowercase text by convention.
+        self._text = value.lower()
 
     def __copy__(self):
         e = type(self)(self.text)

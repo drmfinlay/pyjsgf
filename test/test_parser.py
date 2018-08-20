@@ -87,6 +87,12 @@ class ExpansionParserTests(unittest.TestCase):
         # Also test invalid alt. sets
         self.assertRaises(ParseException, parse_expansion_string, "a|b|")
 
+    def test_alt_set_within_sequence(self):
+        self.assertEqual(
+            parse_expansion_string("i (go | run) to school"),
+            Sequence("i", AlternativeSet("go", "run"), "to school")
+        )
+
     def test_optional(self):
         self.assertEqual(parse_expansion_string("[a]"), OptionalGrouping("a"))
         self.assertEqual(parse_expansion_string("([a])"), OptionalGrouping("a"))

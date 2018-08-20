@@ -1,9 +1,11 @@
 import unittest
 from copy import deepcopy
 
+from six import text_type
+
 from jsgf import *
 from jsgf.expansions import ExpansionWithChildren, SingleChildExpansion, \
-    VariableChildExpansion, BaseExpansionRef
+    VariableChildExpansion, BaseExpansionRef, ChildList
 from jsgf.ext import Dictation
 
 
@@ -136,6 +138,152 @@ class ParentCase(unittest.TestCase):
     def test_parent_is_set(self):
         # Recursively test the descendants of the Sequence expansion
         self.check_descendants(self.expansions[0])
+
+
+class ChildListCase(unittest.TestCase):
+    """
+    Tests for the ChildList class.
+
+    Most test methods in this class do not use ChildList directly because it
+    requires an Expansion parameter.
+    """
+    def setUp(self):
+        self.e = Sequence("a", "b", "c")
+
+    def test_setter(self):
+        """Expansion classes always use ChildrenLists."""
+        e = Sequence()
+        self.assertIsInstance(e.children, ChildList)
+        e.children = ChildList(e, ["a", "b", "c"])
+        self.assertIsInstance(e.children, ChildList)
+        self.assertListEqual(e.children, [Literal("a"), Literal("b"), Literal("c")])
+
+        # Check that replacing a ChildList modifies the old list appropriately.
+        old_list = e.children
+        e.children = ChildList(e, ["x", "y", "z"])
+        self.assertIsNone(old_list[0].parent)
+        self.assertIsNone(old_list[1].parent)
+        self.assertIsNone(old_list[2].parent)
+
+    def test_orphan_children(self):
+        """ChildList.orphan_children() sets each child's parent to None."""
+        e = self.e
+        e.children.orphan_children()
+        self.assertIsNone(e.children[0].parent)
+        self.assertIsNone(e.children[1].parent)
+        self.assertIsNone(e.children[2].parent)
+
+    def test_equal(self):
+        """Equivalent lists and ChildLists should be equal."""
+        e = self.e
+        self.assertListEqual(e.children, [Literal(s) for s in ("a", "b", "c")])
+        e = Literal("a")
+        self.assertListEqual(e.children, [])
+
+    def test_unequal(self):
+        """Different lists and ChildLists should still be unequal."""
+        e = self.e
+        self.assertNotEqual(e.children, [Literal(s) for s in ("a", "b")])
+
+    def test_string_to_literal(self):
+        """Strings added to a ChildList are turned into Literals."""
+        # Test append()
+        e = Sequence("a")
+        e.children.append("b")
+        expected = Sequence("a", "b")
+        self.assertListEqual(e.children, expected.children)
+
+        # Test insert()
+        e = Sequence("a")
+        e.children.insert(1, "b")
+        self.assertListEqual(e.children, expected.children)
+
+        # Test set item
+        e = Sequence("a")
+        e.children[0] = "b"
+        self.assertListEqual(e.children, Sequence("b").children)
+
+    def test_append(self):
+        """Appended children are added and have their parent attributes set."""
+        # Test with an expansion and string.
+        e = self.e
+        e.children.append("d")
+        e.children.append(OptionalGrouping("e"))
+        expected = Sequence("a", "b", "c", "d", OptionalGrouping("e"))
+        self.assertListEqual(e.children, expected.children)
+        self.assertEqual(e.children[3].parent, e)
+        self.assertEqual(e.children[4].parent, e)
+
+    def test_clear(self):
+        """Each child has no parent after clear() is called."""
+        e = self.e
+        a, b, c = e.children
+        e.children.clear()
+        self.assertIsNone(a.parent)
+        self.assertIsNone(b.parent)
+        self.assertIsNone(c.parent)
+
+    def test_extend(self):
+        """extend() appends each element in an iterable and sets each parent."""
+        e = Sequence("a")
+        e.children.extend(["b", OptionalGrouping("c")])
+        expected = Sequence("a", "b", OptionalGrouping("c"))
+        self.assertListEqual(e.children, expected.children)
+        self.assertEqual(e.children[1].parent, e)
+        self.assertEqual(e.children[2].parent, e)
+
+    def test_insert(self):
+        """Inserted children are added and have their parent attributes set."""
+        e = self.e
+        e.children.insert(0, "a")
+        e.children.insert(4, OptionalGrouping("e"))
+        expected = Sequence("a", "a", "b", "c", OptionalGrouping("e"))
+        self.assertListEqual(e.children, expected.children)
+        self.assertEqual(e.children[0].parent, e)
+        self.assertEqual(e.children[4].parent, e)
+
+    def test_pop(self):
+        """Expansions removed using pop() have parent set to None."""
+        e = self.e
+        c = e.children.pop()
+        self.assertEqual(c, Literal("c"))
+        self.assertIsNone(c.parent)
+
+        # Test with an explicit index.
+        a = e.children.pop(0)
+        self.assertEqual(a, Literal("a"))
+        self.assertIsNone(a.parent)
+
+    def test_remove(self):
+        """Expansions removed using remove() have parent set to None."""
+        e = self.e
+        a = e.children[0]
+        e.children.remove(a)
+        self.assertIsNone(a.parent)
+
+    def test_set_slice(self):
+        """Setting list slices works as expected."""
+        e = self.e
+        a, b, c = e.children
+        expected = Sequence("x", "y", "z")
+        e.children[0:3] = "x", "y", "z"
+        self.assertListEqual(e.children, expected.children)
+
+        # Check that the old children no longer have e as their parent.
+        self.assertIsNone(a.parent)
+        self.assertIsNone(b.parent)
+        self.assertIsNone(c.parent)
+
+    def test_set_item(self):
+        """Setting items changes the parents of new and old expansions."""
+        e = self.e
+        a = e.children[0]
+        expected = Sequence("x", "b", "c")
+        e.children[0] = "x"
+        self.assertListEqual(e.children, expected.children)
+
+        # Check that the old child no longer has e as its parent.
+        self.assertIsNone(a.parent)
 
 
 class Comparisons(unittest.TestCase):
@@ -343,6 +491,42 @@ class Copying(unittest.TestCase):
     def test_repeat(self):
         self.assert_copy_works(Repeat("testing"))
         self.assert_copy_works(KleeneStar("testing"))
+
+
+class LiteralProperties(unittest.TestCase):
+    """
+    Tests for the Literal class properties.
+    """
+    def test_set_text(self):
+        e = Literal("a")
+        e.text = "b"
+        self.assertEqual(e.text, "b")
+
+    def test_text_lowercase(self):
+        """Literal.text gets and sets lowercase strings."""
+        e = Literal("A")
+        self.assertEqual(e.text, "a")
+        e.text = "A"
+        self.assertEqual(e.text, "a")
+
+    def test_set_text_valid_type(self):
+        """Literal.text accepts string types."""
+        l = Literal("")
+        l.text = text_type("a")
+        self.assertEqual(l.text, "a")
+        l.text = str("b")
+        self.assertEqual(l.text, "b")
+
+    def test_set_text_invalid_types(self):
+        l = Literal("")
+
+        # Make a local function for testing assignments.
+        def test_assignment(x):
+            l.text = x
+
+        self.assertRaises(TypeError, test_assignment, object())
+        self.assertRaises(TypeError, test_assignment, 1)
+        self.assertRaises(TypeError, test_assignment, None)
 
 
 class AncestorProperties(unittest.TestCase):

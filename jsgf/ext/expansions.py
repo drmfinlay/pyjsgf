@@ -360,9 +360,12 @@ def calculate_expansion_sequence(expansion, should_deepcopy=True):
             # expansions are placed after groups of normal expansions
             child_group = []
 
-            # Remove and process each child from left to right
+            # Remove and process each child from left to right.
             while len(e.children) > 0:
-                child_result = calculate_sequence(e.children.pop(0))
+                # Keep the parent relationship, as it is used above.
+                c = e.children.pop(0)
+                c.parent = e
+                child_result = calculate_sequence(c)
 
                 # Process the child_result list
                 for r in child_result:
