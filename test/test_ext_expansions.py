@@ -86,12 +86,32 @@ class DictationMatchesCase(unittest.TestCase):
         self.assertEqual(e2.children[0].current_match, "hey")
         self.assertEqual(e2.children[1].current_match, "hello")
 
-class DictationCompilation(unittest.TestCase):
-    def test(self):
+
+class DictationMethodsCase(unittest.TestCase):
+    """
+    Test case for Dictation methods.
+    """
+    def test_compile(self):
         d = Dict()
         d.tag = "dictation"
         self.assertEqual(d.compile(ignore_tags=True), "")
         self.assertEqual(d.compile(ignore_tags=False), " { dictation }")
+
+    def test_hash(self):
+        # Test that dictation expansions with the same parents have the same hashes.
+        dict1, dict2 = Dict(), Dict()
+        e1 = Seq("test", dict1)
+        e2 = Seq("test", dict2)
+        self.assertEqual(hash(e1), hash(e2))
+
+        # Test that dictation expansions with different parents have different
+        # hashes.
+        dict1, dict2 = Dict(), Dict()
+        e1 = Seq("a", dict1)
+        e2 = Seq("b", dict2)
+        self.assertNotEqual(hash(e1), hash(e2))
+        self.assertNotEqual(hash(e1), hash(Dict()))
+        self.assertNotEqual(hash(e2), hash(Dict()))
 
 
 class ExpansionSequenceCase(unittest.TestCase):

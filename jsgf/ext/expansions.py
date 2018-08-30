@@ -27,6 +27,17 @@ class Dictation(Literal):
     def __deepcopy__(self, memo=None):
         return self.__copy__()
 
+    def __hash__(self):
+        # A Dictation hash is a hash of the class name and each ancestor's string
+        # representation.
+        ancestors = []
+        p = self.parent
+        while p:
+            ancestors.append("%s" % p)
+            p = p.parent
+        return hash("%s: %s" % (self.__class__.__name__,
+                                ",".join(ancestors)))
+
     def validate_compilable(self):
         pass
 

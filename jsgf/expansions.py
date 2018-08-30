@@ -1429,7 +1429,7 @@ class AlternativeSet(VariableChildExpansion):
         # hashes of children, similar to expansion string representations.
         # Hashes of children are sorted so that the same value is returned
         # regardless of child order.
-        child_hashes = sorted([hash(c) for c in self.children])
+        child_hashes = sorted([c.compile() for c in self.children])
         return hash(
             "%s(%s)%s" % (self.__class__.__name__, child_hashes, self.tag)
         )
