@@ -242,25 +242,6 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertTrue(r.matches("a b"))
         self.assertEqual(r.expansion.matches("a b"), "")
 
-    def test_rule_ref_ambiguous(self):
-        e1 = Literal("hello")
-        r1 = HiddenRule("test1", e1)
-        e2 = Sequence(
-            OptionalGrouping(RuleRef(r1)), "hello")
-        r2 = PublicRule("test2", e2)
-
-        self.assertTrue(r2.matches("hello"))
-        self.assertEqual(e2.current_match, "hello")
-        self.assertEqual(e2.children[0].current_match, "")
-        self.assertEqual(e2.children[1].current_match, "hello")
-        self.assertEqual(e1.current_match, "")
-
-        self.assertFalse(r2.matches("hello hello hello"))
-        self.assertEqual(e2.current_match, None)
-        self.assertEqual(e2.children[0].current_match, "hello")
-        self.assertEqual(e1.current_match, "hello")
-        self.assertEqual(e2.children[1].current_match, "hello")
-
     def test_optional_simple(self):
         e = Sequence("hello", OptionalGrouping("there"))
         r = PublicRule("test", e)
@@ -318,135 +299,6 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(c.current_match, "c")
         self.assertEqual(opt2.current_match, "")
         self.assertEqual(d.current_match, "")
-
-    def test_optional_ambiguous(self):
-        e1 = Sequence("a", OptionalGrouping("a"))
-        r1 = PublicRule("test", e1)
-        self.assertTrue(r1.matches("a"))
-        self.assertEqual(e1.current_match, "a")
-        self.assertEqual(e1.children[0].current_match, "a")
-        self.assertEqual(e1.children[1].current_match, "")
-
-        self.assertTrue(r1.matches("a a"))
-        self.assertEqual(e1.current_match, "a a")
-        self.assertEqual(e1.children[0].current_match, "a")
-        self.assertEqual(e1.children[1].current_match, "a")
-
-        e2 = Sequence(OptionalGrouping("a"), "a")
-        r2 = PublicRule("test", e2)
-        self.assertTrue(r2.matches("a"))
-        self.assertEqual(e2.current_match, "a")
-        self.assertEqual(e2.children[0].current_match, "")
-        self.assertEqual(e2.children[1].current_match, "a")
-
-        self.assertTrue(r2.matches("a a"))
-        self.assertEqual(e2.current_match, "a a")
-        self.assertEqual(e2.children[0].current_match, "a")
-        self.assertEqual(e2.children[1].current_match, "a")
-
-    def test_multiple_optional_ambiguous(self):
-        e1 = Sequence("a", OptionalGrouping("a"), OptionalGrouping("a"))
-        r1 = PublicRule("test", e1)
-        self.assertTrue(r1.matches("a"))
-        self.assertEqual(e1.current_match, "a")
-        self.assertEqual(e1.children[0].current_match, "a")
-        self.assertEqual(e1.children[1].current_match, "")
-        self.assertEqual(e1.children[2].current_match, "")
-
-        self.assertTrue(r1.matches("a a"))
-        self.assertEqual(e1.current_match, "a a")
-        self.assertEqual(e1.children[0].current_match, "a")
-        self.assertEqual(e1.children[1].current_match, "a")
-        self.assertEqual(e1.children[2].current_match, "")
-
-        self.assertTrue(r1.matches("a a a"))
-        self.assertEqual(e1.current_match, "a a a")
-        self.assertEqual(e1.children[0].current_match, "a")
-        self.assertEqual(e1.children[1].current_match, "a")
-        self.assertEqual(e1.children[2].current_match, "a")
-
-        e2 = Sequence(OptionalGrouping("a"), OptionalGrouping("a"), "a")
-        r2 = PublicRule("test", e2)
-        self.assertTrue(r2.matches("a"))
-        self.assertEqual(e2.current_match, "a")
-        self.assertEqual(e2.children[0].current_match, "")
-        self.assertEqual(e2.children[1].current_match, "")
-        self.assertEqual(e2.children[2].current_match, "a")
-
-        self.assertTrue(r2.matches("a a"))
-        self.assertEqual(e2.current_match, "a a")
-        self.assertEqual(e2.children[0].current_match, "a")
-        self.assertEqual(e2.children[1].current_match, "")
-        self.assertEqual(e2.children[2].current_match, "a")
-
-        self.assertTrue(r2.matches("a a a"))
-        self.assertEqual(e2.current_match, "a a a")
-        self.assertEqual(e2.children[0].current_match, "a")
-        self.assertEqual(e2.children[1].current_match, "a")
-        self.assertEqual(e2.children[2].current_match, "a")
-
-    def test_optional_ambiguous_complex(self):
-        root = Sequence("a", OptionalGrouping("a"),
-                        Sequence("a", OptionalGrouping("a")))
-        a1 = root.children[0]
-        opt1 = root.children[1]
-        a2 = opt1.child
-        seq2 = root.children[2]
-        a3 = seq2.children[0]
-        opt2 = seq2.children[1]
-        a4 = opt2.child
-
-        r = PublicRule("test", root)
-
-        self.assertTrue(r.matches("a a a a"))
-        self.assertEqual(root.current_match, "a a a a")
-        self.assertEqual(a1.current_match, "a")
-        self.assertEqual(opt1.current_match, "a")
-        self.assertEqual(a2.current_match, "a")
-        self.assertEqual(seq2.current_match, "a a")
-        self.assertEqual(a3.current_match, "a")
-        self.assertEqual(opt2.current_match, "a")
-        self.assertEqual(a4.current_match, "a")
-
-        self.assertTrue(r.matches("a a a"))
-        self.assertEqual(root.current_match, "a a a")
-        self.assertEqual(a1.current_match, "a")
-        self.assertEqual(opt1.current_match, "a")
-        self.assertEqual(a2.current_match, "a")
-        self.assertEqual(seq2.current_match, "a")
-        self.assertEqual(a3.current_match, "a")
-        self.assertEqual(opt2.current_match, "")
-        self.assertEqual(a4.current_match, "")
-
-        self.assertTrue(r.matches("a a"))
-        self.assertEqual(root.current_match, "a a")
-        self.assertEqual(a1.current_match, "a")
-        self.assertEqual(opt1.current_match, "")
-        self.assertEqual(a2.current_match, "")
-        self.assertEqual(seq2.current_match, "a")
-        self.assertEqual(a3.current_match, "a")
-        self.assertEqual(opt2.current_match, "")
-        self.assertEqual(a4.current_match, "")
-
-    def test_optional_forward_search_complex(self):
-        seq1 = Sequence(
-            OptionalGrouping(Sequence("a", "b c")),
-            "a b c"
-        )
-        opt = seq1.children[0]
-        seq2 = opt.child
-        a = seq2.children[0]
-        bc = seq2.children[1]
-        abc = seq1.children[1]
-        r = PublicRule("test", seq1)
-
-        self.assertTrue(r.matches("a b c"))
-        self.assertEqual(seq1.current_match, "a b c")
-        self.assertEqual(abc.current_match, "a b c")
-        self.assertEqual(opt.current_match, "")
-        self.assertEqual(seq2.current_match, "")
-        self.assertEqual(a.current_match, "")
-        self.assertEqual(bc.current_match, "")
 
     def test_repeat_simple(self):
         e = Repeat("hello")
@@ -591,46 +443,6 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertTrue(r2.matches("a a b c d"))
         self.assertTrue(r2.matches("a b c c d"))
         self.assertTrue(r2.matches("a a b c c d"))
-
-    def test_kleene_star_ambiguous(self):
-        e = Sequence(KleeneStar("a"), KleeneStar("a"), "a")
-        r = PublicRule("test", e)
-
-        self.assertTrue(r.matches("a"))
-        self.assertEqual(e.children[0].current_match, "")
-        self.assertEqual(e.children[0].child.current_match, "")
-        self.assertEqual(e.children[1].current_match, "")
-        self.assertEqual(e.children[1].child.current_match, "")
-        self.assertEqual(e.children[2].current_match, "a")
-        self.assertEqual(e.current_match, "a")
-
-        # For the moment, an error should be raised for ambiguous repetition
-        self.assertRaises(MatchError, r.matches, "a a")
-        self.assertRaises(MatchError, r.matches, "a a a")
-
-    def test_repeat_ambiguous(self):
-        e1 = Sequence(Repeat("a"), Repeat("a"), "a")
-        r1 = PublicRule("test", e1)
-
-        self.assertFalse(r1.matches("a"))
-        self.assertEqual(e1.children[0].current_match, None)
-        self.assertEqual(e1.children[0].child.current_match, None)
-        self.assertEqual(e1.children[1].current_match, None)
-        self.assertEqual(e1.children[1].child.current_match, None)
-        self.assertEqual(e1.children[2].current_match, None)
-        self.assertEqual(e1.current_match, None)
-
-        # For the moment, an error should be raised for ambiguous repetition
-        self.assertRaises(MatchError, r1.matches, "a a")
-        self.assertRaises(MatchError, r1.matches, "a a a")
-
-        r2 = PublicRule("test", Sequence(Repeat("a"), Repeat("a")))
-        self.assertRaises(MatchError, r2.matches, "a a a")
-        self.assertRaises(MatchError, r2.matches, "a a a")
-
-        r3 = PublicRule("test", Sequence(Repeat("a"), KleeneStar("a")))
-        self.assertRaises(MatchError, r3.matches, "a a")
-        self.assertRaises(MatchError, r3.matches, "a a a")
 
     def test_repetition_match_methods(self):
         """
