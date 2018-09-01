@@ -4,7 +4,9 @@ Classes for compiling and matching Java Speech Grammar Format expansions.
 import re
 
 from copy import deepcopy
-from six import string_types, PY2, PY3
+
+import pyparsing
+from six import string_types, PY2
 
 from .references import BaseRef, optionally_qualified_name
 from .errors import *
@@ -348,6 +350,9 @@ class Expansion(object):
         self._tag = ""
         self._parent = None
 
+        # Internal member for the parser element used during matching.
+        self._matcher_element = None
+
         # Set children, letting the setter handle validation.
         self._children = None
         self.children = children
@@ -429,12 +434,27 @@ class Expansion(object):
 
     @property
     def parent(self):
+        """
+        This expansion's parent, if it has one.
+        :returns: Expansion | None
+        """
         return self._parent
 
     @parent.setter
     def parent(self, value):
         if isinstance(value, Expansion) or value is None:
+            # Invalidate the old parent if necessary.
+            if self._parent:
+                self._parent.invalidate_matcher()
+
+            # Set the parent and invalidate the matcher element for this expansion.
             self._parent = value
+            self.invalidate_matcher()
+
+            # Also invalidate the new parent as necessary. This is a quick operation
+            # if nothing has been matched yet.
+            if self._parent:
+                self._parent.invalidate_matcher()
         else:
             raise AttributeError("'parent' must be an Expansion or None")
 
@@ -542,25 +562,87 @@ class Expansion(object):
         Match speech with this expansion, set current_match to the first matched
         substring and return the remainder of the string.
 
-        If the required descendants of an expansion don't match, the match data for
-        the expansion and all of its descendants will be reset and the original
-        speech string will be returned.
-
         :type speech: str
         :return: consumed / unconsumed speech string
         """
-        result = speech.lstrip()
-        return self._matches_internal(result).strip()
+        # Match the string using this expansion's parser element.
+        speech = speech.strip()
+        try:
+            result = " ".join(
+                self.matcher_element.parseString(speech).asList()
+            )
+        except pyparsing.ParseException:
+            result = ""
 
-    def _matches_internal(self, speech):
+        # Return the difference between the result and speech. The result can be
+        # shorter than speech, which means the match wasn't complete.
+        remaining = speech[len(result):].strip()
+
+        # Do a second pass of the expansion tree for post-processing.
+        def process(x):
+            # Remove partial matches.
+            if (x.parent and not isinstance(x, NamedRuleRef) and not
+                    x.parent.current_match):
+                x.current_match = None
+
+        map_expansion(self, process)
+        return remaining
+
+    def invalidate_matcher(self):
         """
-        Expansion subclasses should override this internal method to set the
-        current_match values for self and for any children.
-        :type speech: str
-        :return: consumed / unconsumed speech string
+        Method to invalidate the parser element used for matching this expansion.
+        This is method is called automatically when a parent is set or a ChildList
+        is modified. The parser element will be recreated again when required.
+
+        This only needs to be called manually if modifying an expansion tree *after*
+        matching with a Dictation expansion.
         """
-        # Don't consume speech strings by default.
-        return speech
+        # Return early if _matcher_element hasn't been set.
+        if not self._matcher_element:
+            return
+
+        # Set _matcher_element to None for this expansion and each ancestor, but not
+        # any other subtrees (they are unaffected).
+        self._matcher_element = None
+        if self.parent:
+            self.parent.invalidate_matcher()
+
+        # If at the root expansion, call invalidate_matcher for any RuleRefs or
+        # NamedRuleRefs that reference this rule. To make things simple, this is
+        # is only done if this expansion belongs to a rule in a grammar.
+        elif self.rule and self.rule.grammar:
+            def process(x):
+                if isinstance(x, NamedRuleRef) and x.name == self.rule.name:
+                    x.invalidate_matcher()
+
+            # Invalidate each reference to this rule. Use shallow=True because every
+            # rule in the grammar will be processed, no need to process rules twice.
+            for r in self.rule.grammar.rules:
+                map_expansion(r.expansion, process, shallow=True)
+
+    @property
+    def matcher_element(self):
+        """
+        Lazily initialised pyparsing ParserElement used to match speech to
+        expansions. It will also set current_match values.
+        :rtype: pyparsing.ParserElement
+        """
+        if not self._matcher_element:
+            element = self._make_matcher_element()
+            self._matcher_element = element
+        else:
+            element = self._matcher_element
+        return element
+
+    def _parse_action(self, tokens):
+        self.current_match = " ".join(tokens.asList())
+        return tokens
+
+    def _make_matcher_element(self):
+        """
+        Method used by the matcher_element property to create ParserElements.
+        """
+        raise NotImplementedError()
 
     @property
     def had_match(self):
@@ -582,7 +664,7 @@ class Expansion(object):
     def _init_lookup(self):
         """
         Initialises the lookup dictionary for the root expansion.
-        If the lookup is already initialised, this does nothing.
+        If it is already initialised, this does nothing.
         """
         if not self._lookup_dict:
             self._lookup_dict = {
@@ -920,12 +1002,17 @@ class NamedRuleRef(BaseExpansionRef):
         if self.rule and self.rule.grammar:
             return self.rule.grammar.get_rule_from_name(self.name)
         else:
-            raise GrammarError()
+            raise GrammarError("cannot get referenced Rule object from Grammar")
 
-    def _matches_internal(self, speech):
-        result = self.referenced_rule.expansion.matches(speech)
-        self.current_match = self.referenced_rule.expansion.current_match
-        return result
+    def _make_matcher_element(self):
+        # Wrap the parser element for the referenced rule's root expansion so that
+        # the current match value for the NamedRuleRef is also set.
+        return pyparsing.And([
+            self.referenced_rule.expansion.matcher_element
+        ]).setParseAction(self._parse_action)
+
+    def __hash__(self):
+        return super(NamedRuleRef, self).__hash__()
 
 
 class NullRef(BaseExpansionRef):
@@ -935,8 +1022,8 @@ class NullRef(BaseExpansionRef):
     def __init__(self):
         super(NullRef, self).__init__("NULL")
 
-    def _matches_internal(self, speech):
-        return ""
+    def _make_matcher_element(self):
+        return pyparsing.Empty().setParseAction(self._parse_action)
 
     def _set_current_match(self, value):
         self._current_match = ""
@@ -962,8 +1049,8 @@ class VoidRef(BaseExpansionRef):
     def __init__(self):
         super(VoidRef, self).__init__("VOID")
 
-    def _matches_internal(self, speech):
-        return speech
+    def _make_matcher_element(self):
+        return pyparsing.NoMatch().setParseAction(self._parse_action)
 
     def _set_current_match(self, value):
         self._current_match = None
@@ -1053,26 +1140,10 @@ class Sequence(VariableChildExpansion):
         else:
             return seq
 
-    def _matches_internal(self, speech):
-        result = speech
-        for child in self.children:
-            # Consume speech
-            result = child.matches(result)
-
-            # Child was non-optional and did not match, so break.
-            if child.current_match is None:
-                break
-
-        # Check if any children returned None as the match
-        child_matches = [child.current_match for child in self.children]
-        if None in child_matches:
-            # Reset match data for this subtree and return the original speech
-            # string; this was an incomplete match.
-            self.reset_for_new_match()
-            return speech
-        else:
-            self.current_match = " ".join(child_matches)
-            return result
+    def _make_matcher_element(self):
+        # Return an And element using each child's matcher element.
+        return pyparsing.And([child.matcher_element for child in self.children])\
+            .setParseAction(self._parse_action)
 
     def __hash__(self):
         return super(Sequence, self).__hash__()
@@ -1086,7 +1157,6 @@ class Literal(Expansion):
         # Set _text and use the text setter to validate the input.
         self._text = ""
         self.text = text
-        self._pattern = None
         super(Literal, self).__init__([])
 
     def __str__(self):
@@ -1137,78 +1207,22 @@ class Literal(Expansion):
     def matching_regex_pattern(self):
         """
         A regex pattern for matching this expansion.
+
+        This property has been left in for backwards compatibility. The `matches`
+        method now uses the `matcher_element` property instead.
         """
-        if not self._pattern:
-            # Selectively escape certain characters because this text will
-            # be used in a regular expression pattern string.
-            #
-            escaped = self.text.replace(".", r"\.")
+        # Selectively escape certain characters because this text will
+        # be used in a regular expression pattern string.
+        escaped = self.text.replace(".", r"\.")
 
-            # Also make everything lowercase and allow matching 1 or more
-            # whitespace characters between words and before the first word.
-            words = escaped.lower().split()
+        # Create a list of words from text.
+        words = escaped.split()
 
-            # Create and set a regex pattern to use
-            regex = "%s" % "\s+".join(words)
-            self._pattern = re.compile(regex)
-        return self._pattern
+        # Return a regex pattern to use.
+        return re.compile(r"\s+".join(words))
 
-    def _matches_internal(self, speech):
-        result = speech
-        match = self.matching_regex_pattern.match(result)
-
-        if not match:
-            self.current_match = None
-            return result
-
-        repetition_ancestor = self.repetition_ancestor
-        use_match = True
-        if self.is_optional or repetition_ancestor:
-            # Check if there are non-optional unprocessed leaves with only one
-            # match that overlaps with this expansion's match
-            leaves_after = list(self.matchable_leaves_after)
-            for leaf in leaves_after:
-                # Skip any non-literals (dictation counts as a literal)
-                if not isinstance(leaf, Literal) or\
-                        (leaf.is_optional and not leaf.repetition_ancestor):
-                    continue
-
-                leaf_pattern = leaf.matching_regex_pattern
-                leaf_matches = [_ for _ in leaf_pattern.finditer(result)]
-
-                overlapping_matches = []
-                for m in leaf_matches:
-                    if matches_overlap(match, m):
-                        overlapping_matches.append(m)
-
-                if len(overlapping_matches) == 0 and len(leaf_matches) > 0:
-                    use_match = True
-                else:
-                    use_match = len(leaf_matches) > len(overlapping_matches)
-
-                if repetition_ancestor and use_match:
-                    def pattern_matches_self(l):
-                        return (l.matching_regex_pattern.pattern ==
-                                self.matching_regex_pattern.pattern)
-
-                    message = "%s and %s are ambiguous literals used by " \
-                              "one or more repetition expansions" % (self, leaf)
-                    if pattern_matches_self(leaf) and leaf.repetition_ancestor:
-                        raise MatchError(message)
-                    else:
-                        for x in leaves_after:
-                            if pattern_matches_self(x):
-                                raise MatchError(message)
-                            else:
-                                break
-                break
-        if use_match:
-            self.current_match = match.group()
-            result = result[match.end():]
-        else:
-            self.current_match = None
-
-        return result
+    def _make_matcher_element(self):
+        return pyparsing.Literal(self.text).setParseAction(self._parse_action)
 
     def __eq__(self, other):
         return super(Literal, self).__eq__(other) and self.text == other.text
@@ -1243,8 +1257,7 @@ class RuleRef(NamedRuleRef):
         return self.__copy__()
 
     def __hash__(self):
-        return hash("%s%s" % (self.__class__.__name__,
-                              hash(self.referenced_rule)))
+        return super(RuleRef, self).__hash__()
 
 
 class Repeat(SingleChildExpansion):
@@ -1286,53 +1299,51 @@ class Repeat(SingleChildExpansion):
         else:
             return []
 
-    def _matches_internal(self, speech):
-        """
-        Specialisation of matches method for repetition expansions.
-        A match here is whether every child's current_match value is not None at
-        least once.
-        :type speech: str
-        :return: str
-        """
-        result = speech
-        # Save the state of the expansion tree here
-        values = save_current_matches(self)
+    def _parse_action(self, tokens):
+        # This method is called after the child's parse actions.
+        # Set current match and restore the last repetition's match values.
+        self.current_match = " ".join(tokens.asList())
+        if self._repetitions_matched:
+            last = self._repetitions_matched[len(self._repetitions_matched) - 1]
+            restore_current_matches(self.child, last, False)
+        return tokens
 
-        # Accept N complete repetitions
-        matches = []
-        self._repetitions_matched = []
+    def _make_matcher_element(self):
+        # Define an extra parse action for the child's matcher element.
+        def f(tokens):
+            if tokens.asList():
+                # Add current match values to the _repetitions_matched list.
+                self._repetitions_matched.append(save_current_matches(self.child))
 
-        # Use a copy of result for repetitions
-        intermediate_result = result
-        while True:
-            # Consume speech
-            last_intermediate_result = intermediate_result
-            intermediate_result = self.child.matches(intermediate_result)
-            child_match = self.child.current_match
+                # Wipe current match values for the next repetition (if any).
+                self.child.reset_for_new_match()
+            return tokens
 
-            # If the child consumed nothing and still matches, then there is a
-            # descendant that is probably a Dictation expansion. So break out of
-            # the loop.
-            if child_match and intermediate_result == last_intermediate_result:
-                break
+        # Add the extra parse action.
+        e = self.child.matcher_element.addParseAction(f)
 
-            if not child_match:
-                # Restore current_match state for incomplete repetition tree
-                # without overriding current_match strings with None
-                restore_current_matches(self.child, values, override_none=False)
-                break
-            else:
-                matches.append(child_match)
+        # Determine the parser element type to use.
+        t = pyparsing.ZeroOrMore if self.is_optional else pyparsing.OneOrMore
 
-                # Save current_match state for complete repetition and update
-                # repetitions_matched
-                values = save_current_matches(self.child)
+        # Handle the special case of a repetition ancestor, e.g. ((a b)+)+
+        rep = self.repetition_ancestor
+        if rep:
+            # Check if there are no other branches.
+            c = rep.child
+            only_branch = True
+            while c is not self:
+                if len(c.children) > 1:
+                    only_branch = False
+                    break
+                else:
+                    c = c.children[0]
 
-                # Keep a copy of 'values' in the
-                self._repetitions_matched.append(values.copy())
+            # Use an And element instead if self is the only branch because
+            # it makes no sense to repeat a repeat like this!
+            if only_branch:
+                t = pyparsing.And
 
-        self.current_match = " ".join(matches)
-        return intermediate_result
+        return t(e).setParseAction(self._parse_action)
 
     def reset_match_data(self):
         super(Repeat, self).reset_match_data()
@@ -1373,19 +1384,9 @@ class OptionalGrouping(SingleChildExpansion):
         else:
             return "[%s]" % compiled
 
-    def _matches_internal(self, speech):
-        # Consume speech
-        result = self.child.matches(speech)
-
-        # Check if child has None or '' as the match
-        if not self.child.current_match:
-            # Reset match data for this subtree and return the original speech
-            # string; this was an incomplete match.
-            self.reset_for_new_match()
-            return speech
-        else:
-            self.current_match = self.child.current_match
-            return result
+    def _make_matcher_element(self):
+        return pyparsing.Optional(self.child.matcher_element)\
+            .setParseAction(self._parse_action)
 
     @property
     def is_optional(self):
@@ -1429,7 +1430,7 @@ class AlternativeSet(VariableChildExpansion):
         # hashes of children, similar to expansion string representations.
         # Hashes of children are sorted so that the same value is returned
         # regardless of child order.
-        child_hashes = sorted([hash(c) for c in self.children])
+        child_hashes = sorted([c.compile() for c in self.children])
         return hash(
             "%s(%s)%s" % (self.__class__.__name__, child_hashes, self.tag)
         )
@@ -1456,26 +1457,9 @@ class AlternativeSet(VariableChildExpansion):
         else:
             return "(%s)" % alt_set
 
-    def _matches_internal(self, speech):
-        result = speech
-        self.current_match = None
-        for child in self.children:
-            # Consume speech
-            result = child.matches(result)
-            child_match = child.current_match
-            if child_match:
-                self.current_match = child_match
-                break
-            else:
-                # This alternative didn't match, so set the match values of
-                # descendants to None or ''.
-                child.reset_for_new_match()
-
-        # No children matched.
-        if not self.current_match:
-            result = speech
-
-        return result
+    def _make_matcher_element(self):
+        return pyparsing.Or([c.matcher_element for c in self.children])\
+            .setParseAction(self._parse_action)
 
     def __eq__(self, other):
         if type(self) != type(other) or len(self.children) != len(other.children):

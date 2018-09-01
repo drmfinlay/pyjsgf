@@ -1,5 +1,7 @@
 import unittest
 
+from jsgf.ext import Dictation
+
 from jsgf import *
 from jsgf import CompilationError
 
@@ -102,17 +104,12 @@ class PropertiesTests(unittest.TestCase):
 
 class InvalidRules(unittest.TestCase):
     def test_invalid_rules(self):
-        invalid_rules = [
-            PublicRule("test", OptionalGrouping("hello")),
-            PublicRule("test", KleeneStar("hello")),
-            PublicRule("test", AlternativeSet(OptionalGrouping("hello"))),
-            PublicRule("test", Sequence(OptionalGrouping("hello"))),
-            PublicRule("test", "")
-        ]
+        # Literals with text == "" raise CompilationErrors
+        self.assertRaises(CompilationError, PublicRule("test", "").compile)
+        self.assertRaises(CompilationError, PublicRule("test", Literal("")).compile)
 
-        # Rules that only have optional literals are not valid
-        for rule in invalid_rules:
-            self.assertRaises(CompilationError, rule.compile)
+        # Dictation doesn't raise errors on compilation.
+        self.assertEqual(PublicRule("test", Dictation()).compile(), "")
 
 
 class ComparisonTests(unittest.TestCase):

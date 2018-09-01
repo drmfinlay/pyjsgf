@@ -1,11 +1,11 @@
 # pyjsgf
 [![Build Status](https://travis-ci.org/Danesprite/pyjsgf.svg?branch=master)](https://travis-ci.org/Danesprite/pyjsgf)
 
-JSpeech Grammar Format (JSGF) compiler and matcher for Python.
+JSpeech Grammar Format (JSGF) compiler, matcher and parser for Python.
 
 JSGF is a format used to textually represent grammars for speech recognition engines. You can read the JSGF specification [here](https://www.w3.org/TR/jsgf/).
 
-This Python package can be used to construct JSGF rules and grammars, compile them into strings or files, and find rules in grammars that match given speech text. Speech text can be strings received from a recognition engine's speech hypothesis, for example.
+Pyjsgf can be used to construct JSGF rules and grammars, compile them into strings or files, and find grammar rules that match speech hypothesis strings. Matching speech strings to tags is also supported. There are also parsers for grammars, rules and rule expansions.
 
 Pyjsgf has been written and tested for Python 2.7 and Python 3.5.
 

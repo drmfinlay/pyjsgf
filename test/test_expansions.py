@@ -458,18 +458,6 @@ class Copying(unittest.TestCase):
         self.assert_copy_works(Literal("test"))
         self.assert_copy_works(Dictation())
 
-        # Check that regex patterns are not copied
-        e1 = Literal("test")
-        e2 = Dictation()
-
-        # Initialise patterns - they are initialised lazily
-        _ = e1.matching_regex_pattern
-        _ = e2.matching_regex_pattern
-
-        # Value of internal member '_pattern' should be None for copies
-        self.assertIsNone(e1.copy()._pattern)
-        self.assertIsNone(e2.copy()._pattern)
-
     def test_sequences(self):
         self.assert_copy_works(Sequence("test", "testing"))
         self.assert_copy_works(RequiredGrouping("test", "testing"))

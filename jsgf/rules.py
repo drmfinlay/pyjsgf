@@ -7,7 +7,6 @@ Classes for compiling JSpeech Grammar Format rules
 from .references import BaseRef
 from .expansions import Expansion, NamedRuleRef, filter_expansion, \
     JointTreeContext, map_expansion, TraversalOrder
-from .errors import CompilationError
 
 
 class Rule(BaseRef):
@@ -77,14 +76,6 @@ class Rule(BaseRef):
         if not expansion:  # the compiled expansion is None or ""
             return ""
 
-        # Raise a CompilationError if there are no non-optional leaves in the
-        # expansion tree
-        leaves = self.expansion.leaves
-
-        if self.expansion.is_optional or all([l.is_optional for l in leaves]):
-            raise CompilationError("nothing in the expansion tree is required to "
-                                   "be spoken.")
-
         result = "<%s> = %s;" % (self.name, expansion)
 
         if self.visible:
@@ -151,13 +142,10 @@ class Rule(BaseRef):
         # Reset match data for this rule and referenced rules.
         self.expansion.reset_for_new_match()
 
-        # Use a JointTreeContext so that this rule's expansion tree and the
-        # expansion trees of referenced rules are joint during matching.
-        with JointTreeContext(self.expansion):
-            result = self.expansion.matches(speech)
-
-        # Check if the rule matched completely
-        if result != "":
+        # Match the expansion and use the remainder substring to check if the rule
+        # matched completely.
+        remainder = self.expansion.matches(speech)
+        if remainder != "":
             self.expansion.current_match = None
 
         return self.expansion.current_match is not None
