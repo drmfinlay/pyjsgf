@@ -7,7 +7,6 @@ Classes for compiling JSpeech Grammar Format rules
 from .references import BaseRef
 from .expansions import Expansion, NamedRuleRef, filter_expansion, \
     JointTreeContext, map_expansion, TraversalOrder
-from .errors import CompilationError
 
 
 class Rule(BaseRef):
@@ -76,14 +75,6 @@ class Rule(BaseRef):
         expansion = self.expansion.compile(ignore_tags)
         if not expansion:  # the compiled expansion is None or ""
             return ""
-
-        # Raise a CompilationError if there are no non-optional leaves in the
-        # expansion tree
-        leaves = self.expansion.leaves
-
-        if self.expansion.is_optional or all([l.is_optional for l in leaves]):
-            raise CompilationError("nothing in the expansion tree is required to "
-                                   "be spoken.")
 
         result = "<%s> = %s;" % (self.name, expansion)
 
