@@ -142,13 +142,10 @@ class Rule(BaseRef):
         # Reset match data for this rule and referenced rules.
         self.expansion.reset_for_new_match()
 
-        # Use a JointTreeContext so that this rule's expansion tree and the
-        # expansion trees of referenced rules are joint during matching.
-        with JointTreeContext(self.expansion):
-            result = self.expansion.matches(speech)
-
-        # Check if the rule matched completely
-        if result != "":
+        # Match the expansion and use the remainder substring to check if the rule
+        # matched completely.
+        remainder = self.expansion.matches(speech)
+        if remainder != "":
             self.expansion.current_match = None
 
         return self.expansion.current_match is not None

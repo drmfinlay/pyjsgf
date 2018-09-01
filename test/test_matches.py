@@ -56,7 +56,7 @@ class MatchesOverlap(unittest.TestCase):
         self.assertTrue(matches_overlap(m2, m1))
 
 
-class CurrentMatchCase(unittest.TestCase):
+class MatchesCase(unittest.TestCase):
     def test_current_match_correction(self):
         """
         Test whether current_match gets set to None if the expansion isn't optional
@@ -145,6 +145,46 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertFalse(r.matches("hi"))
         map_expansion(e, lambda x: self.assertIsNone(x.current_match))
 
+    def test_repeating_alt_set(self):
+        g = Grammar()
+        n = Rule("n", False,
+                 AlternativeSet(*["one", "two", "three", "four", "five" "six",
+                                  "seven", "eight", "nine", "ten"]))
+        r = Rule("test", True, Repeat(AlternativeSet(
+            Sequence("up", OptionalGrouping(NamedRuleRef("n"))),
+            Sequence("down", OptionalGrouping(NamedRuleRef("n"))),
+            Sequence("left", OptionalGrouping(NamedRuleRef("n"))),
+            Sequence("right", OptionalGrouping(NamedRuleRef("n")))
+        )))
+        g.add_rules(n, r)
+        self.assertTrue(r.matches("up"))
+        self.assertTrue(r.matches("down"))
+        self.assertTrue(r.matches("left"))
+        self.assertTrue(r.matches("right"))
+        self.assertTrue(r.matches("up down left right"))
+        self.assertTrue(r.matches("up one down left two right three"))
+        self.assertTrue(r.matches("down right three up two left ten"))
+
+    def test_alt_set_and_optionals(self):
+        # Test for Matching issue with alternatives and OptionalGrouping (iss. #12)
+        e = Sequence("this is a ", OptionalGrouping("big"),
+                     AlternativeSet("sentence", "file"))
+        r = PublicRule("test", e)
+        self.assertTrue(r.matches("this is a sentence"))
+        self.assertTrue(r.matches("this is a big sentence"))
+        self.assertTrue(r.matches("this is a file"))
+        self.assertTrue(r.matches("this is a big file"))
+
+        e = Sequence("this is a ", KleeneStar("big"),
+                     AlternativeSet("sentence", "file"))
+        r = PublicRule("test", e)
+        self.assertTrue(r.matches("this is a sentence"))
+        self.assertTrue(r.matches("this is a big sentence"))
+        self.assertTrue(r.matches("this is a big big sentence"))
+        self.assertTrue(r.matches("this is a file"))
+        self.assertTrue(r.matches("this is a big file"))
+        self.assertTrue(r.matches("this is a big big big file"))
+
     def test_skip_mutually_exclusive(self):
         """
         Test whether literals that are mutually exclusive get skipped in the
@@ -210,9 +250,8 @@ class CurrentMatchCase(unittest.TestCase):
             Sequence("delete", OptionalGrouping(RuleRef(r1)))
         ))
 
-        # Check that r3 matches delete without a number
+        # Check that r2 matches delete without a number
         self.assertTrue(r2.matches("delete"))
-
         for n in numbers:
             self.assertTrue(r1.matches(n))
             self.assertTrue(r2.matches("backspace %s" % n),
@@ -241,6 +280,28 @@ class CurrentMatchCase(unittest.TestCase):
         g.add_rule(test)
         self.assertTrue(r.matches("a b"))
         self.assertEqual(r.expansion.matches("a b"), "")
+
+    def test_multiple_named_rule_refs(self):
+        # Note: this test is predicated on the parser working correctly.
+        grammar_string = """
+        #JSGF V1.0 UTF-8 en;
+        grammar default;
+        public <root> = (<repeating_cmd>);
+        <repeating_cmd> = <nav>+;
+        <n> = one|two|three|four|five|six|seven|eight|nine|ten;
+        <nav> = (up [<n>])|(down [<n>]);
+        """
+        g = parse_grammar_string(grammar_string)
+
+        # Check that r2 matches 'up down' without numbers.
+        self.assertEqual(g.find_matching_rules("up down"), g.match_rules)
+
+        # Check that r2 matches with and without numbers.
+        self.assertListEqual(
+            g.find_matching_rules("up two down five down ten up three"),
+            g.match_rules
+        )
+
 
     def test_optional_simple(self):
         e = Sequence("hello", OptionalGrouping("there"))
@@ -404,7 +465,7 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e1.current_match, "a")
 
         self.assertTrue(r.matches("a a"))
-        self.assertEqual(e1.child.current_match, "a a")
+        self.assertEqual(e1.child.current_match, "a")
         self.assertEqual(e1.child.child.current_match, "a")
         self.assertEqual(e1.current_match, "a a")
 
@@ -422,7 +483,7 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e2.current_match, "a")
 
         self.assertTrue(r2.matches("a a"))
-        self.assertEqual(e2.child.current_match, "a a")
+        self.assertEqual(e2.child.current_match, "a")
         self.assertEqual(e2.child.child.current_match, "a")
         self.assertEqual(e2.current_match, "a a")
 
@@ -474,6 +535,27 @@ class CurrentMatchCase(unittest.TestCase):
             [None, None, "c"]
         )
 
+        # Reset the match data.
+        e.reset_for_new_match()
+
+        # Test with multiple matches for each alternative
+        self.assertEqual(e.matches("a b c a b c a b c"), "")
+        self.assertTrue(a.had_match)
+        self.assertListEqual(
+            e.get_expansion_matches(a),
+            ["a", None, None, "a", None, None, "a", None, None]
+        )
+        self.assertTrue(b.had_match)
+        self.assertListEqual(
+            e.get_expansion_matches(b),
+            [None, "b", None, None, "b", None, None, "b", None]
+        )
+        self.assertTrue(c.had_match)
+        self.assertListEqual(
+            e.get_expansion_matches(c),
+            [None, None, "c", None, None, "c", None, None, "c"]
+        )
+
         # Test with get_expansion_matches an expansion that isn't a descendant
         self.assertListEqual(e.get_expansion_matches(Literal("d")), [])
 
@@ -494,15 +576,15 @@ class CurrentMatchCase(unittest.TestCase):
         e = Sequence(OptionalGrouping("a"), NullRef(), OptionalGrouping("a"))
         r = Rule("r", True, e)
         self.assertTrue(r.matches("a a"))
-        self.assertEqual(e.current_match, "a")
+        self.assertEqual(e.current_match, "a a")
         self.assertEqual(e.children[0].child.current_match, "a")
         self.assertEqual(e.children[1].current_match, "")
-        self.assertEqual(e.children[2].current_match, "")
+        self.assertEqual(e.children[2].current_match, "a")
         self.assertTrue(r.matches("a a"))
-        self.assertEqual(e.current_match, "a")
+        self.assertEqual(e.current_match, "a a")
         self.assertEqual(e.children[0].child.current_match, "a")
         self.assertEqual(e.children[1].current_match, "")
-        self.assertEqual(e.children[2].current_match, "")
+        self.assertEqual(e.children[2].current_match, "a")
 
         e = Sequence(OptionalGrouping("a"), VoidRef())
         r = Rule("r", True, e)
@@ -514,6 +596,49 @@ class CurrentMatchCase(unittest.TestCase):
         self.assertEqual(e.current_match, None)
         self.assertEqual(e.children[0].child.current_match, "")
         self.assertEqual(e.children[1].current_match, None)
+
+    def test_invalidation(self):
+        # Test that an expansion matches properly after changing a parent or
+        # ChildList.
+        e = AlternativeSet("a", "b")
+        r = PublicRule("test", e)
+
+        self.assertTrue(r.matches("b"))
+        self.assertEqual(e.current_match, "b")
+
+        # Pop the "b" literal.
+        e.children.pop(1)
+
+        # Matching "b" again should fail.
+        self.assertFalse(r.matches("b"))
+        self.assertEqual(e.current_match, None)
+
+    def test_invalidation_of_references(self):
+        # Test invalidation of references.
+        n = Rule("n", False, AlternativeSet("once", "twice", "thrice"))
+
+        # Create rules using NamedRuleRefs and RuleRefs to reference the 'n' rule.
+        r1 = PublicRule("test1", Sequence("do this", NamedRuleRef("n")))
+        r2 = PublicRule("test2", Sequence("do this", RuleRef(n)))
+
+        # Add all three rules to a grammar.
+        g = Grammar()
+        g.add_rules(n, r1, r2)
+
+        # Both should match using 'once', 'twice' and 'thrice' initially.
+        self.assertListEqual(g.find_matching_rules("do this once"), [r1, r2])
+        self.assertListEqual(g.find_matching_rules("do this twice"), [r1, r2])
+        self.assertListEqual(g.find_matching_rules("do this thrice"), [r1, r2])
+
+        # Add 'four times' to n's alternative set.
+        n.expansion.children.append("four times")
+
+        # Check that both rules also match 'four times'. If they don't match, then
+        # the references haven't been invalidated.
+        self.assertListEqual(g.find_matching_rules("do this once"), [r1, r2])
+        self.assertListEqual(g.find_matching_rules("do this twice"), [r1, r2])
+        self.assertListEqual(g.find_matching_rules("do this thrice"), [r1, r2])
+        self.assertListEqual(g.find_matching_rules("do this four times"), [r1, r2])
 
 
 if __name__ == '__main__':

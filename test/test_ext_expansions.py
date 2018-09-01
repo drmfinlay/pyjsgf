@@ -55,15 +55,12 @@ class DictationMatchesCase(unittest.TestCase):
 
     def test_successive_dictation(self):
         e1 = Seq(Dict(), Dict())
-        self.assertRaises(ExpansionError, e1.matches, "test")
-
-        e2 = Seq(Opt(Dict()), Dict())
-        self.assertEqual(e2.matches("hello"), "")
-        self.assertEqual(e2.current_match, "hello")
-        self.assertEqual(e2.children[0].current_match, "")
-        self.assertEqual(e2.children[1].current_match, "hello",
-                         "required Dictation should get to consume the speech "
-                         "string")
+        self.assertEqual(e1.matches("testing testing testing"), "")
+        self.assertEqual(e1.current_match, "testing testing testing")
+        self.assertEqual(e1.children[0].current_match, "testing",
+                         "first dictation should get the first word")
+        self.assertEqual(e1.children[1].current_match, "testing testing",
+                         "second dictation should get the remainder")
 
         e3 = Seq(Dict(), Opt(Dict()))
         self.assertEqual(e3.matches("hello"), "")
@@ -74,17 +71,129 @@ class DictationMatchesCase(unittest.TestCase):
         self.assertEqual(e3.children[1].current_match, "")
 
     def test_forward_tracking(self):
-        e1 = Seq(Opt(Dict()), "hello")
-        self.assertEqual(e1.matches("hello"), "")
-        self.assertEqual(e1.current_match, "hello")
-        self.assertEqual(e1.children[0].current_match, "")
-        self.assertEqual(e1.children[1].current_match, "hello")
+        e = Seq(Opt(Dict()), "hello")
+        self.assertEqual(e.matches("hello"), "")
+        self.assertEqual(e.current_match, "hello")
+        self.assertEqual(e.children[0].current_match, "")
+        self.assertEqual(e.children[1].current_match, "hello")
 
-        e2 = Seq(Dict(), "hello")
-        self.assertEqual(e2.matches("hey hello"), "")
-        self.assertEqual(e2.current_match, "hey hello")
-        self.assertEqual(e2.children[0].current_match, "hey")
-        self.assertEqual(e2.children[1].current_match, "hello")
+        e = Seq(Dict(), "hello")
+        self.assertEqual(e.matches("hey hello"), "")
+        self.assertEqual(e.current_match, "hey hello")
+        self.assertEqual(e.children[0].current_match, "hey")
+        self.assertEqual(e.children[1].current_match, "hello")
+
+        e = Seq("say", Dict(), Opt("end"))
+        # Without the optional 'end'.
+        self.assertEqual(e.matches("say hello world"), "")
+        self.assertEqual(e.current_match, "say hello world")
+        self.assertEqual(e.children[0].current_match, "say")
+        self.assertEqual(e.children[1].current_match, "hello world")
+        self.assertEqual(e.children[2].current_match, "")
+
+        # With the optional 'end'.
+        self.assertEqual(e.matches("say hello world end"), "")
+        self.assertEqual(e.current_match, "say hello world end")
+        self.assertEqual(e.children[0].current_match, "say")
+        self.assertEqual(e.children[1].current_match, "hello world")
+        self.assertEqual(e.children[2].current_match, "end")
+
+    def test_forward_tracking_multiple(self):
+        # Test that matching works with multiple next literals.
+        e = Seq(Dict(), Opt(AS("a", "b")))
+
+        # Test with a.
+        self.assertEqual(e.matches("test testing a"), "")
+        self.assertEqual(e.current_match, "test testing a")
+        self.assertEqual(e.children[0].current_match, "test testing")
+        self.assertEqual(e.children[1].current_match, "a")
+
+        # Test with b.
+        self.assertEqual(e.matches("test testing b"), "")
+        self.assertEqual(e.current_match, "test testing b")
+        self.assertEqual(e.children[0].current_match, "test testing")
+        self.assertEqual(e.children[1].current_match, "b")
+
+        # Test with neither next literal as they are optional in this case.
+        self.assertEqual(e.matches("test testing"), "")
+        self.assertEqual(e.current_match, "test testing")
+        self.assertEqual(e.children[0].current_match, "test testing")
+        self.assertEqual(e.children[1].current_match, "")
+
+    def test_back_tracking(self):
+        dict1, dict2 = Dict(), Dict()
+        seq1 = Seq("lower", dict1)
+        seq2 = Seq("camel", dict2)
+        e = Rep(AS(seq1, seq2))
+
+        # Match only one time.
+        self.assertEqual(e.matches("lower lorem ipsum"), "")
+        self.assertEqual(e.current_match, "lower lorem ipsum")
+        self.assertEqual(e.get_expansion_matches(seq1), ["lower lorem ipsum"])
+        self.assertEqual(e.get_expansion_matches(dict1), ["lorem ipsum"])
+        self.assertEqual(e.get_expansion_matches(seq2), [None])
+        self.assertEqual(e.get_expansion_matches(dict2), [None])
+
+        # Reset match data for a new match. This is normally done by the expansion's
+        # rule.
+        e.reset_for_new_match()
+
+        # Test two of the same repetitions.
+        self.assertEqual(e.matches("lower lorem ipsum lower lorem ipsum"), "")
+        self.assertEqual(e.current_match, "lower lorem ipsum lower lorem ipsum")
+        self.assertEqual(e.get_expansion_matches(seq1), ["lower lorem ipsum"] * 2)
+        self.assertEqual(e.get_expansion_matches(dict1), ["lorem ipsum"] * 2)
+        self.assertEqual(e.get_expansion_matches(seq2), [None] * 2)
+        self.assertEqual(e.get_expansion_matches(dict2), [None] * 2)
+
+        # Reset match data again.
+        e.reset_for_new_match()
+
+        # Test matching two different repetitions.
+        self.assertEqual(e.matches(
+            "lower consectetur adipiscing camel dolor sit"),
+            ""
+        )
+        self.assertEqual(
+            e.current_match, "lower consectetur adipiscing camel dolor sit"
+        )
+
+        # Use e.get_expansion_matches to check the match values.
+        self.assertEqual(e.get_expansion_matches(e.child), [
+            "lower consectetur adipiscing", "camel dolor sit"
+        ])
+        self.assertEqual(e.get_expansion_matches(seq1), [
+            "lower consectetur adipiscing", None
+        ])
+        self.assertEqual(e.get_expansion_matches(dict1), [
+            "consectetur adipiscing", None
+        ])
+        self.assertEqual(e.get_expansion_matches(seq2), [None, "camel dolor sit"])
+        self.assertEqual(e.get_expansion_matches(dict2), [None, "dolor sit"])
+
+    def test_back_and_forward_tracking(self):
+        # Test with a required literal after a repeat.
+        dict_ = Dict()
+        seq = Seq("lower", dict_)
+        rep = Rep(seq)
+        e = Seq(rep, "end")
+
+        # Test matching once.
+        self.assertEqual(e.matches("lower lorem ipsum end"), "")
+        self.assertEqual(e.current_match, "lower lorem ipsum end")
+        self.assertEqual(e.children[1].current_match, "end")
+        self.assertEqual(rep.get_expansion_matches(seq), ["lower lorem ipsum"])
+        self.assertEqual(rep.get_expansion_matches(dict_), ["lorem ipsum"])
+
+        # Reset match data for another match.
+        e.reset_for_new_match()
+
+        # Test matching twice.
+        self.assertEqual(e.matches("lower lorem ipsum lower lorem ipsum end"), "")
+        self.assertEqual(e.current_match, "lower lorem ipsum lower lorem ipsum end")
+        self.assertEqual(e.children[1].current_match, "end")
+        self.assertEqual(rep.get_expansion_matches(seq), ["lower lorem ipsum"] * 2)
+        self.assertEqual(rep.get_expansion_matches(dict_), ["lorem ipsum"] * 2)
 
 
 class DictationMethodsCase(unittest.TestCase):
