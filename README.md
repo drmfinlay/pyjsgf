@@ -9,6 +9,8 @@ pyjsgf can be used to construct JSGF rules and grammars, compile them into strin
 
 pyjsgf has been written and tested for Python 2.7 and Python 3.5.
 
+The documentation for this project is [on readthedocs.org](https://pyjsgf.readthedocs.io).
+
 ## Installation
 Clone or download this repository and run the following:
 ``` Shell
