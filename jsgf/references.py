@@ -1,6 +1,5 @@
 """
-Classes and ParserElements for referencing rules and grammars as well as validating
-reference names.
+This module contains the base class for referencing rules and grammars by name.
 """
 
 import re
@@ -74,7 +73,8 @@ class BaseRef(object):
     def name(self):
         """
         The referenced name.
-        :rtype: str
+
+        :returns: str
         """
         return self._name
 
@@ -90,7 +90,10 @@ class BaseRef(object):
     def valid(name):
         """
         Static method for checking if a reference name is valid.
-        :type name: str
-        :rtype: bool
+
+        This should be overwritten appropriately in subclasses.
+
+        :param name: str
+        :returns: bool
         """
         return base_name.matches(name) and not reserved_names.matches(name)

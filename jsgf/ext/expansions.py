@@ -1,3 +1,7 @@
+"""
+This module contains extension rule expansion classes and functions.
+"""
+
 import re
 
 import pyparsing
@@ -37,10 +41,10 @@ def _collect_next_literals(stack, i, look_further, backtrack):
 
     The stack has the following structure:
     [(e, e.parent), (e.parent, e.parent.parent), ... (root.children[x], root)]
-    :type stack: list
-    :type i: int
-    :type look_further: bool
-    :type backtrack: bool
+    :param stack: list
+    :param i: int
+    :param look_further: bool
+    :param backtrack: bool
     :returns: tuple of literals list and flags value
     """
     # Handle stop looking for literals or i being an invalid index.
@@ -101,10 +105,21 @@ def _collect_next_literals(stack, i, look_further, backtrack):
 class Dictation(Literal):
     """
     Class representing dictation input matching any spoken words.
-    This expansion uses the default compile() implementation because JSGF
-    does not handle dictation.
-    This is largely based on the functionality provided by using Dragon
-    NaturallySpeaking and the dragonfly Python library together.
+
+    This is largely based on the ``Dictation`` element class in the dragonfly Python
+    library.
+
+    The matching implementation for ``Dictation`` expansions will look ahead for
+    possible next literals to avoid matching them and making the rule fail to
+    match. It will also look backwards for literals in possible future repetitions.
+
+    It will **not** however look at referencing rules for next possible
+    literals. If you have match failures because of this, only use ``Dictation``
+    expansions in public rules *or* use the ``JointTreeContext`` class before
+    matching if you don't mind reducing the matching performance.
+
+    ``Dictation`` expansions compile to the empty string (``''``), so be careful
+    with compiling rules using them.
     """
     def __init__(self):
         # Pass the empty string to the Literal constructor so that calling compile
@@ -140,11 +155,12 @@ class Dictation(Literal):
     @property
     def use_current_match(self):
         """
-        Consume the value of current_match in _matches_internal rather than
-        matching on any string of words.
-        This is used by the SequenceRule.graft_sequence_matches method.
+        Whether to match the ``current_match`` value next time rather than matching
+        one or more words.
 
-        :return: bool
+        This is used by the ``SequenceRule.graft_sequence_matches`` method.
+
+        :returns: bool
         """
         return self._use_current_match
 
@@ -212,8 +228,11 @@ class Dictation(Literal):
         """
         A regex pattern for matching this expansion.
 
-        This property has been left in for backwards compatibility. The `matches`
-        method now uses the `matcher_element` property instead.
+        This property has been left in for backwards compatibility.
+        The ``Expansion.matches`` method now uses the ``matcher_element`` property
+        instead.
+
+        :returns: regex pattern object
         """
         # Match one or more words or digits separated by whitespace
         regex = "%s(\s+%s)*" % (_word_regex_str, _word_regex_str)
@@ -252,10 +271,12 @@ def dictation_and_literals_in_expansion(e):
 
 def expand_dictation_expansion(expansion):
     """
-    Take an expansion and expand any AlternativeSet with alternatives containing
-    Dictation expansions. This function returns a list of all expanded expansions.
-    :type expansion: Expansion
-    :return: list
+    Take an expansion and expand any ``AlternativeSet`` with alternatives containing
+    ``Dictation`` expansions. This function returns a list of all expanded
+    expansions.
+
+    :param expansion: Expansion
+    :returns: list
     """
     def is_unprocessed(e):
         if isinstance(e, AlternativeSet):
@@ -302,8 +323,8 @@ def expand_dictation_expansion(expansion):
         """
         Find the first expansion in an expansion tree for which is_unprocessed
         returns True.
-        :type e: Expansion
-        :return: Expansion | None
+        :param e: Expansion
+        :returns: Expansion | None
         """
         if isinstance(e, NamedRuleRef):
             return first_unprocessed_expansion(e.referenced_rule.expansion)
@@ -322,8 +343,9 @@ def expand_dictation_expansion(expansion):
     def process(e):
         """
         Process an expansion recursively and return a list of expanded expansions.
-        :type e: Expansion
-        :return: list
+
+        :param e: Expansion
+        :returns: list
         """
         result = []
         current = first_unprocessed_expansion(e)
@@ -416,14 +438,15 @@ def expand_dictation_expansion(expansion):
 
 def calculate_expansion_sequence(expansion, should_deepcopy=True):
     """
-    Split an expansion into 2n expansions where n is the number of Dictation
-    expansions in the expansion.
+    Split an expansion into `2*n` expansions where `n` is the number of
+    ``Dictation`` expansions in the expansion tree.
 
-    If there aren't any Dictation expansions, the result will be the original
+    If there aren't any ``Dictation`` expansions, the result will be the original
     expansion.
-    :type expansion: Expansion
+
+    :param expansion: Expansion
     :param should_deepcopy: whether to deepcopy the expansion before using it
-    :rtype: list
+    :returns: list
     """
     def generate_expansion_from_children(e, children):
         assert isinstance(e, Expansion)
@@ -447,8 +470,8 @@ def calculate_expansion_sequence(expansion, should_deepcopy=True):
         [DO, DF, ...]
         [DF, DO, ... ]
 
-        :type e: Expansion
-        :rtype: list
+        :param e: Expansion
+        :returns: list
         """
         result = []
         if isinstance(e, Dictation):

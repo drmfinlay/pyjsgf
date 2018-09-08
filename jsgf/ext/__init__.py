@@ -1,5 +1,6 @@
 """
-This package contains extensions that aren't part of the JSGF specification.
+This sub-package contains extensions to JSGF, notably the ``Dictation``,
+``SequenceRule`` and ``DictationGrammar`` classes.
 """
 
 from .expansions import Dictation

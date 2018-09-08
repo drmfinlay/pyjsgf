@@ -1,15 +1,7 @@
 """
-JSpeech Grammar Format module for Python
-'The JSpeech Grammar Format (JSGF) is a platform-independent,vendor-independent
-textual representation of grammars for use in speech recognition. Grammars are
-used by speech recognizers to determine what the recognizer should listen for,
-and so describe the utterances a user may say. JSGF adopts the style and
-conventions of the JavaTM Programming Language in addition to use of
-traditional grammar notations.'
-See the specification here: https://www.w3.org/TR/jsgf/
-
-This module supports compiling JSGF grammars using custom rules, imports and
-expansions, such as the Kleene Star, optional and required groupings.
+This package contains classes and functions for compiling, matching and parsing JSGF
+grammars using rules, imports and rule expansions, such as sequences, repeats,
+optional and required groupings.
 """
 from .errors import CompilationError
 from .errors import ExpansionError

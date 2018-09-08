@@ -1,5 +1,5 @@
 """
-JSGF extension grammar classes
+This module contains extension grammar classes.
 """
 import re
 
@@ -12,13 +12,13 @@ from jsgf import GrammarError, Grammar, Rule
 
 class DictationGrammar(Grammar):
     """
-    Grammar subclass that processes rules that use Dictation expansions so they can
-    be compiled, matched and used with normal JSGF rules.
+    Grammar subclass that processes rules using ``Dictation`` expansions so they can
+    be compiled, matched and used with normal JSGF rules with utterance breaks.
     """
     def __init__(self, rules=None, name="default"):
         """
-        :type rules: list
-        :type name: str
+        :param rules: list
+        :param name: str
         """
         super(DictationGrammar, self).__init__(name)
         self._dictation_rules = []
@@ -41,8 +41,10 @@ class DictationGrammar(Grammar):
     def rules(self):
         """
         The rules in this grammar.
+
         This includes internal generated rules as well as original rules.
-        :rtype: list
+
+        :returns: list
         """
         return list(set(
                 self._dictation_rules + self._jsgf_only_grammar.match_rules +
@@ -52,8 +54,9 @@ class DictationGrammar(Grammar):
     @property
     def match_rules(self):
         """
-        The rules that the find_matching_rules method will match against.
-        :return: iterable
+        The rules that the ``find_matching_rules`` method will match against.
+
+        :returns: list
         """
         result = []
         result.extend([x for x in self._dictation_rules if x.visible])
@@ -127,17 +130,19 @@ class DictationGrammar(Grammar):
 
     def get_original_rule(self, rule):
         """
-        Get the original rule used to generate a rule from find_matching_rules.
-        :type rule: Rule
-        :return: Rule
+        Get the original rule from a generated rule.
+
+        :param rule: Rule
+        :returns: Rule
         """
         return self._original_rule_map[rule]
 
     def get_generated_rules(self, rule):
         """
-        Get a generator yielding the rules generated from a rule added to this
-        grammar.
-        :type rule: Rule
+        Get the rules generated from a rule added to this grammar.
+
+        :param rule: Rule
+        :returns: generator
         """
         for k, v in list(self._original_rule_map.items()):
             if v is rule:
@@ -164,8 +169,9 @@ class DictationGrammar(Grammar):
     def _compile(self, compile_as_root_grammar):
         """
         Internal method to compile the grammar.
-        :type compile_as_root_grammar: bool
-        :return: str
+
+        :param compile_as_root_grammar: bool
+        :returns: str
         """
         self.rearrange_rules()
 
@@ -199,9 +205,9 @@ class DictationGrammar(Grammar):
 
     def rearrange_rules(self):
         """
-        Move SequenceRules in this grammar between the dictation rules list and
-        the internal grammar used for JSGF only rules depending on whether a
-        SequenceRule's current expansion is dictation only or not.
+        Move each ``SequenceRule`` in this grammar between the dictation rules list
+        and the internal grammar used for JSGF only rules depending on whether a
+        ``SequenceRule``'s current expansion is dictation-only or not.
         """
         for rule in tuple(self._jsgf_only_grammar.match_rules):
             if not isinstance(rule, SequenceRule):
@@ -217,7 +223,7 @@ class DictationGrammar(Grammar):
 
     def reset_sequence_rules(self):
         """
-        Reset each SequenceRule in this grammar so that they can accept matches
+        Reset each ``SequenceRule`` in this grammar so that they can accept matches
         again.
         """
         for r in self._jsgf_only_grammar.match_rules + self._dictation_rules:
@@ -228,12 +234,13 @@ class DictationGrammar(Grammar):
 
     def find_matching_rules(self, speech, advance_sequence_rules=True):
         """
-        Find each visible rule passed to the grammar that matches the 'speech'
+        Find each visible rule passed to the grammar that matches the `speech`
         string. Also set matches for the original rule.
-        :type speech: str
-        :param advance_sequence_rules: whether to call set_next() for successful
-        sequence rule matches.
-        :return: iterable
+
+        :param speech: str
+        :param advance_sequence_rules: whether to call ``set_next()`` for successful
+            sequence rule matches.
+        :returns: list
         """
         # Match against each match rule and remove any rules that didn't match
         result = self.match_rules

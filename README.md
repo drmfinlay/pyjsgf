@@ -1,13 +1,13 @@
 # pyjsgf
 [![Build Status](https://travis-ci.org/Danesprite/pyjsgf.svg?branch=master)](https://travis-ci.org/Danesprite/pyjsgf)
 
-JSpeech Grammar Format (JSGF) compiler, matcher and parser for Python.
+JSpeech Grammar Format (JSGF) compiler, matcher and parser package for Python.
 
 JSGF is a format used to textually represent grammars for speech recognition engines. You can read the JSGF specification [here](https://www.w3.org/TR/jsgf/).
 
-Pyjsgf can be used to construct JSGF rules and grammars, compile them into strings or files, and find grammar rules that match speech hypothesis strings. Matching speech strings to tags is also supported. There are also parsers for grammars, rules and rule expansions.
+pyjsgf can be used to construct JSGF rules and grammars, compile them into strings or files, and find grammar rules that match speech hypothesis strings. Matching speech strings to tags is also supported. There are also parsers for grammars, rules and rule expansions.
 
-Pyjsgf has been written and tested for Python 2.7 and Python 3.5.
+pyjsgf has been written and tested for Python 2.7 and Python 3.5.
 
 ## Installation
 Clone or download this repository and run the following:
@@ -55,6 +55,6 @@ The first line of the grammar can be changed using the `jsgf_version`, `charset_
 There are more examples on ways to use this package [here](examples/).
 
 ## Multilingual support
-Due to Python's Unicode support, Pyjsgf can be used with Unicode characters for grammar, import and rule names, as well as rule literals. If you need this, it is better to use Python 3 or above where all strings are Unicode strings by default.
+Due to Python's Unicode support, pyjsgf can be used with Unicode characters for grammar, import and rule names, as well as rule literals. If you need this, it is better to use Python 3 or above where all strings are Unicode strings by default.
 
 If you must use Python 2.x, you'll need to define Unicode strings as either `u"text"` or `unicode(text, encoding)`, which is a little cumbersome. If you want to define Unicode strings in a source code file, you'll need to define the [source code file encoding](https://www.python.org/dev/peps/pep-0263/).
