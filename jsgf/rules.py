@@ -171,30 +171,29 @@ class Rule(BaseRef):
 
     def find_matching_part(self, speech):
         """
-        Searches for a part of speech that matches this rule and returns this part.
-        :type speech: str
+        Searches for a part of speech that matches this rule and returns it.
+
+        If no part matches or the rule is disabled, return None.
+
+        :param speech: str
+        :returns: str | None
         """
         if not self._active:
-            return False
+            return None
 
         # Strip whitespace at the start of 'speech' and lower it to match regex
         # properly.
         speech = speech.lstrip().lower()
 
-        split = speech.split(" ")
-        for i in range(0, len(split)):
-            # Reset match data for this rule and referenced rules.
-            self.expansion.reset_for_new_match()
+        # Use the first match (if any) and break. The loop is required because
+        # scanString returns a generator.
+        result = None
+        for match in self.expansion.matcher_element.scanString(speech):
+            _, start, end = match
+            result = speech[start:end]
+            break
 
-            # Use a JointTreeContext so that this rule's expansion tree and the
-            # expansion trees of referenced rules are joint during matching.
-            with JointTreeContext(self.expansion):
-                result = self.expansion.matches(" ".join(split[i:]))
-                if speech.endswith(result, speech.find(split[i]) + 1):
-                    return self.expansion.current_match
-        
-        self.expansion.current_match = None
-        return None
+        return result
 
     @property
     def tags(self):
