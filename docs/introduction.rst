@@ -9,10 +9,10 @@ Introduction
 
 pyjsgf can be used to construct JSGF rules and grammars, compile them into strings or files, and find grammar rules that match speech hypothesis strings. Matching speech strings to tags is also supported. There are also parsers for grammars, rules and rule expansions.
 
+There are some usage examples in `pyjsgf/examples <https://github.com/Danesprite/pyjsgf/tree/master/examples>`_ which may help you get started.
 
 Installation
 ------------
-
 To install pyjsgf, run the following in the root directory of the repository::
 
   $ python setup.py install
@@ -20,13 +20,17 @@ To install pyjsgf, run the following in the root directory of the repository::
 
 Supported Python Versions
 -------------------------
-
 pyjsgf has been written and tested for Python 2.7 and 3.5.
 
 Please file an issue if you notice a problem specific to the version of Python you are using.
 
 
-Multilingual support
+Unit Testing
+------------
+There are extensive unit tests in `pyjsgf/test <https://github.com/Danesprite/pyjsgf/tree/master/test>`_. There is also a Travis CI project `here <https://travis-ci.org/Danesprite/pyjsgf>`_. The test coverage is not 100%, but most classes, methods and functions are covered pretty well.
+
+
+Multilingual Support
 --------------------
 Due to Python's Unicode support, pyjsgf can be used with Unicode characters for grammar, import and rule names, as well as rule literals. If you need this, it is better to use Python 3 or above where all strings are Unicode strings by default.
 
@@ -35,7 +39,6 @@ If you must use Python 2.x, you'll need to define Unicode strings as either ``u"
 
 Documentation
 -------------
-
 The documentation for this project is written in `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ and built using `Sphinx <http://www.sphinx-doc.org/en/stable>`_. Run the following to build it locally::
 
   $ cd docs

@@ -15,6 +15,7 @@ Added
 ^^^^^
 * Add Expansion.matcher_element property.
 * Add Expansion.invalidate_matcher method.
+* Add Rule.find_matching_part method. Thanks `@embie27`_.
 * Add docstrings to undocumented classes and methods.
 * Add Sphinx documentation project files in `docs/` and use autodoc for automatic module, class, class member and function documentation.
 * Add `CHANGELOG.rst` file and include it in the documentation.

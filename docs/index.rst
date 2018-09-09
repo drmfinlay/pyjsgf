@@ -21,8 +21,6 @@ JSGF is a format used to textually represent grammars for speech recognition eng
    changelog
 
 
-There are also some usage examples in `pyjsgf/examples <https://github.com/Danesprite/pyjsgf/tree/master/examples>`_ which may help you get started.
-
 Indices and tables
 ==================
 
