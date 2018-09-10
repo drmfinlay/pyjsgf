@@ -1,14 +1,20 @@
+"""
+This module contains extension rule classes.
+"""
+
+
 from .expansions import *
 
 
 class SequenceRule(Rule):
     """
-    Class representing a list of expansions that must be spoken in a sequence.
+    Class representing a list of regular expansions and ``Dictation`` expansions
+    that must be spoken in a sequence.
     """
     def __init__(self, name, visible, expansion):
         """
-        :type name: str
-        :type visible: bool
+        :param name: str
+        :param visible: bool
         :param expansion:
         """
         super(SequenceRule, self).__init__(name, visible, expansion)
@@ -63,7 +69,8 @@ class SequenceRule(Rule):
     def expansion_sequence(self):
         """
         The expansion sequence used by the rule.
-        :return: tuple
+
+        :returns: tuple
         """
         return self._sequence
 
@@ -73,8 +80,8 @@ class SequenceRule(Rule):
         Whether the entire SequenceRule can be repeated multiple times.
 
         Note that if the rule can be repeated, data from a repetition of the rule,
-        such as current_match values of each sequence expansion, should be stored
-        before restart_sequence is called for a further repetition.
+        such as ``current_match`` values of each sequence expansion, should be
+        stored before ``restart_sequence`` is called for a further repetition.
         """
         return self._can_repeat
 
@@ -83,8 +90,9 @@ class SequenceRule(Rule):
         """
         Recursive method to find a Repeat expansion that is an ancestor of all
         leaves in an expansion tree. If there isn't one, return None.
-        :type e: Expansion
-        :return: Repeat | None
+
+        :param e: Expansion
+        :returns: Repeat | None
         """
         if isinstance(e, Repeat) and not e.is_optional:  # don't use optionals
             # Check if this Repeat has any ancestors with other children
@@ -116,16 +124,18 @@ class SequenceRule(Rule):
     def has_next_expansion(self):
         """
         Whether there is another sequence expansion after the current one.
-        :return: bool
+
+        :returns: bool
         """
         return self._current_index + 1 < len(self._sequence)
 
     @property
     def current_is_dictation_only(self):
         """
-        Whether the current expansion in the sequence contains only dictation
-        literals.
-        :return: bool
+        Whether the current expansion in the sequence contains only ``Dictation``
+        expansions.
+
+        :returns: bool
         """
         return only_dictation_in_expansion(self._sequence[self._current_index])
 
@@ -134,14 +144,14 @@ class SequenceRule(Rule):
         """
         Whether or not matches on this rule can succeed.
 
-        This is set to False if set_next is called and there is a next expansion or
-        if restart_sequence is called.
+        This is set to False if ``set_next`` is called and there is a next expansion
+        or if ``restart_sequence`` is called.
 
-        This can also be manually set with the setter for situations where, for
-        example, the current expansion is a Repeat expansion with a Dictation
-        descendant.
+        This can also be manually set with the setter for problematic situations
+        where, for example, the current expansion is a ``Repeat`` expansion with a
+        ``Dictation`` descendant.
 
-        :return: bool
+        :returns: bool
         """
         return self._refuse_matches
 
@@ -168,7 +178,8 @@ class SequenceRule(Rule):
         """
         If the entire sequence is matched by successive calls to the matches
         method, this returns all strings that matched joined together by spaces.
-        :return: str
+
+        :returns: str
         """
         matches = [x.current_match for x in self._sequence]
         if all([m is not None for m in matches]):
@@ -187,15 +198,15 @@ class SequenceRule(Rule):
     def matches(self, speech):
         """
         Return whether or not speech matches the current expansion in the sequence.
-        Also sets matches for the original expansion used to create this rule.
+
+        This also sets ``current_match`` values for the original expansion used to
+        create this rule.
 
         This method will only match once and return False on calls afterward until
-        refuse_matches is False. This occurs if set_next is called and there is a
-        next expansion, restart_sequence is called, or if refuse_matches is
-        manually set to False.
+        ``refuse_matches`` is False.
 
-        :type speech: str
-        :return: bool
+        :param speech: str
+        :returns: bool
         """
         result = False
         if not self.refuse_matches:
@@ -215,7 +226,8 @@ class SequenceRule(Rule):
         """
         The set of JSGF tags in this rule's expansion.
         This does not include tags in referenced rules.
-        :rtype: set
+
+        :returns: set
         """
         # Get tagged expansions
         tagged_expansions = filter_expansion(
@@ -232,13 +244,13 @@ class SequenceRule(Rule):
     @staticmethod
     def graft_sequence_matches(sequence_rule, expansion):
         """
-        Take a SequenceRule and an expansion and attempt to graft the matches of
+        Take a ``SequenceRule`` and an expansion and attempt to graft the matches of
         all expansions in the sequence onto the given expansion in-place.
 
         Not all expansions in the sequence need to have been matched.
 
-        :type sequence_rule: SequenceRule
-        :type expansion: Expansion
+        :param sequence_rule: SequenceRule
+        :param expansion: Expansion
         """
         def is_dictation(x):
             return isinstance(x, Dictation)
@@ -274,6 +286,9 @@ class SequenceRule(Rule):
 
 
 class PublicSequenceRule(SequenceRule):
+    """
+    SequenceRule subclass with ``visible`` set to True.
+    """
     def __init__(self, name, expansion):
         super(PublicSequenceRule, self).__init__(name, True, expansion)
 
@@ -286,6 +301,9 @@ class PublicSequenceRule(SequenceRule):
 
 
 class HiddenSequenceRule(SequenceRule):
+    """
+    SequenceRule subclass with ``visible`` set to False.
+    """
     def __init__(self, name, expansion):
         super(HiddenSequenceRule, self).__init__(name, False, expansion)
 

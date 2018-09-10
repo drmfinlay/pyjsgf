@@ -1,19 +1,41 @@
 """
-Exception classes
+This module contains pyjsgf's exception classes.
 """
 
 
 class GrammarError(Exception):
-    pass
+    """
+    Error raised when invalid grammar operations occur.
+
+    This error is raised under the following circumstances:
+
+    * When matching or resolving referenced rules that are out-of-scope.
+    * Attempting to enable, disable or retrieve a rule that isn't in a grammar.
+    * Attempting to remove rules referenced by other rules in the grammar.
+    * Attempting to add a rule to a grammar using an already taken name.
+    * Using an invalid name (such as *NULL* or *VOID*) for a grammar name, rule
+      name or rule reference.
+    * Passing a grammar string with an illegal expansion to a parser function, such
+      as a tagged repeat (e.g. ``blah+ {tag}``).
+    """
 
 
 class ExpansionError(Exception):
-    pass
+    """
+    This error class has been **deprecated** and is no longer used.
+    """
 
 
 class MatchError(Exception):
-    pass
+    """
+    This error class has been **deprecated** and is no longer used.
+    """
 
 
 class CompilationError(Exception):
-    pass
+    """
+    Error raised when compiling an invalid grammar.
+
+    This error is currently only raised if a ``Literal`` expansion is compiled with
+    the empty string (``''``) as its ``text`` value.
+    """

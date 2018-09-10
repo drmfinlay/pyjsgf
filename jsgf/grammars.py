@@ -1,5 +1,6 @@
 """
-Classes for compiling and importing JSpeech Grammar Format grammars
+This module contains classes for compiling, importing from and matching JSpeech
+Grammar Format grammars.
 """
 
 from six import string_types
@@ -18,14 +19,15 @@ class Import(BaseRef):
     public rules in a grammar.
 
     The following are valid rule import names:
-    com.example.grammar.rule_name
-    grammar.rule_name
-    com.example.grammar.*
-    grammar.*
 
-    There are two reserved rule names: NULL and VOID. These reserved names cannot be
-    used as import names. You can however change the case to 'null' or 'void' to use
-    them, as names are case-sensitive.
+    * com.example.grammar.rule_name
+    * grammar.rule_name
+    * com.example.grammar.*
+    * grammar.*
+
+    There are two reserved rule names: *NULL* and *VOID*. These reserved names
+    cannot be used as import names. You can however change the case to 'null'
+    or 'void' to use them, as names are case-sensitive.
     """
     def __init__(self, name):
         super(Import, self).__init__(name)
@@ -53,9 +55,9 @@ class Grammar(BaseRef):
     com.example.grammar
     grammar
 
-    There are two reserved rule names: NULL and VOID. These reserved names cannot be
-    used as grammar names. You can however change the case to 'null' or 'void' to
-    use them, as names are case-sensitive.
+    There are two reserved rule names: *NULL* and *VOID*. These reserved names
+    cannot be used as grammar names. You can however change the case to 'null'
+    or 'void' to use them, as names are case-sensitive.
     """
     default_header_values = (
         "1.0",
@@ -72,6 +74,13 @@ class Grammar(BaseRef):
 
     @property
     def jsgf_header(self):
+        """
+        The JSGF header string for this grammar. By default this is::
+
+            #JSGF V1.0 UTF-8 en;
+
+        :returns: str
+        """
         return "#JSGF V%s %s %s;\n" % (self.jsgf_version,
                                        self.charset_name,
                                        self.language_name)
@@ -82,9 +91,10 @@ class Grammar(BaseRef):
 
     def compile(self):
         """
-        Compile this grammar's imports and rules into a string that can be
+        Compile this grammar's header, imports and rules into a string that can be
         recognised by a JSGF parser.
-        :rtype: str
+
+        :returns: str
         """
         result = self.jsgf_header
         result += "grammar %s;\n" % self.name
@@ -101,10 +111,11 @@ class Grammar(BaseRef):
 
     def compile_to_file(self, file_path, compile_as_root_grammar=False):
         """
-        Compile this grammar by calling compile and write the result to the
+        Compile this grammar by calling ``compile`` and write the result to the
         specified file.
-        :type file_path: str
-        :type compile_as_root_grammar: bool
+
+        :param file_path: str
+        :param compile_as_root_grammar: bool
         """
         if compile_as_root_grammar:
             compiled_lines = self.compile_as_root_grammar().splitlines()
@@ -116,13 +127,15 @@ class Grammar(BaseRef):
     def compile_grammar(self, charset_name="UTF-8", language_name="en",
                         jsgf_version="1.0"):
         """
-        This method is *deprecated*, use `compile` instead.
-        Compile this grammar's imports and rules into a string that can be
+        Compile this grammar's header, imports and rules into a string that can be
         recognised by a JSGF parser.
+
+        This method is **deprecated**, use ``compile`` instead.
+
         :param charset_name:
         :param language_name:
         :param jsgf_version:
-        :rtype: str
+        :returns: str
         """
         self.charset_name = charset_name
         self.language_name = language_name
@@ -132,15 +145,19 @@ class Grammar(BaseRef):
     def compile_as_root_grammar(self):
         """
         Compile this grammar with one public "root" rule containing rule references
-        in an alternative set to every other rule as such:
-        public <root> = (<rule1>|<rule2>|..|<ruleN>);
-        <rule1> = ...;
-        <rule2> = ...;
-        .
-        .
-        .
-        <ruleN> = ...;
-        :rtype: str
+        in an alternative set to every other rule as such::
+
+            public <root> = (<rule1>|<rule2>|..|<ruleN>);
+            <rule1> = ...;
+            <rule2> = ...;
+            .
+            .
+            .
+            <ruleN> = ...;
+
+        This is useful if you are using JSGF grammars with CMU Pocket Sphinx.
+
+        :returns: str
         """
         result = self.jsgf_header
         result += "grammar %s;\n" % self.name
@@ -190,7 +207,8 @@ class Grammar(BaseRef):
     def imports(self):
         """
         Get the imports for this grammar.
-        :rtype: list
+
+        :returns: list
         """
         return list(self._imports)
 
@@ -198,7 +216,8 @@ class Grammar(BaseRef):
     def rules(self):
         """
         Get the rules added to this grammar.
-        :rtype: list
+
+        :returns: list
         """
         return list(self._rules)
 
@@ -206,7 +225,8 @@ class Grammar(BaseRef):
         lambda self: [rule for rule in self.rules if rule.visible],
         doc="""
         The rules in this grammar which have the visible attribute set to True.
-        :rtype: list
+
+        :returns: list
         """
     )
 
@@ -214,15 +234,17 @@ class Grammar(BaseRef):
         lambda self: [rule.name for rule in self.rules],
         doc="""
         The rule names of each rule in this grammar.
-        :rtype: list
+
+        :returns: list
         """
     )
 
     @property
     def match_rules(self):
         """
-        The rules that the find_matching_rules method will match against.
-        :return: iterable
+        The rules that the ``find_matching_rules`` method will match against.
+
+        :returns: list
         """
         return self.visible_rules
 
@@ -241,14 +263,31 @@ class Grammar(BaseRef):
         return not self.__eq__(other)
 
     def add_rules(self, *rules):
+        """
+        Add multiple rules to the grammar.
+
+        :param rules: rules
+        :raises: GrammarError
+        """
         for r in rules:
             self.add_rule(r)
 
     def add_imports(self, *imports):
+        """
+        Add multiple imports to the grammar.
+
+        :param imports: imports
+        """
         for i in imports:
             self.add_import(i)
 
     def add_rule(self, rule):
+        """
+        Add a rule to the grammar.
+
+        :param rule: Rule
+        :raises: GrammarError
+        """
         if not isinstance(rule, Rule):
             raise TypeError("object '%s' was not a JSGF Rule object" % rule)
 
@@ -267,8 +306,9 @@ class Grammar(BaseRef):
 
     def add_import(self, _import):
         """
-        Add an import for another JSGF grammar file.
-        :type _import: Import
+        Add an import statement to the grammar.
+
+        :param _import: Import
         """
         if not isinstance(_import, Import):
             raise TypeError("object '%s' was not a JSGF Import object" % _import)
@@ -276,18 +316,20 @@ class Grammar(BaseRef):
 
     def find_matching_rules(self, speech):
         """
-        Find each visible rule in this grammar that matches the 'speech' string.
-        :type speech: str
-        :return: iterable
+        Find each visible rule in this grammar that matches the `speech` string.
+
+        :param speech: str
+        :returns: list
         """
         return [r for r in self.match_rules if r.visible and r.matches(speech)]
 
     def find_tagged_rules(self, tag, include_hidden=False):
         """
         Find each rule in this grammar that has the specified JSGF tag.
-        :type tag: str
+
+        :param tag: str
         :param include_hidden: whether to include hidden rules (default False).
-        :return: iterable
+        :returns: list
         """
         if include_hidden:
             return [r for r in self.rules if r.has_tag(tag)]
@@ -297,8 +339,10 @@ class Grammar(BaseRef):
     def get_rule_from_name(self, name):
         """
         Get a rule object with the specified name, if one exists in the grammar.
-        :type name: str
-        :rtype: Rule
+
+        :param name: str
+        :returns: Rule
+        :raises: GrammarError
         """
         if name not in self.rule_names:
             raise GrammarError("'%s' is not a rule in Grammar '%s'" % (name, self))
@@ -308,8 +352,10 @@ class Grammar(BaseRef):
     def remove_rule(self, rule, ignore_dependent=False):
         """
         Remove a rule from this grammar.
+
         :param rule: Rule object or the name of a rule in this grammar
         :param ignore_dependent: whether to check if the rule has dependent rules
+        :raises: GrammarError
         """
         if not isinstance(rule, Rule):
             # Assume 'rule' is the name of a rule
@@ -335,6 +381,7 @@ class Grammar(BaseRef):
         Rules are enabled by default.
 
         :param rule: Rule object or the name of a rule in this grammar
+        :raises: GrammarError
         """
         # Handle the rule parameter
         if isinstance(rule, string_types):
@@ -353,7 +400,9 @@ class Grammar(BaseRef):
         """
         Disable a rule in this grammar, preventing it from appearing in the compile
         method output or being matched with the find_matching_rules method.
+
         :param rule: Rule object or the name of a rule in this grammar
+        :raises: GrammarError
         """
         # Handle the rule parameter
         if isinstance(rule, string_types):
@@ -368,26 +417,30 @@ class Grammar(BaseRef):
         # Disable the rule
         self.get_rule_from_name(rule_name).disable()
 
-    def remove_import(self, import_):
+    def remove_import(self, _import):
         """
         Remove an Import from the grammar.
-        :type import_: Import
+
+        :param _import: Import
         """
-        if import_ in self._imports:
-            self._imports.remove(import_)
+        if _import in self._imports:
+            self._imports.remove(_import)
 
 
 class RootGrammar(Grammar):
     """
     A grammar with one public "root" rule containing rule references in an
-    alternative set to every other rule as such:
-    public <root> = (<rule1>|<rule2>|..|<ruleN>);
-    <rule1> = ...;
-    <rule2> = ...;
-    .
-    .
-    .
-    <ruleN> = ...;
+    alternative set to every other rule as such::
+
+        public <root> = (<rule1>|<rule2>|..|<ruleN>);
+        <rule1> = ...;
+        <rule2> = ...;
+        .
+        .
+        .
+        <ruleN> = ...;
+
+    This is useful if you are using JSGF grammars with CMU Pocket Sphinx.
     """
     def __init__(self, rules=None, name="root"):
         super(RootGrammar, self).__init__(name)
@@ -395,6 +448,14 @@ class RootGrammar(Grammar):
             self.add_rules(*rules)
 
     def compile(self):
+        """
+        Compile this grammar's header, imports and rules into a string that can be
+        recognised by a JSGF parser.
+
+        This method will compile the grammar using ``compile_as_root_grammar``.
+
+        :returns: str
+        """
         return self.compile_as_root_grammar()
 
     def add_rule(self, rule):

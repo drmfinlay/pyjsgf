@@ -1,13 +1,13 @@
 # This Python file uses the following encoding: utf-8
 
 """
-Classes for compiling JSpeech Grammar Format rules
+This module contains classes for compiling and matching JSpeech Grammar Format
+rules.
 """
 
 from .references import BaseRef
 from .expansions import Expansion, NamedRuleRef, filter_expansion, \
-    JointTreeContext, map_expansion, TraversalOrder
-from .errors import CompilationError
+    map_expansion, TraversalOrder
 
 
 class Rule(BaseRef):
@@ -18,11 +18,12 @@ class Rule(BaseRef):
     characters and/or any of the following special characters: +-:;,=|/\()[]@#%!^&~$
 
     For example, the following are valid rule names:
-    hello
-    Zürich
-    user_test
-    $100
-    1+2=3
+
+    * hello
+    * Zürich
+    * user_test
+    * $100
+    * 1+2=3
 
     There are two reserved rule names: NULL and VOID. These reserved names cannot be
     used as rule names. You can however change the case to 'null' or 'void' to use
@@ -30,8 +31,8 @@ class Rule(BaseRef):
     """
     def __init__(self, name, visible, expansion):
         """
-        :type name: str
-        :type visible: bool
+        :param name: str
+        :param visible: bool
         :param expansion: a string or Expansion object
         """
         super(Rule, self).__init__(name)
@@ -43,6 +44,11 @@ class Rule(BaseRef):
 
     @property
     def expansion(self):
+        """
+        This rule's expansion.
+
+        :returns: Expansion
+        """
         return self._expansion
 
     @expansion.setter
@@ -67,8 +73,9 @@ class Rule(BaseRef):
         """
         Compile this rule's expansion tree and return the result.
         Set ignore_tags to True to not include expansion tags in the result.
-        :type ignore_tags: bool
-        :rtype: str
+
+        :param ignore_tags: bool
+        :returns: str
         """
         if not self._active:
             return ""
@@ -76,14 +83,6 @@ class Rule(BaseRef):
         expansion = self.expansion.compile(ignore_tags)
         if not expansion:  # the compiled expansion is None or ""
             return ""
-
-        # Raise a CompilationError if there are no non-optional leaves in the
-        # expansion tree
-        leaves = self.expansion.leaves
-
-        if self.expansion.is_optional or all([l.is_optional for l in leaves]):
-            raise CompilationError("nothing in the expansion tree is required to "
-                                   "be spoken.")
 
         result = "<%s> = %s;" % (self.name, expansion)
 
@@ -122,24 +121,35 @@ class Rule(BaseRef):
     def active(self):
         """
         Whether this rule is enabled or not. If it is, the rule can be matched and
-        compiled, otherwise the compile and matches methods will return "" and
-        False respectively.
-        :return: bool
+        compiled, otherwise the ``compile`` and ``matches`` methods will return ""
+        and False respectively.
+
+        :returns: bool
         """
         return self._active
 
     @property
     def was_matched(self):
         """
-        Whether this rule matched last time the matches method was called.
-        :return: bool
+        Whether this rule matched last time the ``matches`` method was called.
+
+        :returns: bool
         """
         return self.expansion.current_match is not None
 
     def matches(self, speech):
         """
         Whether speech matches this rule.
-        :type speech: str
+
+        Matching ambiguous rule expansions is **not supported** because it not worth
+        the performance hit. Ambiguous rule expansions are defined as some optional
+        literal x followed by a required literal x. For example, successfully
+        matching ``'test'`` for the following rule is not supported::
+
+            <rule> = [test] test;
+
+        :param speech: str
+        :returns: bool
         """
         if not self._active:
             return False
@@ -151,23 +161,47 @@ class Rule(BaseRef):
         # Reset match data for this rule and referenced rules.
         self.expansion.reset_for_new_match()
 
-        # Use a JointTreeContext so that this rule's expansion tree and the
-        # expansion trees of referenced rules are joint during matching.
-        with JointTreeContext(self.expansion):
-            result = self.expansion.matches(speech)
-
-        # Check if the rule matched completely
-        if result != "":
+        # Match the expansion and use the remainder substring to check if the rule
+        # matched completely.
+        remainder = self.expansion.matches(speech)
+        if remainder != "":
             self.expansion.current_match = None
 
         return self.expansion.current_match is not None
+
+    def find_matching_part(self, speech):
+        """
+        Searches for a part of speech that matches this rule and returns it.
+
+        If no part matches or the rule is disabled, return None.
+
+        :param speech: str
+        :returns: str | None
+        """
+        if not self._active:
+            return None
+
+        # Strip whitespace at the start of 'speech' and lower it to match regex
+        # properly.
+        speech = speech.lstrip().lower()
+
+        # Use the first match (if any) and break. The loop is required because
+        # scanString returns a generator.
+        result = None
+        for match in self.expansion.matcher_element.scanString(speech):
+            _, start, end = match
+            result = speech[start:end]
+            break
+
+        return result
 
     @property
     def tags(self):
         """
         A list of JSGF tags used by this rule and any referenced rules. The returned
         list will be in the order in which tags appear in the compiled rule.
-        :rtype: list
+
+        :returns: list
         """
         # Get tagged expansions
         tagged_expansions = filter_expansion(
@@ -184,7 +218,8 @@ class Rule(BaseRef):
         will be in the order in which tags appear in the compiled rule.
 
         This includes matching tags in referenced rules.
-        :rtype: list
+
+        :returns: list
         """
         # Get tagged and matching expansions in this rule and referenced rules.
         tagged_expansions = filter_expansion(
@@ -199,8 +234,9 @@ class Rule(BaseRef):
         """
         Check whether there are expansions in this rule or referenced rules that use
         a given JSGF tag.
-        :type tag: str
-        :rtype: bool
+
+        :param tag: str
+        :returns: bool
         """
         # Empty or whitespace-only strings are not valid tags.
         tag = tag.strip()
@@ -214,8 +250,9 @@ class Rule(BaseRef):
         """
         Match a speech string and return a list of any matching tags in this rule
         and in any referenced rules.
-        :type speech: str
-        :rtype: list
+
+        :param speech: str
+        :returns: list
         """
         self.matches(speech)
         return self.matched_tags
@@ -224,7 +261,8 @@ class Rule(BaseRef):
     def dependencies(self):
         """
         The set of rules which this rule directly and indirectly references.
-        :rtype: set
+
+        :returns: set
         """
         # Return the set of all rules referenced by a RuleRef
         return set(map(
@@ -238,7 +276,8 @@ class Rule(BaseRef):
         """
         The set of rules in this rule's grammar that reference this rule.
         Returns an empty set if this rule is not in a grammar.
-        :rtype: set
+
+        :returns: set
         """
         if not self.grammar:
             return set()
@@ -254,7 +293,8 @@ class Rule(BaseRef):
     def reference_count(self):
         """
         The number of dependent rules.
-        :rtype: int
+
+        :returns: int
         """
         return len(self.dependent_rules)
 
@@ -268,6 +308,9 @@ class Rule(BaseRef):
 
 
 class PublicRule(Rule):
+    """
+    Rule subclass with ``visible`` set to True.
+    """
     def __init__(self, name, expansion):
         super(PublicRule, self).__init__(name, True, expansion)
 
@@ -280,6 +323,9 @@ class PublicRule(Rule):
 
 
 class HiddenRule(Rule):
+    """
+    Rule subclass with ``visible`` set to False.
+    """
     def __init__(self, name, expansion):
         super(HiddenRule, self).__init__(name, False, expansion)
 

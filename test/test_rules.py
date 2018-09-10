@@ -1,12 +1,14 @@
 import unittest
 
+from jsgf.ext import Dictation
+
 from jsgf import *
 from jsgf import CompilationError
 
 
-class PropertiesTests(unittest.TestCase):
+class MemberTests(unittest.TestCase):
     """
-    Test some properties of the Rule class.
+    Test some methods and properties of the Rule class.
     """
     def test_dependencies_simple(self):
         rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
@@ -99,20 +101,46 @@ class PropertiesTests(unittest.TestCase):
         self.assertTrue(r1.was_matched)
         self.assertEqual(r1.compile(), "public <test> = hello;")
 
+    def test_find_matching_part(self):
+        r1 = PublicRule("test", "hello world")
+
+        # Test with matches.
+        m = "hello world"
+        self.assertEqual(r1.find_matching_part("test hello world"), m)
+        self.assertEqual(r1.find_matching_part("hello world test"), m)
+        self.assertEqual(r1.find_matching_part("test hello world test"), m)
+        self.assertEqual(r1.find_matching_part("test abc hello world"), m)
+        self.assertEqual(r1.find_matching_part("test test hello world"), m)
+        self.assertEqual(r1.find_matching_part("hello world abc test"), m)
+        self.assertEqual(r1.find_matching_part("hello world test test"), m)
+        self.assertEqual(
+            r1.find_matching_part("test abc hello world test abc"), m
+        )
+        self.assertEqual(
+            r1.find_matching_part("test test hello world test test"), m
+        )
+
+        # Test with no matches.
+        self.assertIsNone(r1.find_matching_part(""))
+        self.assertIsNone(r1.find_matching_part("test hello"))
+        self.assertIsNone(r1.find_matching_part("abc hello def world"))
+        self.assertIsNone(r1.find_matching_part("hello abc def world"))
+
+        # Test disabled rule.
+        r1.disable()
+        self.assertIsNone(r1.find_matching_part(""))
+        self.assertIsNone(r1.find_matching_part("hello world"))
+        self.assertIsNone(r1.find_matching_part("test"))
+
 
 class InvalidRules(unittest.TestCase):
     def test_invalid_rules(self):
-        invalid_rules = [
-            PublicRule("test", OptionalGrouping("hello")),
-            PublicRule("test", KleeneStar("hello")),
-            PublicRule("test", AlternativeSet(OptionalGrouping("hello"))),
-            PublicRule("test", Sequence(OptionalGrouping("hello"))),
-            PublicRule("test", "")
-        ]
+        # Literals with text == "" raise CompilationErrors
+        self.assertRaises(CompilationError, PublicRule("test", "").compile)
+        self.assertRaises(CompilationError, PublicRule("test", Literal("")).compile)
 
-        # Rules that only have optional literals are not valid
-        for rule in invalid_rules:
-            self.assertRaises(CompilationError, rule.compile)
+        # Dictation doesn't raise errors on compilation.
+        self.assertEqual(PublicRule("test", Dictation()).compile(), "")
 
 
 class ComparisonTests(unittest.TestCase):

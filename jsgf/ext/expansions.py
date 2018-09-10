@@ -1,14 +1,125 @@
+"""
+This module contains extension rule expansion classes and functions.
+"""
+
 import re
+
+import pyparsing
+
 from jsgf import *
+
+# Define the regular expression used for dictation words.
+_word_regex_str = r"[\w\d?,\.\-_!;:']+"
+
+
+def _collect_from_leaves(e, backtrack):
+    result = []
+    look_further = True
+    for leaf in e.leaves:
+        if isinstance(leaf, Dictation):
+            # Add regex for a single dictation word.
+            result.append(_word_regex_str)
+        elif isinstance(leaf, Literal):
+            # Add first word of literal.
+            result.append(leaf.text.split()[0])
+        else:
+            # Skip references.
+            continue
+
+        # Break out of the loop if the leaf is required.
+        if not leaf.is_optional:
+            if not backtrack:
+                look_further = False
+            break
+    return result, look_further
+
+
+def _collect_next_literals(stack, i, look_further, backtrack):
+    """
+    Build a list of each next literal using a stack of expansions and their parents
+    as well as an index for which stack frame to use.
+
+    The stack has the following structure:
+    [(e, e.parent), (e.parent, e.parent.parent), ... (root.children[x], root)]
+    :param stack: list
+    :param i: int
+    :param look_further: bool
+    :param backtrack: bool
+    :returns: tuple of literals list and flags value
+    """
+    # Handle stop looking for literals or i being an invalid index.
+    if not look_further or i < 0 or i >= len(stack):
+        return [], look_further
+
+    # Get the current child and parent from the stack.
+    p1, p2 = stack[i]
+    result = []
+
+    if isinstance(p2, Sequence):
+        # Get the index of p1 in p2.children using 'is'.
+        j = 0
+        for j, c in enumerate(p2.children):
+            if c is p1:
+                break
+
+        # Collect the first word of each literal until a required one is found.
+        # This won't collect the same repeating dictation from backtracking.
+        child_slice = p2.children[:j] if backtrack else p2.children[j + 1:]
+        for c in child_slice:
+            leaves, look_further = _collect_from_leaves(c, backtrack)
+            result.extend(leaves)
+
+            # Stop if a required literal has been collected.
+            if not look_further:
+                break
+
+    elif isinstance(p2, Repeat):
+        # If we get to a repeat, it means that there were no required literals below
+        # it *after* the dictation expansion. Backtrack to search before it instead.
+        next_stack_result = _collect_next_literals(stack, i - 1, look_further, True)
+        result.extend(next_stack_result[0])
+        look_further = look_further or next_stack_result[1]
+
+    elif isinstance(p2, AlternativeSet) and backtrack:
+        # Handle backtracking through repeating alternatives. Non-repeating
+        # alternative sets in the stack won't have next literals.
+        for c in p2.children:
+            # Collect the next literals from each alternative; any of them could be
+            # matched after dictation.
+            leaves, look_further = _collect_from_leaves(c, backtrack)
+            result.extend(leaves)
+
+    # Go to the next logical stack frame.
+    if backtrack:
+        next_stack_result = _collect_next_literals(stack, i - 1, look_further,
+                                                   backtrack)
+    else:
+        next_stack_result = _collect_next_literals(stack, i + 1, look_further,
+                                                   backtrack)
+
+    result.extend(next_stack_result[0])
+    look_further = look_further or next_stack_result[1]
+    return result, look_further
 
 
 class Dictation(Literal):
     """
     Class representing dictation input matching any spoken words.
-    This expansion uses the default compile() implementation because JSGF
-    does not handle dictation.
-    This is largely based on the functionality provided by using Dragon
-    NaturallySpeaking and the dragonfly Python library together.
+
+    This is largely based on the ``Dictation`` element class in the dragonfly Python
+    library.
+
+    The matching implementation for ``Dictation`` expansions will look ahead for
+    possible next literals to avoid matching them and making the rule fail to
+    match. It will also look backwards for literals in possible future repetitions.
+
+    It will **not** however look at referencing rules for next possible
+    literals. If you have match failures because of this, only use ``Dictation``
+    expansions in public rules *or* use the ``JointTreeContext`` class before
+    matching if you don't mind reducing the matching performance.
+
+    ``Dictation`` expansions compile to the empty string (``''``), so be careful
+    with compiling rules using them.
     """
     def __init__(self):
         # Pass the empty string to the Literal constructor so that calling compile
@@ -27,17 +138,29 @@ class Dictation(Literal):
     def __deepcopy__(self, memo=None):
         return self.__copy__()
 
+    def __hash__(self):
+        # A Dictation hash is a hash of the class name and each ancestor's string
+        # representation.
+        ancestors = []
+        p = self.parent
+        while p:
+            ancestors.append("%s" % p)
+            p = p.parent
+        return hash("%s: %s" % (self.__class__.__name__,
+                                ",".join(ancestors)))
+
     def validate_compilable(self):
         pass
 
     @property
     def use_current_match(self):
         """
-        Consume the value of current_match in _matches_internal rather than
-        matching on any string of words.
-        This is used by the SequenceRule.graft_sequence_matches method.
+        Whether to match the ``current_match`` value next time rather than matching
+        one or more words.
 
-        :return: bool
+        This is used by the ``SequenceRule.graft_sequence_matches`` method.
+
+        :returns: bool
         """
         return self._use_current_match
 
@@ -45,64 +168,75 @@ class Dictation(Literal):
     def use_current_match(self, value):
         self._use_current_match = value
 
-    def _matches_internal(self, speech):
-        result = speech
+        # Invalidate the matcher.
+        self.invalidate_matcher()
 
-        if self.use_current_match:
-            # If current_match is set and speech starts with it, then pretend
-            # that part of speech was consumed normally and return the rest.
-            if self.current_match and result.startswith(self.current_match):
-                result = result[len(self.current_match):].strip()
-            return result
+    def _make_matcher_element(self):
+        # Handle the case where use_current_match is True.
+        if self.use_current_match is True:
+            current_match = self.current_match
+            if current_match is None:
+                result = pyparsing.NoMatch()
+            elif current_match == "":
+                result = pyparsing.Empty()
+            else:
+                result = pyparsing.Literal(self.current_match)
 
-        match = None
-        for leaf in self.matchable_leaves_after:
-            # Handle successive dictation
-            if isinstance(leaf, Dictation):
-                if self.is_optional and not leaf.is_optional:
-                    # Let the next dictation expansion use the speech.
-                    return "%s %s".strip() % (
-                        super(Dictation, self)._matches_internal(" "), result)
-                elif not self.is_optional and not leaf.is_optional:
-                    # This is an error because we can't detect the end of one
-                    # expansion's match and the start of the other.
-                    raise ExpansionError("cannot match on two successive "
-                                         "non-optional Dictation expansions")
-                else:
-                    break
+            # Set the parse action and return the element.
+            return result.setParseAction(self._parse_action)
 
-            pattern = leaf.matching_regex_pattern
-            match = pattern.search(result)  # get the first match
+        # Otherwise build a list of next possible literals. Make the required stack
+        # of child-parent pairs.
+        stack = []
+        p1, p2 = self, self.parent
+        while p1 and p2:
+            stack.append((p1, p2))
 
-            # Break on the first leaf that matches or if a required leaf doesn't
-            # match (no point continuing)
-            if not match and not leaf.is_optional or match:
-                break
+            # Move both pivots further up the tree.
+            p1 = p1.parent
+            p2 = p2.parent
 
-        # Let speech to be matched start with a single space in order to match
-        # n words easily
-        if match:
-            result = "%s %s" % (
-                super(Dictation, self)._matches_internal(
-                    " " + result[0:match.start()]),
-                result[match.start():])
+        # Build a list of next literals using the stack.
+        next_literals, _ = _collect_next_literals(stack, 0, True, False)
+
+        # De-duplicate the list.
+        next_literals = list(set(next_literals))
+
+        word = pyparsing.Regex(_word_regex_str, re.UNICODE)
+        if next_literals:
+            # Check if there is a next dictation literal. If there is, only match
+            # one word for this expansion.
+            if _word_regex_str in next_literals:
+                result = word
+
+            # Otherwise build an element to match one or more words stopping on
+            # any of the next literals so that they aren't matched as dictation.
+            else:
+                next_literals = list(map(pyparsing.Literal, next_literals))
+                result = pyparsing.OneOrMore(
+                    word, stopOn=pyparsing.Or(next_literals)
+                )
         else:
-            result = super(Dictation, self)._matches_internal(" " + result)
+            # Handle the case of no literals ahead by allowing one or more Unicode
+            # words without restrictions.
+            result = pyparsing.OneOrMore(word)
 
-        # Strip whitespace before returning so that the rule doesn't fail to match
-        return result.strip()
+        return result.setParseAction(self._parse_action)
 
     @property
     def matching_regex_pattern(self):
         """
         A regex pattern for matching this expansion.
+
+        This property has been left in for backwards compatibility.
+        The ``Expansion.matches`` method now uses the ``matcher_element`` property
+        instead.
+
+        :returns: regex pattern object
         """
-        if not self._pattern:
-            # Match one or more words or digits separated by whitespace
-            word = "[\w\d?,\.\-_!;:']+"
-            regex = "(\s+%s)+" % word
-            self._pattern = re.compile(regex)
-        return self._pattern
+        # Match one or more words or digits separated by whitespace
+        regex = "%s(\s+%s)*" % (_word_regex_str, _word_regex_str)
+        return re.compile(regex, re.UNICODE)
 
 
 def dictation_in_expansion(e, no_literals=False):
@@ -137,10 +271,12 @@ def dictation_and_literals_in_expansion(e):
 
 def expand_dictation_expansion(expansion):
     """
-    Take an expansion and expand any AlternativeSet with alternatives containing
-    Dictation expansions. This function returns a list of all expanded expansions.
-    :type expansion: Expansion
-    :return: list
+    Take an expansion and expand any ``AlternativeSet`` with alternatives containing
+    ``Dictation`` expansions. This function returns a list of all expanded
+    expansions.
+
+    :param expansion: Expansion
+    :returns: list
     """
     def is_unprocessed(e):
         if isinstance(e, AlternativeSet):
@@ -187,8 +323,8 @@ def expand_dictation_expansion(expansion):
         """
         Find the first expansion in an expansion tree for which is_unprocessed
         returns True.
-        :type e: Expansion
-        :return: Expansion | None
+        :param e: Expansion
+        :returns: Expansion | None
         """
         if isinstance(e, NamedRuleRef):
             return first_unprocessed_expansion(e.referenced_rule.expansion)
@@ -207,8 +343,9 @@ def expand_dictation_expansion(expansion):
     def process(e):
         """
         Process an expansion recursively and return a list of expanded expansions.
-        :type e: Expansion
-        :return: list
+
+        :param e: Expansion
+        :returns: list
         """
         result = []
         current = first_unprocessed_expansion(e)
@@ -301,14 +438,15 @@ def expand_dictation_expansion(expansion):
 
 def calculate_expansion_sequence(expansion, should_deepcopy=True):
     """
-    Split an expansion into 2n expansions where n is the number of Dictation
-    expansions in the expansion.
+    Split an expansion into `2*n` expansions where `n` is the number of
+    ``Dictation`` expansions in the expansion tree.
 
-    If there aren't any Dictation expansions, the result will be the original
+    If there aren't any ``Dictation`` expansions, the result will be the original
     expansion.
-    :type expansion: Expansion
+
+    :param expansion: Expansion
     :param should_deepcopy: whether to deepcopy the expansion before using it
-    :rtype: list
+    :returns: list
     """
     def generate_expansion_from_children(e, children):
         assert isinstance(e, Expansion)
@@ -332,8 +470,8 @@ def calculate_expansion_sequence(expansion, should_deepcopy=True):
         [DO, DF, ...]
         [DF, DO, ... ]
 
-        :type e: Expansion
-        :rtype: list
+        :param e: Expansion
+        :returns: list
         """
         result = []
         if isinstance(e, Dictation):

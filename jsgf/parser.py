@@ -1,25 +1,40 @@
 """
-JSGF parser functions
+This module contains functions that parse strings into ``Grammar``, ``Import``,
+``Rule`` and ``Expansion`` objects.
 
-The main functions of interest in this module are parse_grammar_string,
-parse_grammar_file, parse_rule_string, parse_expansion_string and valid_grammar.
+=======================
+Supported functionality
+=======================
+The parser functions support the following:
 
-Note: this parser does not strictly use ';' as the line ending character.
-Newline characters and/or semicolons may be used interchangeably. For example:
+* Public and private/hidden rules.
+* Import statements.
+* Alternative sets, e.g. ``a|b|c``.
+* Expansion sequences.
+* Required groupings, e.g. ``(a b c) | (e f g)``.
+* Optionals, e.g. ``[this is optional]``.
+* Single or multiple JSGF tags, e.g. ``text {tag1} {tag2} {tag3}``.
+* Unary kleene star and repeat operators (``*`` and ``+``).
+* Rule references, e.g. ``<command>``.
+* Special rules ``<NULL>`` and ``<VOID>``.
+* C++ style single/in-line and multi-line comments (``// ...`` and ``/* ... */``
+  respectively).
+* Using semicolons or newlines interchangeably as line delimiters.
+* Using Unicode alphanumerics for names, references and literals.
 
-#JSGF V1.0 UTF-8 en
-grammar test
-public <rule> = hello
 
-is equivalent to:
+===========
+Limitations
+===========
+There are a few limitations with this parser:
 
-#JSGF V1.0 UTF-8 en;
-grammar test;
-public <rule> = hello;
+* It will fail to parse long sequences and alternative sets. A workaround for this
+  is to split the alternatives/sequences into shorter rules and use references. This
+  could be probably be done automatically somehow in a future release.
+* Alternative set weights (e.g. ``/10/ a | /20/ b | /30/ c``) are not yet
+  implemented, so they won't be parsed correctly.
 
-as well as:
 
-#JSGF V1.0 UTF-8 en; grammar test; public <rule> = hello
 """
 
 from pyparsing import *
@@ -87,8 +102,9 @@ def _unwrap_tokens(tokens):
     """
     Take parse tokens or a list and return a list that has no wrapping lists.
     E.g. [[[Literal("text")]]] -> [Literal("text")]
-    :type tokens: ParseResults
-    :rtype: list
+
+    :param tokens: ParseResults
+    :returns: list
     """
     if isinstance(tokens, ParseResults):
         l = tokens.asList()
@@ -208,7 +224,8 @@ def get_exp_parser():
        use `()' or `[]' grouping.)
     4. Sequence of rule expansions.
     5. `|' separated set of alternative rule expansions.
-    :rtype: Forward
+
+    :returns: Forward
     """
     # Make a forward declaration for defining an expansion. This is necessary for
     # recursive grammars.
@@ -336,9 +353,11 @@ grammar_parser = get_grammar_parser()
 
 def parse_expansion_string(s):
     """
-    Parse a string containing a JSGF expansion and return an Expansion object.
-    :type s: str
-    :rtype: Expansion
+    Parse a string containing a JSGF expansion and return an ``Expansion`` object.
+
+    :param s: str
+    :returns: Expansion
+    :raises: ParseException, GrammarError
     """
     # Parse the string and return the first (and only) expansion object that was
     # generated. Pass True as the second argument to catch trailing invalid tokens.
@@ -347,20 +366,23 @@ def parse_expansion_string(s):
 
 def parse_rule_string(s):
     """
-    Parse a string containing a JSGF rule definition and return a Rule object.
-    :type s: str
-    :rtype: Rule
+    Parse a string containing a JSGF rule definition and return a ``Rule`` object.
+
+    :param s: str
+    :returns: Rule
+    :raises: ParseException, GrammarError
     """
     return rule_parser.parseString(s, True).asList()[0]
 
 
 def parse_grammar_string(s):
     """
-    Parse a JSGF grammar string and return a Grammar object with the defined
-    attributes, name, imports and rules set.
-    :type s: str
-    :rtype: Grammar
-    :raises ParseException
+    Parse a JSGF grammar string and return a ``Grammar`` object with the defined
+    attributes, name, imports and rules.
+
+    :param s: str
+    :returns: Grammar
+    :raises: ParseException, GrammarError
     """
     return grammar_parser.parseString(s, True).asList()[0]
 
@@ -368,10 +390,12 @@ def parse_grammar_string(s):
 def valid_grammar(s):
     """
     Whether a string is a valid JSGF grammar string.
+
     Note that this method will not return False for grammars that are otherwise
     valid, but have out-of-scope imports.
-    :type s: str
-    :rtype: bool
+
+    :param s: str
+    :returns: bool
     """
     try:
         parse_grammar_string(s)
@@ -383,12 +407,15 @@ def valid_grammar(s):
 
 def parse_grammar_file(path):
     """
-    Parse a JSGF grammar file and a Grammar object representing the defined grammar.
+    Parse a JSGF grammar file and a return a ``Grammar`` object with the defined
+    attributes, name, imports and rules.
 
     This method will not attempt to import rules or grammars defined in other files,
     that should be done by an import resolver, not a parser.
-    :type path: str
-    :rtype: Grammar
+
+    :param path: str
+    :returns: Grammar
+    :raises: ParseException, GrammarError
     """
     # Read all lines from the file, join them and call parse_grammar_string.
     # Note that lines should retain any newline characters or semicolons.
