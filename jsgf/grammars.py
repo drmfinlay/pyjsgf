@@ -122,7 +122,7 @@ class Grammar(BaseRef):
         else:
             compiled_lines = self.compile().splitlines()
         with open(file_path, "w+") as f:
-            f.writelines(compiled_lines)
+            f.writelines('\n'.join(compiled_lines))
 
     def compile_grammar(self, charset_name="UTF-8", language_name="en",
                         jsgf_version="1.0"):
