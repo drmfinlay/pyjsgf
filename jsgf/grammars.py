@@ -118,11 +118,11 @@ class Grammar(BaseRef):
         :param compile_as_root_grammar: bool
         """
         if compile_as_root_grammar:
-            compiled_lines = self.compile_as_root_grammar().splitlines()
+            compiled_lines = self.compile_as_root_grammar()
         else:
-            compiled_lines = self.compile().splitlines()
+            compiled_lines = self.compile()
         with open(file_path, "w+") as f:
-            f.writelines(compiled_lines)
+            f.write(compiled_lines)
 
     def compile_grammar(self, charset_name="UTF-8", language_name="en",
                         jsgf_version="1.0"):
