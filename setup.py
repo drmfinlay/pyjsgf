@@ -1,15 +1,16 @@
 from setuptools import setup
 
+
+def get_long_description():
+    with open('README.rst') as f:
+        return f.read()
+
+
 setup(
     name='pyjsgf',
     description='JSpeech Grammar Format (JSGF) compiler, matcher and parser '
                 'package for Python.',
-    long_description='''
-        pyjsgf can be used to construct JSGF rules and grammars, compile them into
-        strings or files, and find grammar rules that match speech hypothesis
-        strings. Matching speech strings to tags is also supported. There are also
-        parsers for grammars, rules and rule expansions.
-    ''',
+    long_description=get_long_description(),
     url='https://github.com/Danesprite/pyjsgf',
     license='MIT',
     classifiers=[
