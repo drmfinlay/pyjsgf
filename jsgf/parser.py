@@ -1,3 +1,4 @@
+# encoding=utf-8
 """
 This module contains functions that parse strings into ``Grammar``, ``Import``,
 ``Rule`` and ``Expansion`` objects.
@@ -34,6 +35,45 @@ There are a few limitations with this parser:
 * Alternative set weights (e.g. ``/10/ a | /20/ b | /30/ c``) are not yet
   implemented, so they won't be parsed correctly.
 
+
+=========================
+Extended Backus–Naur form
+=========================
+`Extended Backus–Naur form
+<https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form>`_ (EBNF) is a
+notation for defining context-free grammars. The following is the EBNF used by
+pyjsgf's parsers::
+
+    alphanumeric = ? any alphanumeric Unicode character ? ;
+    atom = literal | '<' , reference name , '>' | '(' , exp , ')' |
+           '[' , exp , ']' ;
+    exp = atom , [ { tag | '+' | '*' | exp | '|' , exp } ] ;
+    grammar = grammar header , grammar declaration ,
+              [ { import statement } ] , { rule definition } ;
+    grammar declaration = 'grammar' , reference name , line end ;
+    grammar header = '#JSGF', ( 'v' | 'V' ) , version , word ,
+                     word , line end ;
+    identifier = { alphanumeric | special } ;
+    import name = qualified name , [ '.*' ] | identifier , '.*' ;
+    import statement = 'import' , '<' , import name  , '>' , line end ;
+    line end = ';' | '\\n' ;
+    literal = { word } ;
+    qualified name = identifier , { '.' , identifier }  ;
+    version = ? an integer or floating-point number ? ;
+    reference name = identifier | qualified name ;
+    rule definition = [ 'public' ] , '<' , reference name , '>' , '=' ,
+                      exp , line end ;
+    special = '+' | '-' | ':' | ';' | ',' | '=' | '|' | '/' | '$' |
+              '(' | ')' | '[' | ']' | '@' | '#' | '%' | '!' | '^' |
+              '&' | '~' | '\\' ;
+    tag = '{' , { tag literal } , '}' ;
+    tag literal = { word character | '\\{' | '\\}' } ;
+    word = { word character } ;
+    word character = alphanumeric | "'" | '-' ;
+
+
+I've not included comments for simplicity; they can be used pretty much anywhere.
+`pyparsing <https://github.com/pyparsing/pyparsing>`_ handles that for us.
 
 """
 
