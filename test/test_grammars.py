@@ -1,8 +1,9 @@
 # This Python file uses the following encoding: utf-8
 # The above line is required for the MultiLingualTests class
 
-import unittest
 import copy
+import tempfile
+import unittest
 
 from jsgf import *
 from jsgf.ext import Dictation
@@ -30,6 +31,27 @@ class BasicGrammarCase(unittest.TestCase):
 
         compiled = self.grammar.compile()
         self.assertEqual(expected, compiled)
+
+    def test_compile_to_file(self):
+        expected = "#JSGF V1.0 UTF-8 en;\n" \
+                   "grammar test;\n" \
+                   "public <greet> = (<greetWord> <name>);\n" \
+                   "<greetWord> = (hello|hi);\n" \
+                   "<name> = (peter|john|mary|anna);\n"
+
+        # Create a temporary testing file.
+        tf = tempfile.NamedTemporaryFile()
+        self.grammar.compile_to_file(tf.name)
+
+        # Check the file contents after writing to it.
+        with open(tf.name) as f:
+            content = f.read()
+
+        try:
+            self.assertEqual(expected, content)
+        finally:
+            # Always close and remove the temp file, even if the assertion fails.
+            tf.close()
 
     def test_remove_dependent_rule(self):
         self.assertRaises(GrammarError, self.grammar.remove_rule, "greetWord")
@@ -362,6 +384,29 @@ class RootGrammarCase(unittest.TestCase):
                    "<name> = (peter|john|mary|anna);\n"
 
         self.assertEqual(root.compile(), expected)
+
+    def test_compile_to_file(self):
+        root = self.grammar
+        expected = "#JSGF V1.0 UTF-8 en;\n" \
+                   "grammar root;\n" \
+                   "public <root> = (<greet>);\n" \
+                   "<greet> = (<greetWord> <name>);\n" \
+                   "<greetWord> = (hello|hi);\n" \
+                   "<name> = (peter|john|mary|anna);\n"
+
+        # Create a temporary testing file.
+        tf = tempfile.NamedTemporaryFile()
+        root.compile_to_file(tf.name)
+
+        # Check the file contents after writing to it.
+        with open(tf.name) as f:
+            content = f.read()
+
+        try:
+            self.assertEqual(expected, content)
+        finally:
+            # Always close and remove the temp file, even if the assertion fails.
+            tf.close()
 
     def test_compile_add_remove_rule(self):
         root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
