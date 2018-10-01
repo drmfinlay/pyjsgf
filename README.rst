@@ -66,14 +66,14 @@ Running the above code would output:
     grammar default;
     public <hello> = hello world;
 
-    Matching: PublicRule(Literal('hello world'))
+    Matching: PublicRule(name='hello', expansion=Literal('hello world'))
+
 
 The first line of the grammar can be changed using the ``jsgf_version``,
 ``charset_name``, and ``language_name`` members of the ``Grammar``
 class.
 
-There are more examples on ways to use this package
-`here <examples/>`__.
+There are some usage examples in `pyjsgf/examples <https://github.com/Danesprite/pyjsgf/tree/master/examples>`_ which may help you get started.
 
 Multilingual support
 --------------------
