@@ -11,6 +11,15 @@ This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 Unreleased_
 -----------
 
+Added
+^^^^^
+* Add section in parser documentation with EBNF for the grammar parser.
+
+Changed
+^^^^^^^
+* Fix a few problems with the README.
+* Change install instructions to use pip instead.
+
 Fixed
 ^^^^^
 * Fix missing newlines from Grammar.compile_to_file(). Thanks `@daanzu`_.
