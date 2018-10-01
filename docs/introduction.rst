@@ -13,9 +13,13 @@ There are some usage examples in `pyjsgf/examples <https://github.com/Danesprite
 
 Installation
 ------------
-To install pyjsgf, run the following in the root directory of the repository::
+To install pyjsgf, run the following::
 
-  $ python setup.py install
+  $ pip install pyjsgf
+
+If you are installing in order to *develop* pyjsgf, clone/download the repository, move to the root directory and run::
+
+  $ pip install -e .
 
 
 Supported Python Versions

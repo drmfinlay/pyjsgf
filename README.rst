@@ -23,12 +23,14 @@ readthedocs.org <https://pyjsgf.readthedocs.io/>`__.
 
 Installation
 ------------
+To install pyjsgf, run the following::
 
-Clone or download this repository and run the following:
+  $ pip install pyjsgf
 
-.. code:: shell
+If you are installing in order to *develop* pyjsgf, clone/download the repository, move to the root directory and run::
 
-    python setup.py install
+  $ pip install -e .
+
 
 Usage Example
 -------------
