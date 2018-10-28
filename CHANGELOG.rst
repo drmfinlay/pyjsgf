@@ -8,8 +8,8 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
 
-Unreleased_
------------
+1.5.1_ -- 2018-10-28
+--------------------
 
 Added
 ^^^^^
@@ -17,11 +17,11 @@ Added
 
 Changed
 ^^^^^^^
-* Fix a few problems with the README.
 * Change install instructions to use pip instead.
 
 Fixed
 ^^^^^
+* Fix a few problems with the README.
 * Fix missing newlines from Grammar.compile_to_file(). Thanks `@daanzu`_.
 
 1.5.0_ -- 2018-09-11
@@ -172,7 +172,8 @@ First tagged release and start of proper versioning. Too many changes to list he
 
 
 .. Release links.
-.. _Unreleased: https://github.com/Danesprite/pyjsgf/compare/v1.5.0...HEAD
+.. _Unreleased: https://github.com/Danesprite/pyjsgf/compare/v1.5.1...HEAD
+.. _1.5.1: https://github.com/Danesprite/pyjsgf/compare/v1.5.0...v1.5.1
 .. _1.5.0: https://github.com/Danesprite/pyjsgf/compare/v1.4.1...v1.5.0
 .. _1.4.1: https://github.com/Danesprite/pyjsgf/compare/v1.4.0...v1.4.1
 .. _1.4.0: https://github.com/Danesprite/pyjsgf/compare/v1.3.0...v1.4.0
