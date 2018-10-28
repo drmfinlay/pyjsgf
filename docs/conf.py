@@ -169,9 +169,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'pyjsgf', u'pyjsgf Documentation',
-     author, 'pyjsgf', 'One line description of project.',
+     author, 'pyjsgf', 'JSpeech Grammar Format (JSGF) compiler, matcher '
+                       'and parser package for Python.',
      'Miscellaneous'),
 ]
-
-
-
