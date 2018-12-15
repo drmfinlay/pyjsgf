@@ -136,8 +136,9 @@ def filter_expansion(e, func=lambda x: x, order=TraversalOrder.PreOrder,
 def save_current_matches(e):
     """
     Traverse an expansion tree and return a dictionary populated with each
-    descendant ``Expansion`` and its ``current_match`` value. This will also include
-    ``e``.
+    descendant ``Expansion`` and its match data.
+
+    This will also include ``e``.
 
     :param e: Expansion
     :returns: dict
@@ -145,25 +146,30 @@ def save_current_matches(e):
     values = {}
 
     def save(x):
-        values[x] = x.current_match
+        values[x] = {
+            "current_match": x.current_match,
+            "matching_slice": x.matching_slice,
+        }
     map_expansion(e, save)
     return values
 
 
 def restore_current_matches(e, values, override_none=True):
     """
-    Traverse an expansion tree and set ``e.current_match`` to its value in the
-    dictionary or None:
-
-    ``e.current_match = values[e, None]``
+    Traverse an expansion tree and restore matched data using the values dictionary.
 
     :param e: Expansion
     :param values: dict
     :param override_none: bool
     """
     def restore(x):
-        if not override_none and values.get(x, None) is not None:
-            x.current_match = values.get(x, None)
+        match_data = values.get(x, None)
+        if match_data:
+            if not override_none and match_data["current_match"] is not None:
+                x.current_match = match_data["current_match"]
+            if not override_none and match_data["matching_slice"] is not None:
+                x.matching_slice = match_data["matching_slice"]
+
     map_expansion(e, restore)
 
 
@@ -372,6 +378,7 @@ class Expansion(object):
         self.children = children
 
         self._current_match = None
+        self._matching_slice = None
         self.rule = None
 
         # Internal member used for caching calculations. Initially None as this
@@ -576,6 +583,22 @@ class Expansion(object):
 
         self._current_match = value
 
+    @property
+    def matching_slice(self):
+        """
+        Slice of the last speech string matched. This will be ``None`` initially.
+
+        :rtype: slice
+        """
+        return self._matching_slice
+
+    @matching_slice.setter
+    def matching_slice(self, value):
+        if not isinstance(value, slice) and value is not None:
+            raise TypeError("matching_slice must be a slice or None")
+
+        self._matching_slice = value
+
     def reset_for_new_match(self):
         """
         Call ``reset_match_data`` for this expansion and all of its descendants.
@@ -590,6 +613,7 @@ class Expansion(object):
         This does **not** invalidate ``matcher_element``.
         """
         self.current_match = None
+        self.matching_slice = None
 
     def matches(self, speech):
         """
@@ -625,6 +649,7 @@ class Expansion(object):
             if (x.parent and not isinstance(x, NamedRuleRef) and not
                     x.parent.current_match):
                 x.current_match = None
+                x.matching_slice = None
 
         map_expansion(self, process)
         return remaining
@@ -687,6 +712,32 @@ class Expansion(object):
         Subclasses should implement this method for speech matching functionality.
         """
         raise NotImplementedError()
+
+    def _set_matcher_element_attributes(self, element):
+        # Set the ParserElement's action.
+        element.setParseAction(self._parse_action)
+
+        # Save the element's original postParse function.
+        closure = element.postParse
+
+        # Set a new function and use the original function for returning values.
+        def postParse(instring, loc, tokenlist):
+            if isinstance(tokenlist, pyparsing.ParseResults):
+                s = " ".join(tokenlist.asList())
+            elif isinstance(tokenlist, list):
+                s = "".join(tokenlist)
+            elif isinstance(tokenlist, string_types):
+                s = tokenlist
+            else:
+                raise TypeError("postParse received invalid tokenlist %s"
+                                % tokenlist)
+            self.matching_slice = slice(loc - len(s), loc)
+            return closure(instring, loc, tokenlist)
+
+        element.postParse = postParse
+
+        # Return the element.
+        return element
 
     @property
     def had_match(self):
@@ -1067,9 +1118,9 @@ class NamedRuleRef(BaseExpansionRef):
     def _make_matcher_element(self):
         # Wrap the parser element for the referenced rule's root expansion so that
         # the current match value for the NamedRuleRef is also set.
-        return pyparsing.And([
+        return self._set_matcher_element_attributes(pyparsing.And([
             self.referenced_rule.expansion.matcher_element
-        ]).setParseAction(self._parse_action)
+        ]))
 
     def __hash__(self):
         return super(NamedRuleRef, self).__hash__()
@@ -1086,7 +1137,7 @@ class NullRef(BaseExpansionRef):
         super(NullRef, self).__init__("NULL")
 
     def _make_matcher_element(self):
-        return pyparsing.Empty().setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(pyparsing.Empty())
 
     def _set_current_match(self, value):
         self._current_match = ""
@@ -1115,7 +1166,7 @@ class VoidRef(BaseExpansionRef):
         super(VoidRef, self).__init__("VOID")
 
     def _make_matcher_element(self):
-        return pyparsing.NoMatch().setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(pyparsing.NoMatch())
 
     def _set_current_match(self, value):
         self._current_match = None
@@ -1210,8 +1261,9 @@ class Sequence(VariableChildExpansion):
 
     def _make_matcher_element(self):
         # Return an And element using each child's matcher element.
-        return pyparsing.And([child.matcher_element for child in self.children])\
-            .setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(pyparsing.And([
+            child.matcher_element for child in self.children
+        ]))
 
     def __hash__(self):
         return super(Sequence, self).__hash__()
@@ -1294,7 +1346,7 @@ class Literal(Expansion):
         return re.compile(r"\s+".join(words))
 
     def _make_matcher_element(self):
-        return pyparsing.Literal(self.text).setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(pyparsing.Literal(self.text))
 
     def __eq__(self, other):
         return super(Literal, self).__eq__(other) and self.text == other.text
@@ -1371,15 +1423,30 @@ class Repeat(SingleChildExpansion):
         :returns: list
         """
         if e.is_descendant_of(self):
-            return [values[e] for values in self._repetitions_matched]
+            return [values[e]["current_match"] for values in
+                    self._repetitions_matched]
+        else:
+            return []
+
+    def get_expansion_slices(self, e):
+        """
+        Get a list of an expansion's ``matching_slice`` values for each repetition.
+
+        :returns: list
+        """
+        if e.is_descendant_of(self):
+            return [values[e]["matching_slice"] for values in
+                    self._repetitions_matched]
         else:
             return []
 
     def _parse_action(self, tokens):
-        # This method is called after the child's parse actions.
-        # Set current match and restore the last repetition's match values.
-        self.current_match = " ".join(tokens.asList())
+        # Call the super method to set current_match.
+        super(Repeat, self)._parse_action(tokens)
+
+        # Note: this method is called after the child's parse actions.
         if self._repetitions_matched:
+            # Restore the last repetition's match values.
             last = self._repetitions_matched[len(self._repetitions_matched) - 1]
             restore_current_matches(self.child, last, False)
         return tokens
@@ -1419,7 +1486,7 @@ class Repeat(SingleChildExpansion):
             if only_branch:
                 t = pyparsing.And
 
-        return t(e).setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(t(e))
 
     def reset_match_data(self):
         super(Repeat, self).reset_match_data()
@@ -1463,8 +1530,9 @@ class OptionalGrouping(SingleChildExpansion):
             return "[%s]" % compiled
 
     def _make_matcher_element(self):
-        return pyparsing.Optional(self.child.matcher_element)\
-            .setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(
+            pyparsing.Optional(self.child.matcher_element)
+        )
 
     @property
     def is_optional(self):
@@ -1542,8 +1610,9 @@ class AlternativeSet(VariableChildExpansion):
             return "(%s)" % alt_set
 
     def _make_matcher_element(self):
-        return pyparsing.Or([c.matcher_element for c in self.children])\
-            .setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(pyparsing.Or([
+            c.matcher_element for c in self.children
+        ]))
 
     def __eq__(self, other):
         if type(self) != type(other) or len(self.children) != len(other.children):

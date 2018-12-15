@@ -200,7 +200,7 @@ class Dictation(Literal):
         next_literals, _ = _collect_next_literals(stack, 0, True, False)
 
         # De-duplicate the list.
-        next_literals = list(set(next_literals))
+        next_literals = set(next_literals)
 
         word = pyparsing.Regex(_word_regex_str, re.UNICODE)
         if next_literals:
@@ -221,7 +221,7 @@ class Dictation(Literal):
             # words without restrictions.
             result = pyparsing.OneOrMore(word)
 
-        return result.setParseAction(self._parse_action)
+        return self._set_matcher_element_attributes(result)
 
     @property
     def matching_regex_pattern(self):

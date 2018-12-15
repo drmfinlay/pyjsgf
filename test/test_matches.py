@@ -83,19 +83,23 @@ class MatchesCase(unittest.TestCase):
         r = PublicRule("test", e)
         self.assertTrue(r.matches("hello"))
         self.assertEqual(e.current_match, "hello")
+        self.assertEqual(e.matching_slice, slice(0, 5))
 
     def test_literal_no_match(self):
         e = Literal("hello world")
         r = PublicRule("test", e)
         self.assertFalse(r.matches("hello"))
         self.assertEqual(e.current_match, None)
+        self.assertEqual(e.matching_slice, None)
 
     def test_sequence(self):
         e = Sequence("hello", "world")
         r = PublicRule("test", e)
         self.assertTrue(r.matches("hello world"))
         self.assertEqual(e.children[0].current_match, "hello")
+        self.assertEqual(e.children[0].matching_slice, slice(0, 5))
         self.assertEqual(e.children[1].current_match, "world")
+        self.assertEqual(e.children[1].matching_slice, slice(6, 11))
 
     def test_sequence_no_match(self):
         e = Sequence("hello", "world")
@@ -104,28 +108,39 @@ class MatchesCase(unittest.TestCase):
         self.assertEqual(e.children[0].current_match, None,
                          "current_match should be None if the whole rule didn't "
                          "match")
+        self.assertEqual(e.children[0].matching_slice, None)
         self.assertEqual(e.children[1].current_match, None)
+        self.assertEqual(e.children[1].matching_slice, None)
 
     def test_alt_set_simple(self):
-        e = AlternativeSet("hello", "hi")
+        hello, hi = map(Literal, ["hello", "hi"])
+        e = AlternativeSet(hello, hi)
         r = PublicRule("test", e)
         self.assertTrue(r.matches("hello"))
         self.assertEqual(e.current_match, "hello")
-        self.assertEqual(e.children[0].current_match, "hello")
-        self.assertEqual(e.children[1].current_match, None)
+        self.assertEqual(hello.current_match, "hello")
+        self.assertEqual(hi.current_match, None)
+        self.assertEqual(hello.matching_slice, slice(0, 5))
+        self.assertEqual(hi.matching_slice, None)
 
         self.assertTrue(r.matches("hi"))
         self.assertEqual(e.current_match, "hi")
-        self.assertEqual(e.children[1].current_match, "hi")
-        self.assertEqual(e.children[0].current_match, None)
+        self.assertEqual(hi.current_match, "hi")
+        self.assertEqual(hello.current_match, None)
+        self.assertEqual(hi.matching_slice, slice(0, 2))
+        self.assertEqual(hello.matching_slice, None)
 
         self.assertFalse(r.matches("hey"))
-        map_expansion(e, lambda x: self.assertIsNone(x.current_match))
+        def make_assertion(x):
+            self.assertIsNone(x.current_match)
+            self.assertIsNone(x.matching_slice)
+
+        map_expansion(e, make_assertion)
 
     def test_alt_set_complex(self):
-        e = Sequence(
-            AlternativeSet("hello", "hi"),
-            AlternativeSet("there", "my friend"))
+        a1 = AlternativeSet("hello", "hi")
+        a2 = AlternativeSet("there", "my friend")
+        e = Sequence(a1, a2)
         r = PublicRule("test", e)
         self.assertFalse(r.matches("hey"))
         self.assertEqual(e.current_match, None)
@@ -133,17 +148,31 @@ class MatchesCase(unittest.TestCase):
         self.assertEqual(e.children[1].current_match, None)
 
         self.assertTrue(r.matches("hi there"))
+        # Check current_match
         self.assertEqual(e.current_match, "hi there")
-        self.assertEqual(e.children[0].current_match, "hi")
-        self.assertEqual(e.children[0].children[0].current_match, None)
-        self.assertEqual(e.children[0].children[1].current_match, "hi")
-        self.assertEqual(e.children[1].current_match, "there")
-        self.assertEqual(e.children[1].children[0].current_match, "there")
-        self.assertEqual(e.children[1].children[1].current_match, None)
+        self.assertEqual(a1.current_match, "hi")
+        self.assertEqual(a1.children[0].current_match, None)
+        self.assertEqual(a1.children[1].current_match, "hi")
+        self.assertEqual(a2.current_match, "there")
+        self.assertEqual(a2.children[0].current_match, "there")
+        self.assertEqual(a2.children[1].current_match, None)
+
+        # Check matching_slice
+        self.assertEqual(e.matching_slice, slice(0, 8))
+        self.assertEqual(a1.matching_slice, slice(0, 2))
+        self.assertEqual(a1.children[0].matching_slice, None)
+        self.assertEqual(a1.children[1].matching_slice, slice(0, 2))
+        self.assertEqual(a2.matching_slice, slice(3, 8))
+        self.assertEqual(a2.children[0].matching_slice, slice(3, 8))
+        self.assertEqual(a2.children[1].matching_slice, None)
 
         # If a speech string doesn't match, then no match values should be set.
         self.assertFalse(r.matches("hi"))
-        map_expansion(e, lambda x: self.assertIsNone(x.current_match))
+        def make_assertion(x):
+            self.assertIsNone(x.current_match)
+            self.assertIsNone(x.matching_slice)
+
+        map_expansion(e, make_assertion)
 
     def test_repeating_alt_set(self):
         g = Grammar()
@@ -507,7 +536,8 @@ class MatchesCase(unittest.TestCase):
 
     def test_repetition_match_methods(self):
         """
-        Test the Expansion.had_match and Repeat.get_expansion_matches methods.
+        Test the Expansion.had_match, Repeat.get_expansion_matches and
+        Repeat.methods.
         """
         a, b, c = map(Literal, "abc")
         e = Repeat(AlternativeSet(a, b, c))
@@ -519,20 +549,33 @@ class MatchesCase(unittest.TestCase):
         # All three expansions should have had a match and get_expansions_matches
         # should return a list of length 3 for each; there were 3 repetitions of
         # the alternative set.
+        # Also test the return values for get_expansion_slices().
         self.assertTrue(a.had_match)
         self.assertListEqual(
             e.get_expansion_matches(a),
             ["a", None, None]
+        )
+        self.assertListEqual(
+            e.get_expansion_slices(a),
+            [slice(0, 1), None, None]
         )
         self.assertTrue(b.had_match)
         self.assertListEqual(
             e.get_expansion_matches(b),
             [None, "b", None]
         )
+        self.assertListEqual(
+            e.get_expansion_slices(b),
+            [None, slice(2, 3), None]
+        )
         self.assertTrue(c.had_match)
         self.assertListEqual(
             e.get_expansion_matches(c),
             [None, None, "c"]
+        )
+        self.assertListEqual(
+            e.get_expansion_slices(c),
+            [None, None, slice(4, 5)]
         )
 
         # Reset the match data.
@@ -545,15 +588,30 @@ class MatchesCase(unittest.TestCase):
             e.get_expansion_matches(a),
             ["a", None, None, "a", None, None, "a", None, None]
         )
+        self.assertListEqual(
+            e.get_expansion_slices(a),
+            [slice(0, 1), None, None, slice(6, 7), None, None,
+             slice(12, 13), None, None]
+        )
         self.assertTrue(b.had_match)
         self.assertListEqual(
             e.get_expansion_matches(b),
             [None, "b", None, None, "b", None, None, "b", None]
         )
+        self.assertListEqual(
+            e.get_expansion_slices(b),
+            [None, slice(2, 3), None, None, slice(8, 9), None,
+             None, slice(14, 15), None]
+        )
         self.assertTrue(c.had_match)
         self.assertListEqual(
             e.get_expansion_matches(c),
             [None, None, "c", None, None, "c", None, None, "c"]
+        )
+        self.assertListEqual(
+            e.get_expansion_slices(c),
+            [None, None, slice(4, 5), None, None, slice(10, 11),
+             None, None, slice(16, 17)]
         )
 
         # Test with get_expansion_matches an expansion that isn't a descendant
