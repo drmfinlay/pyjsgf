@@ -203,8 +203,8 @@ class DictationMembersCase(unittest.TestCase):
     def test_compile(self):
         d = Dict()
         d.tag = "dictation"
-        self.assertEqual(d.compile(ignore_tags=True), "")
-        self.assertEqual(d.compile(ignore_tags=False), " { dictation }")
+        self.assertEqual(d.compile(ignore_tags=True), "<DICTATION>")
+        self.assertEqual(d.compile(ignore_tags=False), "<DICTATION> { dictation }")
 
     def test_hash(self):
         # Test that dictation expansions with the same parents have the same hashes.

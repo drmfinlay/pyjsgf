@@ -109,6 +109,11 @@ class Dictation(Literal):
     This is largely based on the ``Dictation`` element class in the dragonfly Python
     library.
 
+    ``Dictation`` expansions compile to a special reference (``<DICTATION>``),
+    similar to :class:`NullRef` and :class:`VoidRef`. See the
+    :class:`DictationGrammar` class if you want to use this expansion type with CMU
+    Pocket Sphinx.
+
     The matching implementation for ``Dictation`` expansions will look ahead for
     possible next literals to avoid matching them and making the rule fail to
     match. It will also look backwards for literals in possible future repetitions.
@@ -117,9 +122,6 @@ class Dictation(Literal):
     literals. If you have match failures because of this, only use ``Dictation``
     expansions in public rules *or* use the ``JointTreeContext`` class before
     matching if you don't mind reducing the matching performance.
-
-    ``Dictation`` expansions compile to the empty string (``''``), so be careful
-    with compiling rules using them.
     """
     def __init__(self):
         # Pass the empty string to the Literal constructor so that calling compile
@@ -152,6 +154,14 @@ class Dictation(Literal):
 
     def validate_compilable(self):
         pass
+
+    def compile(self, ignore_tags=False):
+        super(Dictation, self).compile()
+        output = "<DICTATION>"
+        if self.tag and not ignore_tags:
+            return "%s%s" % (output, self.compiled_tag)
+        else:
+            return output
 
     @property
     def use_current_match(self):

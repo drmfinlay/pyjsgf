@@ -140,7 +140,8 @@ class InvalidRules(unittest.TestCase):
         self.assertRaises(CompilationError, PublicRule("test", Literal("")).compile)
 
         # Dictation doesn't raise errors on compilation.
-        self.assertEqual(PublicRule("test", Dictation()).compile(), "")
+        self.assertEqual(PublicRule("test", Dictation()).compile(),
+                         "public <test> = <DICTATION>;")
 
 
 class ComparisonTests(unittest.TestCase):
