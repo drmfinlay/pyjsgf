@@ -126,6 +126,7 @@ class Dictation(Literal):
         # yields "" or "" + the tag
         super(Dictation, self).__init__("")
         self._use_current_match = False
+        self._matcher_context = None
 
     def __str__(self):
         return "%s()" % self.__class__.__name__
@@ -171,6 +172,28 @@ class Dictation(Literal):
         # Invalidate the matcher.
         self.invalidate_matcher()
 
+    @property
+    def matcher_context(self):
+        """
+        The rule which this expansion's ``matcher_element`` was initialised for, if
+        it has been initialised. Otherwise this will be ``None``.
+
+        :returns: Rule | None
+        """
+        return self._matcher_context
+
+    def invalidate_matcher(self):
+        super(Dictation, self).invalidate_matcher()
+        self._matcher_context = None
+
+    def _set_matcher_element_attributes(self, element):
+        # Set _matcher_context using the root expansion's rule, which may not
+        # necessarily be the same as self.rule.
+        self._matcher_context = self.root_expansion.rule
+
+        # Then call the super method and return the result.
+        return super(Dictation, self)._set_matcher_element_attributes(element)
+
     def _make_matcher_element(self):
         # Handle the case where use_current_match is True.
         if self.use_current_match is True:
@@ -182,8 +205,8 @@ class Dictation(Literal):
             else:
                 result = pyparsing.Literal(self.current_match)
 
-            # Set the parse action and return the element.
-            return result.setParseAction(self._parse_action)
+            # Set the element's attributes and return it.
+            return self._set_matcher_element_attributes(result)
 
         # Otherwise build a list of next possible literals. Make the required stack
         # of child-parent pairs.
