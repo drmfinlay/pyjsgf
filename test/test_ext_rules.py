@@ -1,6 +1,7 @@
 import unittest
 
-from jsgf.ext.rules import *
+from jsgf import *
+from jsgf.ext import *
 
 # Create shorthand aliases for some expansions as they're used here A LOT
 Seq = Sequence

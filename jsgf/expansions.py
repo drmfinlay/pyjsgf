@@ -3,14 +3,13 @@ This module contains classes for compiling and matching JSpeech Grammar Format r
 expansions.
 """
 import re
-
 from copy import deepcopy
 
 import pyparsing
 from six import string_types, PY2
 
+from .errors import CompilationError, GrammarError
 from .references import BaseRef, optionally_qualified_name
-from .errors import *
 
 
 class TraversalOrder(object):

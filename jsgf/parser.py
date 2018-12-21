@@ -77,16 +77,22 @@ I've not included comments for simplicity; they can be used pretty much anywhere
 
 """
 
-from pyparsing import *
-from pyparsing import Literal as PPLiteral
+import re
 
-from .rules import Rule
-from .grammars import Grammar, Import
-from .expansions import *
-from .references import optionally_qualified_name, import_name, grammar_name,\
-    word, words
-
+from pyparsing import (Literal as PPLiteral, Suppress, OneOrMore, ParseResults,
+                       White, Regex, Group, Optional, cppStyleComment, ZeroOrMore,
+                       ParseException, Forward, CaselessKeyword, CaselessLiteral)
 from six import string_types
+
+from .errors import GrammarError
+from .expansions import (AlternativeSet, Expansion, KleeneStar, Literal,
+                         NamedRuleRef, NullRef, OptionalGrouping, RequiredGrouping,
+                         Repeat, Sequence, VoidRef)
+from .grammars import Grammar, Import
+from .references import (optionally_qualified_name, import_name, grammar_name,
+                         word, words)
+from .rules import Rule
+
 
 # Define angled brackets that don't appear in the output.
 langle, rangle = map(Suppress, "<>")

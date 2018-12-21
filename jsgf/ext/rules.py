@@ -2,8 +2,12 @@
 This module contains extension rule classes.
 """
 
+from ..errors import GrammarError
+from ..expansions import Repeat, TraversalOrder, filter_expansion
+from ..rules import Rule
 
-from .expansions import *
+from .expansions import (expand_dictation_expansion, calculate_expansion_sequence,
+                         Dictation, only_dictation_in_expansion)
 
 
 class SequenceRule(Rule):

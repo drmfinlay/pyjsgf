@@ -6,7 +6,18 @@ import re
 
 import pyparsing
 
-from jsgf import *
+from ..expansions import (
+    AlternativeSet,
+    Expansion,
+    KleeneStar,
+    Literal,
+    NamedRuleRef,
+    OptionalGrouping,
+    Repeat,
+    Sequence,
+    TraversalOrder,
+    find_expansion,
+)
 
 # Define the regular expression used for dictation words.
 _word_regex_str = r"[\w\d?,\.\-_!;:']+"
