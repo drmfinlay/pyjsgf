@@ -222,28 +222,6 @@ class DictationMembersCase(unittest.TestCase):
         self.assertNotEqual(hash(e1), hash(Dict()))
         self.assertNotEqual(hash(e2), hash(Dict()))
 
-    def test_matcher_context(self):
-        d = Dict()
-        r1 = Rule("d", True, d)
-        r2 = Rule("test", True, RuleRef(r1))
-
-        # Test that matcher_context is None initially.
-        self.assertIsNone(d.matcher_context)
-
-        # Test that it is initialised along with matcher_element.
-        self.assertTrue(r1.matches("lower lorem ipsum"))
-        self.assertEqual(d.matcher_context, r1)
-
-        # Test that it is set to None on invalidate_matcher().
-        d.invalidate_matcher()
-        self.assertIsNone(d.matcher_context)
-
-        # Test that matching with r2 using a JointTreeContext sets matcher_context to
-        # r2.
-        with JointTreeContext(r2.expansion):
-            self.assertTrue(r2.matches("lower lorem ipsum"))
-            self.assertEqual(d.matcher_context, r2)
-
 
 class ExpansionSequenceCase(unittest.TestCase):
     """
