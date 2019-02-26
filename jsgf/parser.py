@@ -102,7 +102,7 @@ def _post_process(tokens):
     def flatten_chain(lst, inst):
         children = []
         for x in lst:
-            if isinstance(x, inst):
+            if isinstance(x, inst) and not x.tag:
                 children.extend(flatten_chain(x.children, inst))
             else:
                 children.append(x)
