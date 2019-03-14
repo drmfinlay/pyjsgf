@@ -87,11 +87,54 @@ class ExpansionParserTests(unittest.TestCase):
         # Also test invalid alt. sets
         self.assertRaises(ParseException, parse_expansion_string, "a|b|")
 
+    def test_alternative_weights(self):
+        # Test with three weighted alternatives are parsed correctly.
+        expected = AlternativeSet("a", "b", "c")
+        expected.weights = {"a": 10, "b": 5.5, "c": 20}
+        self.assertEqual(parse_expansion_string("/10/ a | /5.5/ b | /20/ c"),
+                         expected)
+
+        # Test that groupings, references and sequences can also be weighted.
+        alt1, alt2, alt3, alt4 = (OptionalGrouping("a"), "b", "c d",
+                                  NamedRuleRef("test"))
+        expected = AlternativeSet(alt1, alt2, alt3, alt4)
+        expected.weights = {alt1: 10, alt2: 5.5, alt3: 20, alt4: 2.5}
+        self.assertEqual(parse_expansion_string(
+            "/10/ [a] | /5.5/ (b) | /20/ (c d) | /2.5/ <test>"
+        ), expected)
+
+    def test_invalid_alternative_weights(self):
+        # Test that errors are raised if weights aren't used correctly in an
+        # alt. set.
+        self.assertRaises(TypeError, parse_expansion_string, "/-1/ a | /5/ b")
+        self.assertRaises(ParseException, parse_expansion_string, "// a | /5/ b")
+        self.assertRaises(ParseException, parse_expansion_string,
+                          "/1/ a | /2/ b | // c")
+        invalid_uses = [
+            "[/2/ a] | /6/ b",
+            "/2/ a | [/6/ b]",
+            "(/2/ a) | /6/ b",
+            "/2/ a | /6/ b | (/12/ c)",
+            "/2/ a | (/6/ b)",
+            "/2/ test",
+        ]
+        for s in invalid_uses:
+            self.assertRaises(GrammarError, parse_expansion_string, s)
+
     def test_alt_set_within_sequence(self):
         self.assertEqual(
             parse_expansion_string("i (go | run) to school"),
             Sequence("i", AlternativeSet("go", "run"), "to school")
         )
+
+    def test_alt_set_weights_and_tags(self):
+        a, b = map(Literal, "ab")
+        expected = AlternativeSet(a, b)
+        expected.weights = {a: 10, b: 5.5}
+        expected.children[0].tag = "1"
+        expected.children[1].tag = "2"
+        self.assertEqual(parse_expansion_string("/10/ a {1} | /5.5/ b {2}"),
+                         expected)
 
     def test_optional(self):
         self.assertEqual(parse_expansion_string("[a]"), OptionalGrouping("a"))

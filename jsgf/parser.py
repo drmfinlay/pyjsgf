@@ -8,32 +8,41 @@ Supported functionality
 =======================
 The parser functions support the following:
 
-* Public and private/hidden rules.
-* Import statements.
+* Alternative set weights (e.g. ``/10/ a | /20/ b | /30/ c``).
 * Alternative sets, e.g. ``a|b|c``.
-* Expansion sequences.
+* C++ style single/in-line and multi-line comments (``// ...`` and ``/* ... */`` respectively).
+* Import statements.
+* Optional groupings, e.g. ``[this is optional]``.
+* Public and private/hidden rules.
 * Required groupings, e.g. ``(a b c) | (e f g)``.
-* Optionals, e.g. ``[this is optional]``.
-* Single or multiple JSGF tags, e.g. ``text {tag1} {tag2} {tag3}``.
-* Unary kleene star and repeat operators (``*`` and ``+``).
 * Rule references, e.g. ``<command>``.
-* Special rules ``<NULL>`` and ``<VOID>``.
-* C++ style single/in-line and multi-line comments (``// ...`` and ``/* ... */``
-  respectively).
+* Sequences, e.g. ``run <command> [now] [please]``.
+* Single or multiple JSGF tags, e.g. ``text {tag1} {tag2} {tag3}``.
+* Special JSGF rules ``<NULL>`` and ``<VOID>``.
+* Unary kleene star and repeat operators (``*`` and ``+``).
+* Using Unicode alphanumeric characters for names, references and literals.
 * Using semicolons or newlines interchangeably as line delimiters.
-* Using Unicode alphanumerics for names, references and literals.
 
 
 ===========
 Limitations
 ===========
-There are a few limitations with this parser:
 
-* It will fail to parse long sequences and alternative sets. A workaround for this
-  is to split the alternatives/sequences into shorter rules and use references. This
-  could be probably be done automatically somehow in a future release.
-* Alternative set weights (e.g. ``/10/ a | /20/ b | /30/ c``) are not yet
-  implemented, so they won't be parsed correctly.
+This parser will fail to parse long alternative sets due to recursion depth limits.
+The simplest workaround for this limitation is to split long alternatives into
+groups. For example::
+
+    // Raises an error.
+    <n> = (0|...|100);
+
+    // Will not raise an error.
+    // As a side note, this will be parsed to '(0|...|100)'.
+    <n> = (0|...|50)|(51|...|100);
+
+This workaround could be done automatically in a future release.
+
+This limitation also applies to long sequences, but it is much more difficult to
+reach the limit.
 
 
 =========================
@@ -45,9 +54,10 @@ notation for defining context-free grammars. The following is the EBNF used by
 pyjsgf's parsers::
 
     alphanumeric = ? any alphanumeric Unicode character ? ;
-    atom = literal | '<' , reference name , '>' | '(' , exp , ')' |
-           '[' , exp , ']' ;
-    exp = atom , [ { tag | '+' | '*' | exp | '|' , exp } ] ;
+    weight = '/' , ? any non-negative number ? , '/' ;
+    atom = [ weight ] , ( literal | '<' , reference name , '>' |
+           '(' , exp , ')' | '[' , exp , ']' ) ;
+    exp = atom , [ { tag | '+' | '*' | exp | '|' , [ weight ] , exp } ] ;
     grammar = grammar header , grammar declaration ,
               [ { import statement } ] , { rule definition } ;
     grammar declaration = 'grammar' , reference name , line end ;
@@ -79,15 +89,15 @@ I've not included comments for simplicity; they can be used pretty much anywhere
 
 import re
 
-from pyparsing import (Literal as PPLiteral, Suppress, OneOrMore, ParseResults,
-                       White, Regex, Group, Optional, cppStyleComment, ZeroOrMore,
-                       ParseException, Forward, CaselessKeyword, CaselessLiteral)
-from six import string_types
+from pyparsing import (Literal as PPLiteral, Suppress, OneOrMore, pyparsing_common,
+                       White, Regex, Optional, cppStyleComment, ZeroOrMore, Forward,
+                       ParseException, CaselessKeyword, CaselessLiteral)
+from six import string_types, integer_types
 
 from .errors import GrammarError
-from .expansions import (AlternativeSet, Expansion, KleeneStar, Literal,
-                         NamedRuleRef, NullRef, OptionalGrouping, RequiredGrouping,
-                         Repeat, Sequence, VoidRef)
+from .expansions import (AlternativeSet, KleeneStar, Literal, NamedRuleRef, NullRef,
+                         OptionalGrouping, RequiredGrouping, Repeat, Sequence,
+                         VoidRef, SingleChildExpansion)
 from .grammars import Grammar, Import
 from .references import (optionally_qualified_name, import_name, grammar_name,
                          word, words)
@@ -103,73 +113,136 @@ line_delimiter = Suppress(OneOrMore(
 ))
 
 
+class WrapperExpansion(SingleChildExpansion):
+    """ Wrapper expansion class used during the parser's post-processing stage. """
+
+
+class WeightedExpansion(SingleChildExpansion):
+    """
+    Internal class used during parsing of alternative sets with weights.
+    """
+
+    def __init__(self, expansion, weight):
+        super(WeightedExpansion, self).__init__(expansion)
+        self.weight = weight
+        self._child = expansion
+
+    def __str__(self):
+        return "%s(child=%s, weight=%s)" % (self.__class__.__name__,
+                                            self.child, self.weight)
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @parent.setter
+    def parent(self, value):
+        # Raise an error if the parent is invalid.
+        if value and not isinstance(value, (AlternativeSet, WrapperExpansion)):
+            raise GrammarError("weights cannot be used outside of alternative sets")
+        self._parent = value
+
+    @property
+    def tag(self):
+        return ""
+
+    @tag.setter
+    def tag(self, value):
+        self.child.tag = value
+
+
+class ParsedAlternativeSet(AlternativeSet):
+    """
+    AlternativeSet sub-class used by the parser to set alternative weights
+    properly.
+
+    This class also handles unravelling nested alternative sets.
+    """
+
+    def __init__(self, *expansions):
+        children = []
+        weights = []
+        last_weight = None
+        for e in expansions:
+            # Unravel any alternative set without a tag.
+            if isinstance(e, AlternativeSet) and not e.tag:
+                # Add each child and preserve the weights.
+                if last_weight is not None:
+                    weights.append((e.children[0], last_weight))
+                    last_weight = None
+
+                children.extend(e.children)
+                weights.extend(list(e.weights.items()))
+            elif isinstance(e, WeightedExpansion):
+                children.append(e.child)
+                weights.append((e.child, e.weight))
+                e.child.parent = None
+            elif isinstance(e, (float, integer_types)):
+                last_weight = e
+            else:
+                if last_weight is not None:
+                    weights.append((e, last_weight))
+                    last_weight = None
+
+                children.append(e)
+        super(ParsedAlternativeSet, self).__init__(*children)
+        self.weights = weights
+
+
 def _post_process(tokens):
     """Do post-processing on the expansion tree produced by the parser."""
-    def flatten_chain(lst, inst):
+    def flatten_seq_chain(lst):
         children = []
         for x in lst:
-            if isinstance(x, inst) and not x.tag:
-                children.extend(flatten_chain(x.children, inst))
+            if isinstance(x, Sequence) and not x.tag:
+                children.extend(flatten_seq_chain(x.children))
             else:
                 children.append(x)
         return children
 
-    def replace_expansion(x, y):
-        if x.parent:
-            children = x.parent.children
-            children[children.index(x)] = y
-
-    def transform(e):
-        result = e
-        for child in e.children:
-            transform(child)
+    def post_process(e):
+        for child in list(e.children):
+            post_process(child)
 
         # Remove redundant alternative sets, sequences and required groupings with
-        # only one child. Do not remove such expansions if they have a tag.
-        if (len(e.children) == 1 and isinstance(e, (AlternativeSet, Sequence))
-                and not e.tag):
-            replace_expansion(e, e.children[0])
-            result = e.children[0]
+        # only one child. Do not remove such expansions if they have a tag or weight.
+        should_remove_redundant = (
+            len(e.children) == 1 and not e.tag and
+            isinstance(e, (AlternativeSet, Sequence)) and
 
-        # Flatten any alternative set or sequence chains.
-        if len(e.children) >= 1 and isinstance(e, AlternativeSet) and \
-                isinstance(e.children[1], AlternativeSet):
-            e.children = flatten_chain(e.children, AlternativeSet)
-        elif len(e.children) > 1 and isinstance(e, Sequence) and \
+            # Check that the parent (if any) has no weight for e.
+            not(e.parent and getattr(e.parent, "weights", False) and
+                e in e.parent.weights)
+        )
+        if should_remove_redundant:
+            child = e.children[0]
+            children = e.parent.children
+            children[children.index(e)] = child
+            e.parent = None
+
+        # Flatten any sequence chains.
+        if len(e.children) > 1 and isinstance(e, Sequence) and \
                 isinstance(e.children[1], Sequence):
-            e.children = flatten_chain(e.children, Sequence)
+            e.children = flatten_seq_chain(e.children)
 
+    def transform(e):
+        # Wrap e in a new expansion in case its parent is changed.
+        w = WrapperExpansion(e)
+
+        # Do the post processing.
+        post_process(w)
+        if isinstance(w.child, WeightedExpansion):
+            raise GrammarError("weights cannot be used outside of alternative sets")
+
+        result = w.child
+        result.parent = None
         return result
 
     return list(map(transform, tokens))
 
 
-def _unwrap_tokens(tokens):
-    """
-    Take parse tokens or a list and return a list that has no wrapping lists.
-    E.g. [[[Literal("text")]]] -> [Literal("text")]
-
-    :param tokens: ParseResults
-    :returns: list
-    """
-    if isinstance(tokens, ParseResults):
-        l = tokens.asList()
-    elif isinstance(tokens, list):
-        l = tokens
-    else:
-        raise TypeError("_unwrap_tokens can only take ParseResults or lists")
-
-    while len(l) == 1 and isinstance(l[0], list):
-        l = l[0]
-
-    return l
-
-
-def _transform_tokens(t, tokens):
-    """
-    Function for transforming ParsingResults / lists into expansions of type t.
-    """
-    lst = _unwrap_tokens(tokens)
+def _transform_tokens(tokens):
+    lst = tokens.asList()
 
     # Handle tags.
     while "{" in lst:
@@ -202,59 +275,52 @@ def _transform_tokens(t, tokens):
     # Handle the root case for alternatives, repeats, kleene stars, tags and
     # sequences.
     repeat = "+" in lst or "*" in lst
-    if t is Expansion:
-        # Handle atoms by returning the only token.
-        if len(lst) == 1:
+
+    # Handle atoms by returning the only token.
+    if len(lst) == 1:
+        return lst[0]
+
+    # Handle sequences.
+    elif len(lst) == 2 and not repeat:
+        return Sequence(*lst)
+
+    # Handle repeats by returning an expansion of the appropriate type.
+    elif len(lst) >= 2 and repeat:
+        cls = Repeat if lst.pop(1) == "+" else KleeneStar
+        lst[0] = cls(lst[0])
+
+        # Return a Sequence if there are two or more tokens left, otherwise
+        # return the Repeat/KleeneStar expansion.
+        if len(lst) >= 2:
+            return Sequence(*lst)
+        else:
             return lst[0]
 
-        # Handle sequences.
-        elif len(lst) == 2 and not repeat:
-            return Sequence(*lst)
+    # Handle alternative sets.
+    elif "|" in lst:
+        lst.remove("|")
+        return ParsedAlternativeSet(*lst)
 
-        # Handle repeats by returning an expansion of the appropriate type.
-        elif len(lst) >= 2 and repeat:
-            cls = Repeat if lst.pop(1) == "+" else KleeneStar
-            lst[0] = cls(lst[0])
-
-            # Return a Sequence if there are two or more tokens left, otherwise
-            # return the Repeat/KleeneStar expansion.
-            if len(lst) >= 2:
-                return Sequence(*lst)
-            else:
-                return lst[0]
-
-        elif len(lst) == 3 and lst[1] == "|":
-            # Handle tokens of form [e, '|', [x, ...]] as alternatives
-            # Alt. sets are parsed as a nested list structure. E.g:
-            # a|b|c -> [Literal("a"), [Literal("b"), [Literal("c")]]]
-            lst.pop(1)
-            return AlternativeSet(*lst)
-
-    elif t is Literal:
-        # Join the token list into one string.
-        return t(" ".join(lst))
-
-    # Handle rule references.
-    elif t is NamedRuleRef:
-        if lst[0] == "NULL":
-            return NullRef()
-        elif lst[0] == "VOID":
-            return VoidRef()
-        else:
-            return NamedRuleRef(lst[0])
-
-    elif t in (OptionalGrouping, RequiredGrouping):
-        # Create an expansion of type t using the token list.
-        return t(*lst)
-
-    # If t is an unhandled expansion type, raise an error.
-    raise TypeError("unhandled expansion type %s" % t.__name__)
+    raise TypeError("unhandled tokens %s" % lst)
 
 
-def _get_type_action(t):
-    # Return a function to make an expansion object of type t from ParsingResults
-    # objects (tokens) or lists.
-    return lambda tokens: _transform_tokens(t, tokens)
+def _ref_action(tokens):
+    if tokens[0] == "NULL":
+        return NullRef()
+    elif tokens[0] == "VOID":
+        return VoidRef()
+    else:
+        return NamedRuleRef(tokens[0])
+
+
+def _atom_action(tokens):
+    assert 1 <= len(tokens) < 3
+    if len(tokens) == 2:
+        weight = tokens.pop(0)
+        alt = tokens.pop(0)
+        return WeightedExpansion(alt, weight)
+    else:
+        return tokens[0]
 
 
 def get_exp_parser():
@@ -278,26 +344,31 @@ def get_exp_parser():
     exp = Forward().setName("expansion")
 
     # Define some characters that don't appear in the output.
-    lpar, rpar, lbrac, rbrac = map(Suppress, "()[]")
+    lpar, rpar, lbrac, rbrac, slash = map(Suppress, "()[]/")
 
     # Define some other characters that do appear in the output.
     star, plus, pipe, lcurl, rcurl = map(PPLiteral, "*+|{}")
 
     # Define literals.
     literal = words.copy()\
-        .setParseAction(_get_type_action(Literal))
+        .setParseAction(lambda tokens: Literal(" ".join(tokens)))
 
     # Define rule references.
-    rule_ref = Group(langle + optionally_qualified_name + rangle)\
-        .setName("rule reference").setParseAction(_get_type_action(NamedRuleRef))
+    rule_ref = (langle + optionally_qualified_name + rangle)\
+        .setName("rule reference").setParseAction(_ref_action)
+
+    # Define JSGF weights.
+    weight = Optional(slash + pyparsing_common.number + slash)\
+        .setName("alternative weight")
 
     # Define expansions inside parenthesises, optionals, literals and
     # rule references as atomic.
-    req = Group(lpar + exp + rpar).setName("required grouping")\
-        .setParseAction(_get_type_action(RequiredGrouping))
-    opt = Group(lbrac + exp + rbrac).setName("optional")\
-        .setParseAction(_get_type_action(OptionalGrouping))
-    atom = literal | rule_ref | req | opt
+    req = (lpar + exp + rpar).setName("required grouping")\
+        .setParseAction(lambda tokens: RequiredGrouping(tokens[0]))
+    opt = (lbrac + exp + rbrac).setName("optional")\
+        .setParseAction(lambda tokens: OptionalGrouping(tokens[0]))
+    atom = (weight + (literal | rule_ref | req | opt))\
+        .setParseAction(_atom_action)
 
     # Define tag text to one or more words defined by a regular expression.
     # Escaped brace characters ('\{' or '\}') are allowed in tag text.
@@ -308,9 +379,9 @@ def get_exp_parser():
 
     # Define the root expansion as an atom plus additional alternatives, repeat or
     # kleene star operators, tags or expansions (for sequence definitions).
-    root = Group(atom + ZeroOrMore(
-        (tag | plus | star | exp | pipe + exp)
-    )).setParseAction(_get_type_action(Expansion))
+    root = (atom + ZeroOrMore(
+        tag | plus | star | exp | pipe + weight + exp
+    )).setParseAction(_transform_tokens)
 
     # Assign the expansion definition.
     exp <<= root
