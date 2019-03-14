@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 
 import pyparsing
-from six import string_types, PY2
+from six import string_types, PY2, integer_types
 
 from .errors import CompilationError, GrammarError
 from .references import BaseRef, optionally_qualified_name
@@ -482,7 +482,7 @@ class Expansion(object):
             if self._parent:
                 self._parent.invalidate_matcher()
         else:
-            raise AttributeError("'parent' must be an Expansion or None")
+            raise TypeError("'parent' must be an Expansion or None")
 
     @property
     def tag(self):
@@ -892,12 +892,10 @@ class Expansion(object):
 
         :returns: bool
         """
-        parent = self.parent
-        while parent:
-            if isinstance(parent, AlternativeSet) and len(parent.children) > 1:
-                return True
-            parent = parent.parent
-        return False
+        result = False
+        if self.parent:
+            result = self.parent.is_alternative
+        return result
 
     @property
     def repetition_ancestor(self):
@@ -1565,37 +1563,93 @@ class AlternativeSet(VariableChildExpansion):
     Class for a set of expansions, one of which can be spoken.
     """
     def __init__(self, *expansions):
-        self._weights = None
+        self._weights = {}
         super(AlternativeSet, self).__init__(*expansions)
 
     @property
     def weights(self):
+        """
+        The dictionary of alternatives to their weights.
+
+        :rtype: dict
+        """
         return self._weights
 
     @weights.setter
     def weights(self, value):
-        self._weights = value
+        value = dict(value)
+
+        # Set weights for each child using set_weight().
+        for k, v in value.items():
+            self.set_weight(k, v)
+
+    def set_weight(self, child, weight):
+        """
+        Set the weight of a child.
+
+        The weight determines how likely it is that an alternative was spoken.
+
+        Higher values are more likely, lower values are less likely. A value
+        of 0 means that the alternative will never be matched. Negative
+        weights are not allowed.
+
+        *Note*: weights are compiled as floating-point numbers accurate to 4
+        decimal places, e.g. 5.0001.
+
+        :param child: child/list index/compiled child to set the weight for.
+        :type child: Expansion|int|str
+        :param weight: weight value - must be >= 0
+        :type weight: float|int
+        """
+        # Check that weight is a non-negative number.
+        weight = float(weight)
+        if weight < 0:
+            raise TypeError("weight value '%s' is a negative number" % weight)
+
+        # Use the alternative as the key for _weights.
+        if isinstance(child, integer_types):
+            child = self.children[child]
+        elif isinstance(child, string_types):
+            compiled_child = child
+            for c in self.children:
+                if c.compile() == compiled_child:
+                    child = c
+
+        self._weights[child] = weight
+
+        # Invalidate this expansion. This is a quick procedure if the matcher
+        # element hasn't been initialised.
+        self.invalidate_matcher()
 
     def __hash__(self):
         # The hash of an Alt.Set is a combination of the class name, tag and
         # hashes of children, similar to expansion string representations.
         # Hashes of children are sorted so that the same value is returned
         # regardless of child order.
-        child_hashes = sorted([c.compile() for c in self.children])
+        child_hashes = sorted([e.compile() for e in self.children])
         return hash(
             "%s(%s)%s" % (self.__class__.__name__, child_hashes, self.tag)
         )
 
+    def _validate_weights(self):
+        # Check that all alternatives have a weight. The rule for weights is
+        # all or nothing.
+        for e in self.children:
+            if e not in self._weights:
+                raise GrammarError("alternative %s does not have a weight "
+                                   "value" % e)
+
     def compile(self, ignore_tags=False):
         super(AlternativeSet, self).compile()
-        if self.weights:
+        if self._weights:
+            self._validate_weights()
+
             # Create a string with w=weight and e=compiled expansion
             # such that:
             # /<w 0>/ <e 0> | ... | /<w n-1>/ <e n-1>
             alt_set = "|".join([
-                "/%f/ %s" % (self.weights[i],
-                             e.compile(ignore_tags))
-                for i, e in enumerate(self.children)
+                "/%.4f/ %s" % (float(self._weights[e]), e.compile(ignore_tags))
+                for e in self.children
             ])
         else:
             # Or do the same thing without the weights
@@ -1609,17 +1663,36 @@ class AlternativeSet(VariableChildExpansion):
             return "(%s)" % alt_set
 
     def _make_matcher_element(self):
+        # Return an element that can match the alternatives.
+        if self._weights:
+            self._validate_weights()
+
+            # Exclude alternatives that have a weight value of 0.
+            children = []
+            for e, w in self._weights.items():
+                if w > 0:
+                    children.append((e, w))
+
+            # Sort the list by weight (highest to lowest).
+            children = [e for e, _ in sorted(children, key=lambda x: x[1])]
+            children.reverse()
+        else:
+            children = self.children
+
         return self._set_matcher_element_attributes(pyparsing.Or([
-            c.matcher_element for c in self.children
+            e.matcher_element for e in children
         ]))
 
     def __eq__(self, other):
-        if type(self) != type(other) or len(self.children) != len(other.children):
-            return False
-        else:
+        return (
+            isinstance(other, AlternativeSet) and
+            len(self.children) == len(other.children) and
+
             # Check that the children lists have the same contents, but the
-            # ordering can be different.
-            return set(self.children) == set(other.children)
+            # ordering can be different. Also check the weights dictionaries.
+            set(self.children) == set(other.children) and
+            self.weights == other.weights
+        )
 
     @property
     def is_alternative(self):

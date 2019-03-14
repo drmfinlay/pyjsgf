@@ -303,6 +303,18 @@ class Comparisons(unittest.TestCase):
         self.assertEqual(AlternativeSet("hello", "hi"),
                          AlternativeSet("hi", "hello"))
 
+        # Test that weights are compared.
+        e1 = AlternativeSet("a", "b")
+        e1.weights = {e1.children[0]: 1, e1.children[1]: 2}
+        e2 = AlternativeSet("a", "b")
+        self.assertNotEqual(e1, e2)
+
+        e2.weights = {e2.children[0]: 1, e2.children[1]: 2}
+        self.assertEqual(e1, e2)
+
+        e1.set_weight(e1.children[1], 1)
+        self.assertNotEqual(e1, e2)
+
     def test_optional(self):
         self.assertEqual(OptionalGrouping("hello"), OptionalGrouping("hello"))
         self.assertNotEqual(OptionalGrouping("hello"), OptionalGrouping("hey"))
@@ -1005,6 +1017,59 @@ class RootExpansionProperty(unittest.TestCase):
         self.assertEqual(hello.root_expansion, e)
         self.assertEqual(there.root_expansion, e)
         self.assertEqual(friend.root_expansion, e)
+
+
+class AlternativeWeightTests(unittest.TestCase):
+    def test_set_weight(self):
+        a, b, c = map(Literal, ["a", "b", "c"])
+        e = AlternativeSet(a, b, c)
+
+        # Test that errors are raised for invalid weights.
+        self.assertRaises(TypeError, e.set_weight, a, -1)
+        self.assertRaises(TypeError, e.set_weight, a, None)
+        self.assertRaises(ValueError, e.set_weight, a, "")
+        self.assertRaises(ValueError, e.set_weight, a, "x")
+
+        # Set the weight for "a" and test that errors are raised because "b"
+        # and "c" don't have weights. The rule is that all weights or no
+        # weights must be set.
+        e.set_weight(a, 1)
+        self.assertRaises(GrammarError, e.compile)
+        self.assertRaises(GrammarError, e.matches, "a")
+
+        # Test again with "b".
+        e.set_weight(b, 5.5)
+        self.assertRaises(GrammarError, e.compile)
+        self.assertRaises(GrammarError, e.matches, "b")
+
+        # Set the weight for "c" and check again.
+        e.set_weight(c, 10)
+        self.assertEqual(e.compile(), "(/1.0000/ a|/5.5000/ b|/10.0000/ c)")
+        for s in ["a", "b", "c"]:
+            self.assertEqual(e.matches(s), "")
+
+        # Check that the weights property returns the expected dictionary.
+        self.assertDictEqual(e.weights, {a: 1, b: 5.5, c: 10})
+
+        # Check that strings can be used for weight values.
+        e.set_weight(a, "2")
+        self.assertDictEqual(e.weights, {a: 2, b: 5.5, c: 10})
+
+    def test_weights(self):
+        # Test the weights property.
+        a, b, c = map(Literal, ["a", "b", "c"])
+        e = AlternativeSet(a, b, c)
+
+        # weights should be an empty dictionary at first.
+        self.assertDictEqual(e.weights, {})
+
+        # Set each weight and test again.
+        e.weights = {a: 0, b: 1, c: 2.5}
+        self.assertDictEqual(e.weights, {a: 0, b: 1, c: 2.5})
+
+        # Check that strings can be used for weight values.
+        e.weights.update({a: "2"})
+        self.assertEqual(e.compile(), "(/2.0000/ a|/1.0000/ b|/2.5000/ c)")
 
 
 if __name__ == '__main__':

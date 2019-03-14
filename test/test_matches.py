@@ -176,9 +176,10 @@ class MatchesCase(unittest.TestCase):
 
     def test_repeating_alt_set(self):
         g = Grammar()
-        n = Rule("n", False,
-                 AlternativeSet(*["one", "two", "three", "four", "five" "six",
-                                  "seven", "eight", "nine", "ten"]))
+        n = Rule(
+            "n", False, AlternativeSet(
+                "one", "two", "three", "four", "five" "six",
+                "seven", "eight", "nine", "ten"))
         r = Rule("test", True, Repeat(AlternativeSet(
             Sequence("up", OptionalGrouping(NamedRuleRef("n"))),
             Sequence("down", OptionalGrouping(NamedRuleRef("n"))),
@@ -193,6 +194,38 @@ class MatchesCase(unittest.TestCase):
         self.assertTrue(r.matches("up down left right"))
         self.assertTrue(r.matches("up one down left two right three"))
         self.assertTrue(r.matches("down right three up two left ten"))
+
+    def test_alt_set_weights(self):
+        # Test that AlternativeSet weights effects the matching process.
+        one, two, three = map(Literal, ["one", "two", "three"])
+        e = AlternativeSet(one, two, three)
+        e.weights = {one: 1, two: 2, three: 3}
+
+        # Test the order in which child expansions are matched.
+        self.assertEqual(repr(e.matcher_element),
+                         '{"three" ^ "two" ^ "one"}')
+
+        # Each alternative should be matchable with non-zero weights.
+        r = Rule("test", True, e)
+        self.assertTrue(r.matches("one"))
+        self.assertTrue(r.matches("two"))
+        self.assertTrue(r.matches("three"))
+
+        # Test that a weight of 0 for "a" makes the alternative unmatchable.
+        e.set_weight(one, 0)
+        self.assertFalse(r.matches("one"))
+        self.assertTrue(r.matches("two"))
+        self.assertTrue(r.matches("three"))
+
+        # Test the order in which child expansions are matched.
+        self.assertEqual(repr(e.matcher_element),
+                         '{"three" ^ "two"}')
+
+        # Test that no alternatives can match if all weights are 0.
+        e.weights = {one: 0, two: 0, three: 0}
+        self.assertFalse(r.matches("one"))
+        self.assertFalse(r.matches("two"))
+        self.assertFalse(r.matches("three"))
 
     def test_alt_set_and_optionals(self):
         # Test for Matching issue with alternatives and OptionalGrouping (iss. #12)
