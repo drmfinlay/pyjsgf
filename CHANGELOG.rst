@@ -7,6 +7,28 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
+Unreleased_
+-----------
+
+Added
+^^^^^
+* Add support for JSGF alternative weights to the AlternativeSet class and the rule expansion parser.
+* Add 'Expansion.matching_slice' property for getting the slice of the last speech string that matched an Expansion.
+* Add 'Repeat.get_expansion_slices' method for getting matching slices of repeated rule expansions.
+
+Changed
+^^^^^^^
+* Change AlternativeSet 'weights' list to use a dictionary instead.
+* Change grammar class and parser to allow for optional grammar header values.
+* Change input and output of the 'save_current_matches' and 'restore_current_matches' expansion functions.
+* Change jsgf.ext.Dictation expansions to compile as "<DICTATION>" instead of "".
+* Simplify the parser code and improve its performance.
+* Use '<NULL>' instead of '<VOID>' to compile expansions that should have children but don't.
+
+Fixed
+^^^^^
+* Fix parser bug where sequences can lose tags. Thanks `@synesthesiam`_.
+* Fix parser bug with sequences and alternative sets.
 
 1.5.1_ -- 2018-10-28
 --------------------
@@ -192,4 +214,4 @@ First tagged release and start of proper versioning. Too many changes to list he
 .. _issue #12: https://github.com/Danesprite/pyjsgf/issues/12
 .. _@embie27: https://github.com/embie27
 .. _@daanzu: https://github.com/daanzu
-
+.. _@synesthesiam: https://github.com/synesthesiam
