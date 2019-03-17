@@ -61,8 +61,8 @@ class Grammar(BaseRef):
     """
     default_header_values = (
         "1.0",
-        "UTF-8",
-        "en"
+        "",
+        ""
     )
 
     def __init__(self, name="default"):
@@ -77,13 +77,19 @@ class Grammar(BaseRef):
         """
         The JSGF header string for this grammar. By default this is::
 
-            #JSGF V1.0 UTF-8 en;
+            #JSGF V1.0;
 
         :returns: str
         """
-        return "#JSGF V%s %s %s;\n" % (self.jsgf_version,
-                                       self.charset_name,
-                                       self.language_name)
+        header = "#JSGF V%s" % self.jsgf_version
+
+        # Add the character set and language name only if they are specified.
+        if self.charset_name:
+            header += " %s" % self.charset_name
+        if self.language_name:
+            header += " %s" % self.language_name
+
+        return header + ";\n"
 
     @staticmethod
     def valid(name):
@@ -249,8 +255,11 @@ class Grammar(BaseRef):
         return self.visible_rules
 
     def __str__(self):
-        rules = ", ".join(["%s" % rule for rule in self.rules])
-        return "Grammar(%s) with rules: %s" % (self.name, rules)
+        charset = self.charset_name if self.charset_name else "<auto>"
+        language = self.language_name if self.language_name else "<auto>"
+        return "Grammar(version=%s, charset=%s, language=%s, name=%s)" % (
+            self.jsgf_version, charset, language, self.name
+        )
 
     def __repr__(self):
         return self.__str__()

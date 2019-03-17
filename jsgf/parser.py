@@ -92,7 +92,7 @@ import re
 
 from pyparsing import (Literal as PPLiteral, Suppress, OneOrMore, pyparsing_common,
                        White, Regex, Optional, cppStyleComment, ZeroOrMore, Forward,
-                       ParseException, CaselessKeyword, CaselessLiteral)
+                       ParseException, CaselessKeyword, CaselessLiteral, Word)
 from six import string_types, integer_types
 
 from .errors import GrammarError
@@ -436,6 +436,12 @@ def get_grammar_parser():
         # Get the attributes in the header as well as the name.
         version, charset, language, name = tokens[0:4]
 
+        # Use charset as the language instead if it is 2 characters long and no
+        # language was specified.
+        if not language and len(charset) == 2:
+            language = charset
+            charset = ""
+
         # Set the header attributes and grammar name.
         result.jsgf_version = version[1:]
         result.charset_name = charset
@@ -452,11 +458,18 @@ def get_grammar_parser():
         # Return the new grammar object.
         return result
 
-    # Define a parser element for the grammar header.
+    # Define parser elements for the grammar header.
     version_no = Regex(r"(v|V)(\d+\.\d+|\d+\.|\.\d+)") \
         .setName("version number")
-    language_name = word.copy().setName("language name")
-    charset_name = word.copy().setName("character set name")
+
+    def optional_header_action(tokens):
+        return tokens if tokens else [""]
+
+    charset_name = Optional(word.copy()).setName("character set") \
+        .setParseAction(optional_header_action)
+    language_name = Optional(word.copy()).setName("language name") \
+        .setParseAction(optional_header_action)
+
     header_line = (Suppress(CaselessLiteral("#JSGF")) + version_no + charset_name +
                    language_name + line_delimiter).setName("grammar header")
 

@@ -263,7 +263,7 @@ class GrammarParserTests(unittest.TestCase):
         """ Test that a grammar is parsed correctly. """
         # Test a grammar using non-default header values, an import statement and
         # public and private rules.
-        s = "#JSGF V2.0 UTF-16 english;" \
+        s = "#JSGF V2.0 utf-8 fr;" \
             "grammar test;" \
             "import <com.example.grammar.greet>;" \
             "public <test> = hello;" \
@@ -271,11 +271,38 @@ class GrammarParserTests(unittest.TestCase):
 
         expected = Grammar("test")
         expected.jsgf_version = "2.0"
-        expected.charset_name = "UTF-16"
-        expected.language_name = "english"
-        expected.add_rules(PublicRule("test", "hello"), Rule("test2", False, "hi"))
+        expected.charset_name = "utf-8"
+        expected.language_name = "fr"
         expected.add_import(Import("com.example.grammar.greet"))
+        expected.add_rules(PublicRule("test", "hello"), Rule("test2", False, "hi"))
         self.assertEqual(expected, parse_grammar_string(s))
+
+    def test_optional_header_values(self):
+        """ Grammars with and without optional header values are parsed correctly.
+        """
+        grammar_body = "grammar test;" \
+            "import <com.example.grammar.greet>;" \
+            "public <test> = <com.example.grammar.greet>;"
+
+        expected = Grammar("test")
+        expected.add_import(Import("com.example.grammar.greet"))
+        expected.add_rule(
+            PublicRule("test", NamedRuleRef("com.example.grammar.greet"))
+        )
+
+        self.assertEqual(
+            expected, parse_grammar_string("#JSGF V1.0;" + grammar_body)
+        )
+        expected.language_name = None
+        expected.charset_name = "utf-8"
+        self.assertEqual(
+            expected, parse_grammar_string("#JSGF V1.0 utf-8;" + grammar_body)
+        )
+        expected.charset_name = None
+        expected.language_name = "en"
+        self.assertEqual(
+            expected, parse_grammar_string("#JSGF V1.0 en;" + grammar_body)
+        )
 
     def test_rule_visibility(self):
         """Rule visibility is parsed correctly."""
@@ -288,7 +315,7 @@ class GrammarParserTests(unittest.TestCase):
         """C-style comments are allowed in grammar strings."""
         # Test with an overly commented grammar string with multiple lines.
         grammar = parse_grammar_string(
-            "#JSGF V1.0 UTF-8 en;\n"
+            "#JSGF V1.0;\n"
             "\n"
             "// test comment.\n"
             "grammar test; /* in-line comment */\n"

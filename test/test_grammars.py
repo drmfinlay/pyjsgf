@@ -23,7 +23,7 @@ class BasicGrammarCase(unittest.TestCase):
         self.rule3 = rule3
 
     def test_compile(self):
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar test;\n" \
                    "public <greet> = (<greetWord> <name>);\n" \
                    "<greetWord> = (hello|hi);\n" \
@@ -33,7 +33,7 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertEqual(expected, compiled)
 
     def test_compile_to_file(self):
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar test;\n" \
                    "public <greet> = (<greetWord> <name>);\n" \
                    "<greetWord> = (hello|hi);\n" \
@@ -125,7 +125,7 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertTrue(self.rule2.active, "rule in grammar should be enabled")
 
     def test_enable_disable_compile_output(self):
-        enabled_output = "#JSGF V1.0 UTF-8 en;\n" \
+        enabled_output = "#JSGF V1.0;\n" \
                          "grammar test;\n" \
                          "public <greet> = (<greetWord> <name>);\n" \
                          "<greetWord> = (hello|hi);\n" \
@@ -138,7 +138,7 @@ class BasicGrammarCase(unittest.TestCase):
 
         self.assertEqual(
             self.grammar.compile(),
-            "#JSGF V1.0 UTF-8 en;\n"
+            "#JSGF V1.0;\n"
             "grammar test;\n"
             "<greetWord> = (hello|hi);\n"
             "<name> = (peter|john|mary|anna);\n",
@@ -187,6 +187,17 @@ class BasicGrammarCase(unittest.TestCase):
 
         self.assertEqual(RootGrammar(name="test"), Grammar(name="test"),
                          "grammars with only different types should be equal")
+    def test_jsgf_header(self):
+        """ JSGF header uses grammar header attributes correctly. """
+        grammar = Grammar()
+        self.assertEqual(grammar.jsgf_header, "#JSGF V1.0;\n")
+        grammar.charset_name = "utf-8"
+        self.assertEqual(grammar.jsgf_header, "#JSGF V1.0 utf-8;\n")
+        grammar.charset_name = ""
+        grammar.language_name = "en"
+        self.assertEqual(grammar.jsgf_header, "#JSGF V1.0 en;\n")
+        grammar.charset_name = "utf-8"
+        self.assertEqual(grammar.jsgf_header, "#JSGF V1.0 utf-8 en;\n")
 
     def test_links(self):
         """Expansion.rule and Rule.grammar attributes work correctly."""
@@ -376,7 +387,7 @@ class RootGrammarCase(unittest.TestCase):
 
     def test_compile(self):
         root = self.grammar
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar root;\n" \
                    "public <root> = (<greet>);\n" \
                    "<greet> = (<greetWord> <name>);\n" \
@@ -387,7 +398,7 @@ class RootGrammarCase(unittest.TestCase):
 
     def test_compile_to_file(self):
         root = self.grammar
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar root;\n" \
                    "public <root> = (<greet>);\n" \
                    "<greet> = (<greetWord> <name>);\n" \
@@ -411,13 +422,13 @@ class RootGrammarCase(unittest.TestCase):
     def test_compile_add_remove_rule(self):
         root = RootGrammar(rules=[self.rule5, self.rule4], name="root")
 
-        expected_without = "#JSGF V1.0 UTF-8 en;\n" \
+        expected_without = "#JSGF V1.0;\n" \
                            "grammar root;\n" \
                            "public <root> = (<greet>);\n" \
                            "<greetWord> = (hello|hi);\n" \
                            "<greet> = <greetWord> there;\n"
 
-        expected_with = "#JSGF V1.0 UTF-8 en;\n" \
+        expected_with = "#JSGF V1.0;\n" \
                         "grammar root;\n" \
                         "public <root> = (<greet>|<partingPhrase>);\n" \
                         "<greetWord> = (hello|hi);\n" \
@@ -545,7 +556,7 @@ class RootGrammarCase(unittest.TestCase):
         self.assertTrue(self.rule2.active, "original rule should be enabled")
 
     def test_enable_disable_compile_output(self):
-        enabled_output = "#JSGF V1.0 UTF-8 en;\n" \
+        enabled_output = "#JSGF V1.0;\n" \
                          "grammar root;\n" \
                          "public <root> = (<greet>);\n" \
                          "<greet> = (<greetWord> <name>);\n" \
@@ -559,7 +570,7 @@ class RootGrammarCase(unittest.TestCase):
 
         self.assertEqual(
             self.grammar.compile(),
-            "#JSGF V1.0 UTF-8 en;\n"
+            "#JSGF V1.0;\n"
             "grammar root;\n",
             "disabled output shouldn't have the originally public 'greet' rule"
         )
@@ -574,7 +585,7 @@ class RootGrammarCase(unittest.TestCase):
         self.assertFalse(self.rule1.active)
         self.assertEqual(
             self.grammar.compile(),
-            "#JSGF V1.0 UTF-8 en;\n"
+            "#JSGF V1.0;\n"
             "grammar root;\n"
             "public <root> = (<test>);\n"
             "<greetWord> = (hello|hi);\n"

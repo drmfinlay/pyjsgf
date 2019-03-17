@@ -16,7 +16,7 @@ class DictationGrammarCase(unittest.TestCase):
             PublicRule("b", "hello world")
         ])
 
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar default;\n" \
                    "public <b> = hello world;\n"
 
@@ -27,7 +27,7 @@ class DictationGrammarCase(unittest.TestCase):
             PublicRule("c", AlternativeSet("hey", "hello", Dictation()))
         )
 
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar default;\n" \
                    "public <b> = hello world;\n" \
                    "public <c_0> = (hey|hello);\n"
@@ -44,7 +44,7 @@ class DictationGrammarCase(unittest.TestCase):
             PublicRule("c", AlternativeSet("hey", "hello", Dictation()))
         ])
 
-        expected = "#JSGF V1.0 UTF-8 en;\n" \
+        expected = "#JSGF V1.0;\n" \
                    "grammar default;\n" \
                    "public <root> = (<b>|<c_0>);\n" \
                    "<b> = hello world;\n" \
@@ -150,7 +150,7 @@ class DictationGrammarCase(unittest.TestCase):
         r2 = PublicRule("test2", Sequence("testing", Dictation()))
         grammar.add_rules(r1, r2)
 
-        expected1 = "#JSGF V1.0 UTF-8 en;\n" \
+        expected1 = "#JSGF V1.0;\n" \
                     "grammar default;\n" \
                     "public <test1> = test;\n" \
                     "public <test2> = testing;\n"
@@ -178,13 +178,13 @@ class DictationGrammarCase(unittest.TestCase):
         grammar.add_rules(r3, r4)
 
         self.assertEqual(grammar.compile(),
-                         "#JSGF V1.0 UTF-8 en;\n"
+                         "#JSGF V1.0;\n"
                          "grammar default;\n"
                          "public <test2> = testing;\n"
                          "public <test1> = test;\n")
 
         grammar.find_matching_rules("hello")
-        expected3 = "#JSGF V1.0 UTF-8 en;\n" \
+        expected3 = "#JSGF V1.0;\n" \
                     "grammar default;\n" \
                     "public <test3> = testing;\n"
 
@@ -199,7 +199,7 @@ class DictationGrammarCase(unittest.TestCase):
 
         self.assertEqual(
             grammar.compile(),
-            "#JSGF V1.0 UTF-8 en;\n"
+            "#JSGF V1.0;\n"
             "grammar default;\n"
             "public <test1> = hello;\n"
             "public <test2> = hello;\n"
