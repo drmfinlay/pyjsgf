@@ -64,7 +64,7 @@ Running the above code would output:
 
 ::
 
-    #JSGF V1.0 UTF-8 en;
+    #JSGF V1.0;
     grammar default;
     public <hello> = hello world;
 

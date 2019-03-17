@@ -41,7 +41,7 @@ print(rule.expansion.current_match)
 
 The output from the above will be:
 ```
-#JSGF V1.0 UTF-8 en;
+#JSGF V1.0;
 grammar default;
 public <Hello_X> = hello;
 
