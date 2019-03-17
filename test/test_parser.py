@@ -215,6 +215,19 @@ class ExpansionParserTests(unittest.TestCase):
                          Sequence(AlternativeSet("a", "b", "c"),
                                   AlternativeSet("one", "two", "three")))
 
+        # A sequence with tags.
+        expected = Sequence("this", RequiredGrouping("is"), "a",
+                            RequiredGrouping("test"))
+        result = parse_expansion_string("this (is){tag1} a (test){tag2}")
+        self.assertEqual(result, expected)
+        self.assertEqual(result.children[1].tag, "tag1")
+        self.assertEqual(result.children[3].tag, "tag2")
+
+        # Sequences within an alternative set.
+        expected = AlternativeSet(Sequence("up", NamedRuleRef("n")),
+                                  Sequence("left", NamedRuleRef("n")))
+        self.assertEqual(expected, parse_expansion_string("up <n>|left <n>"))
+
     def test_repeat(self):
         # Test one literal
         self.assertEqual(parse_expansion_string("test+"), Repeat("test"))
@@ -226,6 +239,11 @@ class ExpansionParserTests(unittest.TestCase):
         # Test a sequence of three literals, one repeating.
         self.assertEqual(parse_expansion_string("a+ b [c]"),
                          Sequence(Repeat("a"), "b", OptionalGrouping("c")))
+
+        # Sequences within a repeated alternative set.
+        expected = Repeat(AlternativeSet(Sequence("up", NamedRuleRef("n")),
+                                         Sequence("left", NamedRuleRef("n"))))
+        self.assertEqual(expected, parse_expansion_string("(up <n>|left <n>)+"))
 
     def test_kleene(self):
         # Test one literal
@@ -242,6 +260,7 @@ class ExpansionParserTests(unittest.TestCase):
 
 class GrammarParserTests(unittest.TestCase):
     def test_grammar(self):
+        """ Test that a grammar is parsed correctly. """
         # Test a grammar using non-default header values, an import statement and
         # public and private rules.
         s = "#JSGF V2.0 UTF-16 english;" \

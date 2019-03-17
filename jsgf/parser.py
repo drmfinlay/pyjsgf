@@ -8,9 +8,10 @@ Supported functionality
 =======================
 The parser functions support the following:
 
-* Alternative set weights (e.g. ``/10/ a | /20/ b | /30/ c``).
 * Alternative sets, e.g. ``a|b|c``.
-* C++ style single/in-line and multi-line comments (``// ...`` and ``/* ... */`` respectively).
+* Alternative set weights (e.g. ``/10/ a | /20/ b | /30/ c``).
+* C++ style single/in-line and multi-line comments (``// ...`` and ``/* ... */``
+  respectively).
 * Import statements.
 * Optional groupings, e.g. ``[this is optional]``.
 * Public and private/hidden rules.
@@ -156,7 +157,7 @@ class ParsedAlternativeSet(AlternativeSet):
     AlternativeSet sub-class used by the parser to set alternative weights
     properly.
 
-    This class also handles unravelling nested alternative sets.
+    This class handles unravelling nested alternative sets.
     """
 
     def __init__(self, *expansions):
@@ -226,7 +227,7 @@ def _post_process(tokens):
             e.children = flatten_seq_chain(e.children)
 
     def transform(e):
-        # Wrap e in a new expansion in case its parent is changed.
+        # Wrap e in a new expansion in case it is a redundant expansion.
         w = WrapperExpansion(e)
 
         # Do the post processing.
@@ -272,17 +273,34 @@ def _transform_tokens(tokens):
         lst.pop(i)
         lst.pop(i)
 
-    # Handle the root case for alternatives, repeats, kleene stars, tags and
-    # sequences.
+    # Check if we need to handle a repeat or kleene star.
     repeat = "+" in lst or "*" in lst
 
     # Handle atoms by returning the only token.
     if len(lst) == 1:
         return lst[0]
 
+    # Handle alternative sets.
+    elif "|" in lst:
+        lst.remove("|")
+        return ParsedAlternativeSet(*lst)
+
     # Handle sequences.
     elif len(lst) == 2 and not repeat:
-        return Sequence(*lst)
+        # If the second expansion is an alternative set, place the first expansion
+        # inside a sequence with the first child of the alternative set.
+        # Do not do this if the first expansion is a required grouping.
+        # This handles rule expansions like "up <n> | left <n>".
+        RG, AS = RequiredGrouping, AlternativeSet
+        if not isinstance(lst[0], RG) and isinstance(lst[1], AS):
+            child1 = lst[1].children.pop(0)
+            seq = Sequence(lst[0], child1)
+            lst[1].children.insert(0, seq)
+            return lst[1]
+
+        # Otherwise return a sequence.
+        else:
+            return Sequence(*lst)
 
     # Handle repeats by returning an expansion of the appropriate type.
     elif len(lst) >= 2 and repeat:
@@ -295,11 +313,6 @@ def _transform_tokens(tokens):
             return Sequence(*lst)
         else:
             return lst[0]
-
-    # Handle alternative sets.
-    elif "|" in lst:
-        lst.remove("|")
-        return ParsedAlternativeSet(*lst)
 
     raise TypeError("unhandled tokens %s" % lst)
 
@@ -314,7 +327,6 @@ def _ref_action(tokens):
 
 
 def _atom_action(tokens):
-    assert 1 <= len(tokens) < 3
     if len(tokens) == 2:
         weight = tokens.pop(0)
         alt = tokens.pop(0)
