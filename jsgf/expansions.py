@@ -1183,10 +1183,10 @@ class VoidRef(BaseExpansionRef):
 
 class ExpansionWithChildren(Expansion):
     def compile(self, ignore_tags=False):
-        # Add a reference to the built-in VOID rule to produce a valid JSGF
-        # expansion that compiles, but cannot be matched.
+        # Add a reference to the built-in NULL rule to produce a valid JSGF rule
+        # expansion: "<NULL>" instead of "()";
         if not self.children:
-            self.children.append(VoidRef())
+            self.children.append(NullRef())
 
 
 class SingleChildExpansion(ExpansionWithChildren):
