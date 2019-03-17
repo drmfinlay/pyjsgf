@@ -383,6 +383,16 @@ class Hashing(unittest.TestCase):
         self.assertNotEqual(hash(AlternativeSet("a", "b")),
                             hash(AlternativeSet("a", "b", "c")))
 
+        # Test weights.
+        e1 = AlternativeSet("hello", "hi")
+        e1.weights = {"hello": 1, "hi": 2}
+        self.assertNotEqual(hash(e1), hash(AlternativeSet("hi", "hello")))
+        e2 = AlternativeSet("hello", "hi")
+        e2.weights = {"hello": 2, "hi": 3}
+        self.assertNotEqual(hash(e1), hash(e2))
+        e2.weights = {"hi": 2, "hello": 1}
+        self.assertEqual(hash(e1), hash(e2))
+
     def test_hashable(self):
         # Test that all expansion types are hashable
         def assert_hashable(x):
@@ -475,7 +485,11 @@ class Copying(unittest.TestCase):
         self.assert_copy_works(RequiredGrouping("test", "testing"))
 
     def test_alt_set(self):
+        # Test with and without weights.
         self.assert_copy_works(AlternativeSet("test", "testing"))
+        e = AlternativeSet("test", "testing")
+        e.weights = {"test": 2, "testing": 4}
+        self.assert_copy_works(e)
 
     def test_rule_ref(self):
         r1 = PublicRule("r1", "test")

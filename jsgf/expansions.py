@@ -1625,11 +1625,24 @@ class AlternativeSet(VariableChildExpansion):
         # The hash of an Alt.Set is a combination of the class name, tag and
         # hashes of children, similar to expansion string representations.
         # Hashes of children are sorted so that the same value is returned
-        # regardless of child order.
-        child_hashes = sorted([e.compile() for e in self.children])
+        # regardless of child order. Weights are also included.
+        child_hashes = sorted([
+            (e.compile(), float(self.weights.get(e, 1)))
+            for e in self.children
+        ])
         return hash(
             "%s(%s)%s" % (self.__class__.__name__, child_hashes, self.tag)
         )
+
+    def __copy__(self):
+        result = super(AlternativeSet, self).__copy__()
+        result.weights = dict(self.weights)
+        return result
+
+    def __deepcopy__(self, memo):
+        result = super(AlternativeSet, self).__deepcopy__(memo)
+        result.weights = dict(self.weights)
+        return result
 
     def _validate_weights(self):
         # Check that all alternatives have a weight. The rule for weights is
