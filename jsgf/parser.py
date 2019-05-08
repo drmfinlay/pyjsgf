@@ -210,6 +210,7 @@ def _post_process(tokens):
         should_remove_redundant = (
             len(e.children) == 1 and not e.tag and
             isinstance(e, (AlternativeSet, Sequence)) and
+            not isinstance(e, RequiredGrouping) and
 
             # Check that the parent (if any) has no weight for e.
             not(e.parent and getattr(e.parent, "weights", False) and
