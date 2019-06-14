@@ -1705,6 +1705,19 @@ class AlternativeSet(VariableChildExpansion):
             return "(%s)" % alt_set
         
     def generate(self):
+        if self._weights:
+            self._validate_weights()
+            # use weights if they are set
+            # each alternative gets the probability weight / sum_of_all_weights
+            w_sum = sum(self._weights.values())
+            rand = random.random()
+            print("rand = %s" % rand)
+            help_sum = 0
+            for child, weight in self._weights.items():
+                help_sum += (weight / w_sum)
+                print(help_sum)
+                if rand < help_sum:
+                    return child.generate()
         return random.choice(self.children).generate()
 
     def _make_matcher_element(self):
