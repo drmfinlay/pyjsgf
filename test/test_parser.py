@@ -95,8 +95,8 @@ class ExpansionParserTests(unittest.TestCase):
                          expected)
 
         # Test that groupings, references and sequences can also be weighted.
-        alt1, alt2, alt3, alt4 = (OptionalGrouping("a"), "b", "c d",
-                                  NamedRuleRef("test"))
+        alt1, alt2, alt3, alt4 = (OptionalGrouping("a"), RequiredGrouping("b"),
+                                  RequiredGrouping("c d"), NamedRuleRef("test"))
         expected = AlternativeSet(alt1, alt2, alt3, alt4)
         expected.weights = {alt1: 10, alt2: 5.5, alt3: 20, alt4: 2.5}
         self.assertEqual(parse_expansion_string(
@@ -138,11 +138,12 @@ class ExpansionParserTests(unittest.TestCase):
 
     def test_optional(self):
         self.assertEqual(parse_expansion_string("[a]"), OptionalGrouping("a"))
-        self.assertEqual(parse_expansion_string("([a])"), OptionalGrouping("a"))
+        self.assertEqual(parse_expansion_string("([a])"),
+                         RequiredGrouping(OptionalGrouping("a")))
 
     def test_required_grouping(self):
-        # Test that redundant parenthesises are removed.
-        self.assertEqual(parse_expansion_string("(a)"), Literal("a"))
+        self.assertEqual(parse_expansion_string("(a)"),
+                         RequiredGrouping(Literal("a")))
 
     def test_rule_ref(self):
         self.assertEqual(parse_expansion_string("<rule>"), NamedRuleRef("rule"))
@@ -234,15 +235,16 @@ class ExpansionParserTests(unittest.TestCase):
 
         # Test a sequence of two literals, one repeating.
         self.assertEqual(parse_expansion_string("(please)+ work"),
-                         Sequence(Repeat("please"), "work"))
+                         Sequence(Repeat(RequiredGrouping("please")), "work"))
 
         # Test a sequence of three literals, one repeating.
         self.assertEqual(parse_expansion_string("a+ b [c]"),
                          Sequence(Repeat("a"), "b", OptionalGrouping("c")))
 
         # Sequences within a repeated alternative set.
-        expected = Repeat(AlternativeSet(Sequence("up", NamedRuleRef("n")),
-                                         Sequence("left", NamedRuleRef("n"))))
+        expected = Repeat(RequiredGrouping(AlternativeSet(
+            Sequence("up", NamedRuleRef("n")),
+            Sequence("left", NamedRuleRef("n")))))
         self.assertEqual(expected, parse_expansion_string("(up <n>|left <n>)+"))
 
     def test_kleene(self):
@@ -251,7 +253,7 @@ class ExpansionParserTests(unittest.TestCase):
 
         # Test a sequence of two literals, one repeating.
         self.assertEqual(parse_expansion_string("(please)* work"),
-                         Sequence(KleeneStar("please"), "work"))
+                         Sequence(KleeneStar(RequiredGrouping("please")), "work"))
 
         # Test a sequence of three literals, one repeating.
         self.assertEqual(parse_expansion_string("a* b [c]"),
