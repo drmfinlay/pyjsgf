@@ -1,7 +1,7 @@
 import unittest
-import random
 
 from jsgf import *
+from mock import patch
 
 
 class RuleGenerators(unittest.TestCase):
@@ -23,11 +23,17 @@ class ExpansionGenerators(unittest.TestCase):
         self.assertEqual(e.generate(), "hello world")
         
     def test_alt_set(self):
-        random.seed(123)
+        i = 0
+        
+        def choice(lst):
+            return lst[i]
+        
         hello, hi = map(Literal, ["hello", "hi"])
         e = AlternativeSet(hello, hi)
-        self.assertEqual(e.generate(), "hello")
-        self.assertEqual(e.generate(), "hi")
+        with patch("random.choice", choice):
+            self.assertEqual(e.generate(), "hello")
+            i += 1
+            self.assertEqual(e.generate(), "hi")
     
     def test_rule_ref(self):
         e1 = Sequence("bob")
@@ -36,23 +42,31 @@ class ExpansionGenerators(unittest.TestCase):
         self.assertEqual(e2.generate(), "hi bob")
         
     def test_optional(self):
-        random.seed(123)
+        i = 0
+    
+        def choice(lst):
+            return lst[i]
+    
         e = Sequence("hello", OptionalGrouping("there"))
-        self.assertEqual(e.generate(), "hello there")
-        self.assertEqual(e.generate(), "hello")
+        with patch("random.choice", choice):
+            self.assertEqual(e.generate(), "hello there")
+            i += 1
+            self.assertEqual(e.generate(), "hello")
 
     def test_repeat(self):
-        random.seed(123)
         e = Repeat("hello")
-        self.assertEqual(e.generate(), "hello hello hello hello hello")
-        self.assertEqual(e.generate(), "hello hello hello hello")
-        self.assertEqual(e.generate(), "hello hello")
+        with patch("random.random", return_value=0) as mocked_random:
+            mocked_random.return_value = .5
+            self.assertEqual(e.generate(), "hello hello")
+            mocked_random.return_value = .12345
+            self.assertEqual(e.generate(), "hello hello hello hello")
         
     def test_kleene_star(self):
-        random.seed(123)
         e = KleeneStar("hello")
-        self.assertEqual(e.generate(), "hello hello hello hello")
-        self.assertEqual(e.generate(), "hello hello hello")
-        self.assertEqual(e.generate(), "hello")
-        self.assertEqual(e.generate(), "hello hello hello")
-        self.assertEqual(e.generate(), "")
+        with patch("random.random", return_value=0) as mocked_random:
+            mocked_random.return_value = .5
+            self.assertEqual(e.generate(), "hello")
+            mocked_random.return_value = .12345
+            self.assertEqual(e.generate(), "hello hello hello")
+            mocked_random.return_value = .786
+            self.assertEqual(e.generate(), "")
