@@ -1421,7 +1421,7 @@ class Repeat(SingleChildExpansion):
         
     def generate(self):
         c = int(math.log(random.random() / 2, 0.5))
-        return " ".join([self.child.generate()] * c)
+        return " ".join([self.child.generate() for _ in range(c)])
 
     def __hash__(self):
         return super(Repeat, self).__hash__()
@@ -1530,7 +1530,7 @@ class KleeneStar(Repeat):
         
     def generate(self):
         c = int(math.log(random.random() / 2, 0.5)) - 1
-        return " ".join([self.child.generate()] * c)
+        return " ".join([self.child.generate() for _ in range(c)])
 
     @property
     def is_optional(self):

@@ -60,7 +60,21 @@ class ExpansionGenerators(unittest.TestCase):
             self.assertEqual(e.generate(), "hello hello")
             mocked_random.return_value = .12345
             self.assertEqual(e.generate(), "hello hello hello hello")
+
+        indices = [1, 0, 1, 0, 1]  # for five choices
         
+        def choice(lst):
+            i = indices.pop(0)
+            return lst[i]
+
+        e = Repeat(AlternativeSet("hello", "hi"))
+        with patch("random.random", return_value=0) as mocked_random:
+            with patch("random.choice", choice):
+                mocked_random.return_value = .5
+                self.assertEqual(e.generate(), "hi hello")
+                mocked_random.return_value = .25
+                self.assertEqual(e.generate(), "hi hello hi")
+
     def test_kleene_star(self):
         e = KleeneStar("hello")
         with patch("random.random", return_value=0) as mocked_random:
@@ -70,3 +84,17 @@ class ExpansionGenerators(unittest.TestCase):
             self.assertEqual(e.generate(), "hello hello hello")
             mocked_random.return_value = .786
             self.assertEqual(e.generate(), "")
+
+        indices = [1, 0, 1]  # for three choices
+
+        def choice(lst):
+            i = indices.pop(0)
+            return lst[i]
+
+        e = KleeneStar(AlternativeSet("hello", "hi"))
+        with patch("random.random", return_value=0) as mocked_random:
+            with patch("random.choice", choice):
+                mocked_random.return_value = .5
+                self.assertEqual(e.generate(), "hi")
+                mocked_random.return_value = .25
+                self.assertEqual(e.generate(), "hello hi")
