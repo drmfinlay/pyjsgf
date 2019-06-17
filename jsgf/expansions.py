@@ -1711,11 +1711,11 @@ class AlternativeSet(VariableChildExpansion):
             # each alternative gets the probability weight / sum_of_all_weights
             w_sum = sum(self._weights.values())
             rand = random.random()
-            print("rand = %s" % rand)
+            # print("rand = %s" % rand)
             help_sum = 0
             for child, weight in self._weights.items():
                 help_sum += (weight / w_sum)
-                print(help_sum)
+                # print(help_sum)
                 if rand < help_sum:
                     return child.generate()
         return random.choice(self.children).generate()
