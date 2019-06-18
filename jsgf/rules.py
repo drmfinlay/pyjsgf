@@ -90,6 +90,14 @@ class Rule(BaseRef):
             return "public %s" % result
         else:
             return result
+        
+    def generate(self):
+        """Generates a string matching this rule."""
+        if not self._active:
+            return ""
+        
+        result = self.expansion.generate()
+        return result
 
     def __str__(self):
         return "%s(name='%s', visible=%s, expansion=%s)" %\

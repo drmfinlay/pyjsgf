@@ -2,6 +2,8 @@
 This module contains classes for compiling and matching JSpeech Grammar Format rule
 expansions.
 """
+import math
+import random
 import re
 from copy import deepcopy
 
@@ -453,6 +455,10 @@ class Expansion(object):
             return self.compiled_tag
         else:
             return ""
+        
+    def generate(self):
+        """Generates a string matching this expansion."""
+        return ""
 
     @property
     def parent(self):
@@ -1111,6 +1117,9 @@ class NamedRuleRef(BaseExpansionRef):
             return self.rule.grammar.get_rule_from_name(self.name)
         else:
             raise GrammarError("cannot get referenced Rule object from Grammar")
+    
+    def generate(self):
+        return self.referenced_rule.generate()
 
     def _make_matcher_element(self):
         # Wrap the parser element for the referenced rule's root expansion so that
@@ -1199,6 +1208,9 @@ class SingleChildExpansion(ExpansionWithChildren):
             return None  # the child has been removed
         else:
             return self.children[0]
+        
+    def generate(self):
+        return self.child.generate()
 
     def __hash__(self):
         return super(SingleChildExpansion, self).__hash__()
@@ -1218,6 +1230,9 @@ class SingleChildExpansion(ExpansionWithChildren):
 class VariableChildExpansion(ExpansionWithChildren):
     def __init__(self, *expansions):
         super(VariableChildExpansion, self).__init__(expansions)
+        
+    def generate(self):
+        return " ".join([c for c in [e.generate() for e in self.children] if c])
 
     def __hash__(self):
         return super(VariableChildExpansion, self).__hash__()
@@ -1299,6 +1314,9 @@ class Literal(Expansion):
 
         # Use lowercase text by convention.
         self._text = value.lower()
+        
+    def generate(self):
+        return self.text
 
     def __copy__(self):
         e = type(self)(self.text)
@@ -1400,6 +1418,10 @@ class Repeat(SingleChildExpansion):
             return "(%s)+%s" % (compiled, self.compiled_tag)
         else:
             return "(%s)+" % compiled
+        
+    def generate(self):
+        c = int(math.log(random.random() / 2, 0.5))
+        return " ".join([self.child.generate() for _ in range(c)])
 
     def __hash__(self):
         return super(Repeat, self).__hash__()
@@ -1505,6 +1527,10 @@ class KleeneStar(Repeat):
             return "(%s)*%s" % (compiled, self.compiled_tag)
         else:
             return "(%s)*" % compiled
+        
+    def generate(self):
+        c = int(math.log(random.random() / 2, 0.5)) - 1
+        return " ".join([self.child.generate() for _ in range(c)])
 
     @property
     def is_optional(self):
@@ -1525,6 +1551,9 @@ class OptionalGrouping(SingleChildExpansion):
             return "[%s]%s" % (compiled, self.compiled_tag)
         else:
             return "[%s]" % compiled
+        
+    def generate(self):
+        return random.choice([self.child.generate(), ""])
 
     def _make_matcher_element(self):
         return self._set_matcher_element_attributes(
@@ -1674,6 +1703,22 @@ class AlternativeSet(VariableChildExpansion):
             return "(%s)%s" % (alt_set, self.compiled_tag)
         else:
             return "(%s)" % alt_set
+        
+    def generate(self):
+        if self._weights:
+            self._validate_weights()
+            # use weights if they are set
+            # each alternative gets the probability weight / sum_of_all_weights
+            w_sum = sum(self._weights.values())
+            rand = random.random()
+            # print("rand = %s" % rand)
+            help_sum = 0
+            for child, weight in self._weights.items():
+                help_sum += (weight / w_sum)
+                # print(help_sum)
+                if rand < help_sum:
+                    return child.generate()
+        return random.choice(self.children).generate()
 
     def _make_matcher_element(self):
         # Return an element that can match the alternatives.
