@@ -72,6 +72,7 @@ class ValidGrammarTests(unittest.TestCase):
 
 class ExpansionParserTests(unittest.TestCase):
     """Test the parse_expansion_string function."""
+
     def test_literal_ascii(self):
         self.assertEqual(parse_expansion_string("command"), Literal("command"))
         self.assertEqual(parse_expansion_string("a literal"), Literal("a literal"))
@@ -135,6 +136,25 @@ class ExpansionParserTests(unittest.TestCase):
         expected.children[1].tag = "2"
         self.assertEqual(parse_expansion_string("/10/ a {1} | /5.5/ b {2}"),
                          expected)
+
+    def test_unary_alternatives(self):
+        for cls, op in [(Repeat, "+"), (KleeneStar, "*")]:
+            # Test unweighted.
+            expected = AlternativeSet(
+                cls("a"), cls(RequiredGrouping("b c")),
+                cls(RequiredGrouping(Sequence("d", OptionalGrouping("e"))))
+            )
+            exp_str = "a{op} | (b c){op} | (d [e]){op}".format(op=op)
+            self.assertEqual(parse_expansion_string(exp_str),
+                             expected)
+
+            # Test weighted.
+            alt1, alt2 = cls("a"), cls(RequiredGrouping("b c"))
+            alt3 = cls(RequiredGrouping(Sequence("d", OptionalGrouping("e"))))
+            expected = AlternativeSet(alt1, alt2, alt3)
+            expected.weights = {alt1: 10, alt2: 5, alt3: 2}
+            exp_str = "/10/ a{op} | /5/ (b c){op} | /2/ (d [e]){op}".format(op=op)
+            self.assertEqual(parse_expansion_string(exp_str), expected)
 
     def test_optional(self):
         self.assertEqual(parse_expansion_string("[a]"), OptionalGrouping("a"))

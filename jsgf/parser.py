@@ -274,8 +274,18 @@ def _transform_tokens(tokens):
         lst.pop(i)
         lst.pop(i)
 
-    # Check if we need to handle a repeat or kleene star.
-    repeat = "+" in lst or "*" in lst
+    # Handle repeats by wrapping the preceding item in either a Repeat or
+    # KleeneStar expansion.
+    if "+" in lst or "*" in lst:
+        cls = Repeat if lst.pop(1) == "+" else KleeneStar
+
+        # Handle weighted expansions by weighting the repeat expansion.
+        if isinstance(lst[0], WeightedExpansion):
+            child = lst[0].children.pop()
+            weight = lst[0].weight
+            lst[0] = WeightedExpansion(cls(child), weight)
+        else:
+            lst[0] = cls(lst[0])
 
     # Handle atoms by returning the only token.
     if len(lst) == 1:
@@ -287,7 +297,7 @@ def _transform_tokens(tokens):
         return ParsedAlternativeSet(*lst)
 
     # Handle sequences.
-    elif len(lst) == 2 and not repeat:
+    elif len(lst) == 2:
         # If the second expansion is an alternative set, place the first expansion
         # inside a sequence with the first child of the alternative set.
         # Do not do this if the first expansion is a required grouping.
@@ -302,18 +312,6 @@ def _transform_tokens(tokens):
         # Otherwise return a sequence.
         else:
             return Sequence(*lst)
-
-    # Handle repeats by returning an expansion of the appropriate type.
-    elif len(lst) >= 2 and repeat:
-        cls = Repeat if lst.pop(1) == "+" else KleeneStar
-        lst[0] = cls(lst[0])
-
-        # Return a Sequence if there are two or more tokens left, otherwise
-        # return the Repeat/KleeneStar expansion.
-        if len(lst) >= 2:
-            return Sequence(*lst)
-        else:
-            return lst[0]
 
     raise TypeError("unhandled tokens %s" % lst)
 
