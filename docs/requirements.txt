@@ -1,0 +1,3 @@
+six
+pyparsing>=2.2.0
+Sphinx
