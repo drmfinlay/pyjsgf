@@ -25,7 +25,7 @@ setup(
         'Topic :: Software Development :: Libraries',
     ],
     author='Dane Finlay',
-    author_email='Danesprite@gmail.com',
+    author_email='Danesprite@posteo.net',
     version='1.6.0',
     packages=['jsgf', 'jsgf.ext'],
     install_requires=['pyparsing', 'six']
