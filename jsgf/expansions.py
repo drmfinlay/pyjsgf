@@ -457,7 +457,7 @@ class Expansion(object):
             return ""
         
     def generate(self):
-        """Generates a string matching this expansion."""
+        """Generate a string matching this expansion."""
         return ""
 
     @property
@@ -1119,6 +1119,11 @@ class NamedRuleRef(BaseExpansionRef):
             raise GrammarError("cannot get referenced Rule object from Grammar")
     
     def generate(self):
+        """
+        Generate a string matching the referenced rule's expansion.
+
+        :rtype: str
+        """
         return self.referenced_rule.generate()
 
     def _make_matcher_element(self):
@@ -1316,6 +1321,13 @@ class Literal(Expansion):
         self._text = value.lower()
         
     def generate(self):
+        """
+        Generate a string matching this expansion's text.
+
+        This will just return the value of ``text``.
+
+        :rtype: str
+        """
         return self.text
 
     def __copy__(self):
@@ -1420,6 +1432,13 @@ class Repeat(SingleChildExpansion):
             return "(%s)+" % compiled
         
     def generate(self):
+        """
+        Generate a string matching this expansion.
+
+        This method can generate one or more repetitions of the child expansion.
+
+        :rtype: str
+        """
         c = int(math.log(random.random() / 2, 0.5))
         return " ".join([self.child.generate() for _ in range(c)])
 
@@ -1529,6 +1548,14 @@ class KleeneStar(Repeat):
             return "(%s)*" % compiled
         
     def generate(self):
+        """
+        Generate a string matching this expansion.
+
+        This method can generate zero or more repetitions of the child expansion,
+        zero repetitions meaning the empty string (`""`) will be returned.
+
+        :rtype: str
+        """
         c = int(math.log(random.random() / 2, 0.5)) - 1
         return " ".join([self.child.generate() for _ in range(c)])
 
@@ -1705,6 +1732,17 @@ class AlternativeSet(VariableChildExpansion):
             return "(%s)" % alt_set
         
     def generate(self):
+        """
+        Generate a matching string for this alternative set.
+
+        Each alternative has an equal chance of being chosen for string generation.
+
+        If weights are set, then the probability of an alternative is its weight over
+        the sum of all weights::
+
+            p = w / sum(weights)
+
+        """
         if self._weights:
             self._validate_weights()
             # use weights if they are set

@@ -92,7 +92,11 @@ class Rule(BaseRef):
             return result
         
     def generate(self):
-        """Generates a string matching this rule."""
+        """
+        Generate a string matching this rule.
+
+        :rtype: str
+        """
         if not self._active:
             return ""
         
