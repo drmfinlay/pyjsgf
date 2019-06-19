@@ -7,6 +7,24 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
+Unreleased_
+-----------
+
+Added
+^^^^^
+* Add Expansion and Rule `generate()` methods for generating matching strings. Thanks `@embie27`_.
+* Add unit tests for `generate()` methods into a new *test/test_generators.py* file. Thanks `@embie27`_.
+
+Changed
+^^^^^^^
+* Include the `mock` package in *requirements.txt* (test requirement).
+
+Fixed
+^^^^^
+* Fix two rule expansion parser bugs related to unary operators (`+` or `*`).
+* Keep required groupings during parsing to avoid unexpected consequences. Thanks `@synesthesiam`_.
+
+
 1.6.0_ -- 2019-03-17
 --------------------
 
