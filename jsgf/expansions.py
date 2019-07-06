@@ -911,14 +911,12 @@ class Expansion(object):
         :returns: Expansion
         """
         parent = self.parent
-        result = None
-        while parent:
-            if isinstance(parent, Repeat):
-                result = parent
-                break
-            parent = parent.parent
-
-        return result
+        if parent and hasattr(parent, "repetitions_matched"):
+            return parent
+        elif parent:
+            return self.parent.repetition_ancestor
+        else:
+            return None
 
     def collect_leaves(self, order=TraversalOrder.PreOrder, shallow=False):
         """
