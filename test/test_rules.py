@@ -103,6 +103,7 @@ class MemberTests(unittest.TestCase):
 
     def test_find_matching_part(self):
         r1 = PublicRule("test", "hello world")
+        r1.expansion.tag = "greet"
 
         # Test with matches.
         m = "hello world"
@@ -120,11 +121,17 @@ class MemberTests(unittest.TestCase):
             r1.find_matching_part("test test hello world test test"), m
         )
 
+        # Test that matching tags are correct.
+        self.assertEqual(r1.matched_tags, ["greet"])
+
         # Test with no matches.
         self.assertIsNone(r1.find_matching_part(""))
         self.assertIsNone(r1.find_matching_part("test hello"))
         self.assertIsNone(r1.find_matching_part("abc hello def world"))
         self.assertIsNone(r1.find_matching_part("hello abc def world"))
+
+        # Test that the previous tag is no longer in r1.matched_tags.
+        self.assertEqual(r1.matched_tags, [])
 
         # Test disabled rule.
         r1.disable()

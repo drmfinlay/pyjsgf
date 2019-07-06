@@ -197,6 +197,9 @@ class Rule(BaseRef):
         # properly.
         speech = speech.lstrip().lower()
 
+        # Reset match data for this rule and referenced rules.
+        self.expansion.reset_for_new_match()
+
         # Use the first match (if any) and break. The loop is required because
         # scanString returns a generator.
         result = None

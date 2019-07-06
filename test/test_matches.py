@@ -85,6 +85,19 @@ class MatchesCase(unittest.TestCase):
         self.assertEqual(e.current_match, "hello")
         self.assertEqual(e.matching_slice, slice(0, 5))
 
+    def test_matching_tags(self):
+        e = Literal("hello")
+        e.tag = "greet"
+        r = PublicRule("test", e)
+        self.assertTrue(r.matches("hello"))
+        self.assertEqual(e.current_match, "hello")
+        self.assertEqual(e.matching_slice, slice(0, 5))
+        self.assertEqual(r.matched_tags, ["greet"])
+
+        # Test that rule.matches() erases previous tags.
+        self.assertFalse(r.matches(""))
+        self.assertEqual(r.matched_tags, [])
+
     def test_literal_no_match(self):
         e = Literal("hello world")
         r = PublicRule("test", e)
