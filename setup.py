@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def get_long_description():
@@ -18,6 +18,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Operating System :: OS Independent',
@@ -27,6 +28,6 @@ setup(
     author='Dane Finlay',
     author_email='Danesprite@posteo.net',
     version='1.7.0',
-    packages=['jsgf', 'jsgf.ext'],
+    packages=find_packages(),
     install_requires=['pyparsing', 'six']
 )
