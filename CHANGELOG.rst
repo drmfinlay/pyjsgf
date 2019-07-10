@@ -7,25 +7,23 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
-Unreleased_
------------
+1.7.1_ -- 2019-07-10
+--------------------
 
 Added
 ^^^^^
-
 * Add 'matching benchmark.py' script.
 
 Changed
 ^^^^^^^
-
 * Add a classifier for Python 3.4 in setup.py as it is a supported version.
 * Rewrite Expansion.repetition_ancestor property.
 * Use the setuptools.find_packages() function in setup.py instead of defining packages manually.
 
 Fixed
 ^^^^^
-
 * Fix missing call to reset_for_new_match() in Rule.find_matching_part(). Some tests have also been added.
+
 
 1.7.0_ -- 2019-06-19
 --------------------
@@ -232,7 +230,8 @@ First tagged release and start of proper versioning. Too many changes to list he
 
 
 .. Release links.
-.. _Unreleased: https://github.com/Danesprite/pyjsgf/compare/v1.7.0...HEAD
+.. _Unreleased: https://github.com/Danesprite/pyjsgf/compare/v1.7.1...HEAD
+.. _1.7.1: https://github.com/Danesprite/pyjsgf/compare/v1.7.0...v1.7.1
 .. _1.7.0: https://github.com/Danesprite/pyjsgf/compare/v1.6.0...v1.7.0
 .. _1.6.0: https://github.com/Danesprite/pyjsgf/compare/v1.5.1...v1.6.0
 .. _1.5.1: https://github.com/Danesprite/pyjsgf/compare/v1.5.0...v1.5.1

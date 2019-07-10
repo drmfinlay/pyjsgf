@@ -27,7 +27,7 @@ setup(
     ],
     author='Dane Finlay',
     author_email='Danesprite@posteo.net',
-    version='1.7.0',
+    version='1.7.1',
     packages=find_packages(),
     install_requires=['pyparsing', 'six']
 )
