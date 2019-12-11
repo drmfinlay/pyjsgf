@@ -1498,11 +1498,11 @@ class Repeat(SingleChildExpansion):
                 self.child.reset_for_new_match()
             return tokens
 
-        # Add the extra parse action.
-        e = self.child.matcher_element.addParseAction(f)
+        # Get the child's matcher element and add the extra parse action.
+        child_element = self.child.matcher_element.addParseAction(f)
 
         # Determine the parser element type to use.
-        t = pyparsing.ZeroOrMore if self.is_optional else pyparsing.OneOrMore
+        type_ = pyparsing.ZeroOrMore if self.is_optional else pyparsing.OneOrMore
 
         # Handle the special case of a repetition ancestor, e.g. ((a b)+)+
         rep = self.repetition_ancestor
@@ -1520,9 +1520,10 @@ class Repeat(SingleChildExpansion):
             # Use an And element instead if self is the only branch because
             # it makes no sense to repeat a repeat like this!
             if only_branch:
-                t = pyparsing.And
+                type_ = pyparsing.And
+                child_element = [child_element]
 
-        return self._set_matcher_element_attributes(t(e))
+        return self._set_matcher_element_attributes(type_(child_element))
 
     def reset_match_data(self):
         super(Repeat, self).reset_match_data()
