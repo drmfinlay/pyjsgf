@@ -2,13 +2,15 @@
 This module contains classes for compiling and matching JSpeech Grammar Format rule
 expansions.
 """
+
+import functools
 import math
 import random
 import re
 from copy import deepcopy
 
 import pyparsing
-from six import string_types, PY2, integer_types
+from six import string_types, integer_types
 
 from .errors import CompilationError, GrammarError
 from .references import BaseRef, optionally_qualified_name
@@ -239,9 +241,10 @@ class JointTreeContext(object):
         map_expansion(self._root, self.detach_tree, TraversalOrder.PostOrder)
 
 
-class ChildList(list):
+@functools.total_ordering
+class ChildList(object):
     """
-    List subclass for expansion child lists.
+    List wrapper class for expansion child lists.
 
     The ``parent`` attribute of each child will be set appropriately when they
     added or removed from lists.
@@ -260,19 +263,45 @@ class ChildList(list):
                 return x
 
             seq = map(f, seq)
-        super(ChildList, self).__init__(seq)
+
+        # Use an internal list rather than sub-classing to avoid pickling issues.
+        self._list = list(seq)
+
+    def __repr__(self):
+        return repr(self._list)
+
+    def __lt__(self, other):
+        return self._list < other
+
+    def __eq__(self, other):
+        return self._list == other
+
+    def __len__(self):
+        return len(self._list)
+
+    def __not__(self):
+        return not(self._list)
+
+    def __add__(self, other):
+        return self._list + other
+
+    def __iadd__(self, other):
+        self._list += other
 
     def append(self, e):
         e = Expansion.make_expansion(e)
-        super(ChildList, self).append(e)
+        self._list.append(e)
         e.parent = self._expansion
+
+    def __iter__(self):
+        return iter(self._list)
 
     def clear(self):
         """
         Remove all expansions from this list and unset their parent attributes.
         """
         # Clear the list using remove().
-        for c in tuple(self):
+        for c in tuple(self._list):
             self.remove(c)
 
     def orphan_children(self):
@@ -291,26 +320,31 @@ class ChildList(list):
             e.parent = self._expansion
 
         # Call the super method to extend the list.
-        super(ChildList, self).extend(iterable)
+        self._list.extend(iterable)
+
+    def index(self, value, start=0, end=None):
+        if end is None:
+            end = len(self._list)
+        return self._list.index(value, start, end)
 
     def insert(self, index, e):
         # Make e an Expansion, call the super method and set e's parent.
         e = Expansion.make_expansion(e)
-        super(ChildList, self).insert(index, e)
+        self._list.insert(index, e)
         e.parent = self._expansion
 
     def pop(self, index=-1):
         # Pop item at the specified index (default -1), set its parent to None
         # and return it.
-        e = super(ChildList, self).pop(index)
+        e = self._list.pop(index)
         e.parent = None
         return e
 
     def remove(self, value):
         # Set the parent before removing the expansion.
         # 'value' is not necessarily in the list, so we can't use that.
-        self[self.index(value)].parent = None
-        super(ChildList, self).remove(value)
+        self._list[self._list.index(value)].parent = None
+        self._list.remove(value)
 
     def __setslice__(self, i, j, sequence):
         """
@@ -327,19 +361,19 @@ class ChildList(list):
         def orphan(x):
             x.parent = None
 
-        [orphan(c) for c in self[i:j]]
+        [orphan(c) for c in self._list[i:j]]
 
-        # Call the appropriate super method for the Python version.
-        if PY2:
-            super(ChildList, self).__setslice__(i, j, sequence)
-        else:
-            super(ChildList, self).__setitem__(slice(i, j), sequence)
+        # Set the slice.
+        self._list[slice(i, j)] = sequence
 
         # Adopt the new children :-)
         def adopt(x):
             x.parent = self._expansion
 
         [adopt(c) for c in sequence]
+
+    def __getitem__(self, key):
+        return self._list[key]
 
     def __setitem__(self, i, value):
         # Handle setting slices separately for my sanity.
@@ -351,13 +385,13 @@ class ChildList(list):
         value = Expansion.make_expansion(value)
 
         # Orphan the old child :-(
-        self[i].parent = None
+        self._list[i].parent = None
 
-        # Call the super method to set the Expansion.
-        super(ChildList, self).__setitem__(i, value)
+        # Set the Expansion in the internal list.
+        self._list[i] = value
 
         # Adopt the new child :-)
-        self[i].parent = self._expansion
+        self._list[i].parent = self._expansion
 
 
 class Expansion(object):
@@ -439,7 +473,7 @@ class Expansion(object):
 
     @children.setter
     def children(self, value):
-        if not isinstance(value, (tuple, list)):
+        if not isinstance(value, (tuple, list, ChildList)):
             raise TypeError("'children' must be a list or tuple")
 
         # Orphan current children if applicable.
@@ -877,6 +911,11 @@ class Expansion(object):
 
     def __contains__(self, item):
         return item in flat_map_expansion(self)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['_matcher_element'] = None
+        return state
 
     @property
     def is_optional(self):

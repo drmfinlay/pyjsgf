@@ -156,7 +156,7 @@ class ChildListCase(unittest.TestCase):
         self.assertIsInstance(e.children, ChildList)
         e.children = ChildList(e, ["a", "b", "c"])
         self.assertIsInstance(e.children, ChildList)
-        self.assertListEqual(e.children, [Literal("a"), Literal("b"), Literal("c")])
+        self.assertSequenceEqual(e.children, [Literal("a"), Literal("b"), Literal("c")])
 
         # Check that replacing a ChildList modifies the old list appropriately.
         old_list = e.children
@@ -176,9 +176,9 @@ class ChildListCase(unittest.TestCase):
     def test_equal(self):
         """Equivalent lists and ChildLists should be equal."""
         e = self.e
-        self.assertListEqual(e.children, [Literal(s) for s in ("a", "b", "c")])
+        self.assertSequenceEqual(e.children, [Literal(s) for s in ("a", "b", "c")])
         e = Literal("a")
-        self.assertListEqual(e.children, [])
+        self.assertSequenceEqual(e.children, [])
 
     def test_unequal(self):
         """Different lists and ChildLists should still be unequal."""
@@ -191,17 +191,17 @@ class ChildListCase(unittest.TestCase):
         e = Sequence("a")
         e.children.append("b")
         expected = Sequence("a", "b")
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
 
         # Test insert()
         e = Sequence("a")
         e.children.insert(1, "b")
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
 
         # Test set item
         e = Sequence("a")
         e.children[0] = "b"
-        self.assertListEqual(e.children, Sequence("b").children)
+        self.assertSequenceEqual(e.children, Sequence("b").children)
 
     def test_append(self):
         """Appended children are added and have their parent attributes set."""
@@ -210,7 +210,7 @@ class ChildListCase(unittest.TestCase):
         e.children.append("d")
         e.children.append(OptionalGrouping("e"))
         expected = Sequence("a", "b", "c", "d", OptionalGrouping("e"))
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
         self.assertEqual(e.children[3].parent, e)
         self.assertEqual(e.children[4].parent, e)
 
@@ -228,7 +228,7 @@ class ChildListCase(unittest.TestCase):
         e = Sequence("a")
         e.children.extend(["b", OptionalGrouping("c")])
         expected = Sequence("a", "b", OptionalGrouping("c"))
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
         self.assertEqual(e.children[1].parent, e)
         self.assertEqual(e.children[2].parent, e)
 
@@ -238,7 +238,7 @@ class ChildListCase(unittest.TestCase):
         e.children.insert(0, "a")
         e.children.insert(4, OptionalGrouping("e"))
         expected = Sequence("a", "a", "b", "c", OptionalGrouping("e"))
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
         self.assertEqual(e.children[0].parent, e)
         self.assertEqual(e.children[4].parent, e)
 
@@ -267,7 +267,7 @@ class ChildListCase(unittest.TestCase):
         a, b, c = e.children
         expected = Sequence("x", "y", "z")
         e.children[0:3] = "x", "y", "z"
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
 
         # Check that the old children no longer have e as their parent.
         self.assertIsNone(a.parent)
@@ -280,7 +280,7 @@ class ChildListCase(unittest.TestCase):
         a = e.children[0]
         expected = Sequence("x", "b", "c")
         e.children[0] = "x"
-        self.assertListEqual(e.children, expected.children)
+        self.assertSequenceEqual(e.children, expected.children)
 
         # Check that the old child no longer has e as its parent.
         self.assertIsNone(a.parent)
@@ -907,13 +907,13 @@ class ExpansionTreeConstructs(unittest.TestCase):
 
         self.assertIs(find_expansion(e, find_a, TraversalOrder.PreOrder),
                       e.children[0])
-        self.assertListEqual(visited, [e, e.children[0]])
+        self.assertSequenceEqual(visited, [e, e.children[0]])
 
         # Reset the visited list and test with a post order traversal
         visited = []
         self.assertIs(find_expansion(e, find_a, TraversalOrder.PostOrder),
                       e.children[0])
-        self.assertListEqual(visited, [e.children[0]])
+        self.assertSequenceEqual(visited, [e.children[0]])
 
         # Test again finding 'b' instead
         visited = []
@@ -924,13 +924,13 @@ class ExpansionTreeConstructs(unittest.TestCase):
 
         self.assertIs(find_expansion(e, find_b, TraversalOrder.PreOrder),
                       e.children[2])
-        self.assertListEqual(visited, [e] + e.children)
+        self.assertSequenceEqual(visited, [e] + list(e.children))
 
         # Reset the visited list and test with a post order traversal
         visited = []
         self.assertIs(find_expansion(e, find_b, TraversalOrder.PostOrder),
                       e.children[2])
-        self.assertListEqual(visited, e.children)
+        self.assertSequenceEqual(visited, e.children)
 
 
 class LeafProperties(unittest.TestCase):
@@ -939,7 +939,7 @@ class LeafProperties(unittest.TestCase):
     """
     def test_leaves_base(self):
         e = Literal("hello")
-        self.assertListEqual(e.leaves, [Literal("hello")])
+        self.assertSequenceEqual(e.leaves, [Literal("hello")])
 
     def test_new_leaf_type(self):
         # Make a new Expansion that has no children.
@@ -948,27 +948,27 @@ class LeafProperties(unittest.TestCase):
                 super(TestLeaf, self).__init__([])
 
         e = TestLeaf()
-        self.assertListEqual(e.leaves, [TestLeaf()])
+        self.assertSequenceEqual(e.leaves, [TestLeaf()])
 
     def test_leaves_multiple(self):
         e = Sequence(Literal("hello"), AlternativeSet("there", "friend"))
-        self.assertListEqual(e.leaves, [Literal("hello"), Literal("there"),
+        self.assertSequenceEqual(e.leaves, [Literal("hello"), Literal("there"),
                                         Literal("friend")],
                              "leaves should be in sequence from left to right.")
 
     def test_leaves_with_rule_ref(self):
         r = PublicRule("test", Literal("hi"))
         e = RuleRef(r)
-        self.assertListEqual(e.leaves, [e, Literal("hi")])
+        self.assertSequenceEqual(e.leaves, [e, Literal("hi")])
 
     def test_leaves_after_base(self):
         e = Literal("a")
-        self.assertListEqual(list(e.leaves_after), [])
+        self.assertSequenceEqual(list(e.leaves_after), [])
 
     def test_leaves_after_multiple(self):
         e = Sequence("a", "b")
-        self.assertListEqual(list(e.children[0].leaves_after), [e.children[1]])
-        self.assertListEqual(list(e.children[1].leaves_after), [])
+        self.assertSequenceEqual(list(e.children[0].leaves_after), [e.children[1]])
+        self.assertSequenceEqual(list(e.children[1].leaves_after), [])
 
     def test_leaves_after_complex(self):
         x = Sequence(
@@ -982,33 +982,33 @@ class LeafProperties(unittest.TestCase):
         e = x.children[1]
         f = x.children[2].child
 
-        self.assertListEqual(list(a.leaves_after), [b, c, d, e, f])
-        self.assertListEqual(list(b.leaves_after), [c, d, e, f])
-        self.assertListEqual(list(c.leaves_after), [d, e, f])
-        self.assertListEqual(list(d.leaves_after), [e, f])
-        self.assertListEqual(list(e.leaves_after), [f])
-        self.assertListEqual(list(f.leaves_after), [])
+        self.assertSequenceEqual(list(a.leaves_after), [b, c, d, e, f])
+        self.assertSequenceEqual(list(b.leaves_after), [c, d, e, f])
+        self.assertSequenceEqual(list(c.leaves_after), [d, e, f])
+        self.assertSequenceEqual(list(d.leaves_after), [e, f])
+        self.assertSequenceEqual(list(e.leaves_after), [f])
+        self.assertSequenceEqual(list(f.leaves_after), [])
 
     def test_collect_leaves(self):
         n = Rule("n", False, AlternativeSet("one", "two", "three"))
         e = Sequence("test", RuleRef(n))
 
         # Test with default parameters
-        self.assertListEqual(
+        self.assertSequenceEqual(
             e.collect_leaves(order=TraversalOrder.PreOrder, shallow=False),
             #    test         RuleRef(n)       one, two, three
-            [e.children[0], e.children[1]] + n.expansion.children
+            [e.children[0], e.children[1]] + list(n.expansion.children)
         )
 
         # Test with PostOrder traversal
-        self.assertListEqual(
+        self.assertSequenceEqual(
             e.collect_leaves(order=TraversalOrder.PostOrder, shallow=False),
             #     test          one, two, three        RuleRef(n)
-            [e.children[0]] + n.expansion.children + [e.children[1]]
+            [e.children[0]] + list(n.expansion.children) + [e.children[1]]
         )
 
         # Test with shallow=True (order is irrelevant in this case)
-        self.assertListEqual(
+        self.assertSequenceEqual(
             e.collect_leaves(shallow=True),
             #     test        RuleRef(n)
             [e.children[0], e.children[1]]
