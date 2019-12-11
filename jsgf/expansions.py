@@ -912,6 +912,11 @@ class Expansion(object):
     def __contains__(self, item):
         return item in flat_map_expansion(self)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['_matcher_element'] = None
+        return state
+
     @property
     def is_optional(self):
         """
