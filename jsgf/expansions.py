@@ -1331,6 +1331,7 @@ class Literal(Expansion):
         # Set _text and use the text setter to validate the input.
         self._text = ""
         self.text = text
+        self._case_sensitive = None
         super(Literal, self).__init__([])
 
     def __str__(self):
@@ -1340,23 +1341,48 @@ class Literal(Expansion):
         return hash("%s" % self)
 
     @property
+    def case_sensitive(self):
+        """
+        Case sensitivity used when matching and compiling :class:`Literal` rule
+        expansions.
+
+        This property can be ``True`` or ``False``. Matching and compilation will
+        be *case-sensitive* if ``True`` and *case-insensitive* if ``False``. The
+        default value is ``False``.
+
+        :rtype: bool
+        :returns: literal case sensitivity
+        """
+        return self._case_sensitive
+
+    @case_sensitive.setter
+    def case_sensitive(self, value):
+        self._case_sensitive = bool(value)
+        self.invalidate_matcher()
+
+    @property
     def text(self):
         """
         Text to match/compile.
 
-        Text will be put in lowercase. Override ``text``'s setter to
-        change that behaviour.
+        This will return lowercase text if :py:attr:`~case_sensitive` is not
+        ``True``.
+
+        :rtype: str
+        :returns: text
         """
-        return self._text
+        text = self._text
+        if not self.case_sensitive:
+            text = text.lower()
+        return text
 
     @text.setter
     def text(self, value):
         if not isinstance(value, string_types):
             raise TypeError("expected string, got %s instead" % value)
 
-        # Use lowercase text by convention.
-        self._text = value.lower()
-        
+        self._text = value
+
     def generate(self):
         """
         Generate a string matching this expansion's text.
@@ -1410,7 +1436,13 @@ class Literal(Expansion):
         return re.compile(r"\s+".join(words))
 
     def _make_matcher_element(self):
-        return self._set_matcher_element_attributes(pyparsing.Literal(self.text))
+        # Return a case-sensitive or case-insensitive pyparsing Literal element.
+        text = self._text
+        if self.case_sensitive:
+            matcher_cls = pyparsing.Literal
+        else:
+            matcher_cls = pyparsing.CaselessLiteral
+        return self._set_matcher_element_attributes(matcher_cls(text))
 
     def __eq__(self, other):
         return super(Literal, self).__eq__(other) and self.text == other.text

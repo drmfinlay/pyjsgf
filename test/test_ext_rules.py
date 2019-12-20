@@ -198,11 +198,11 @@ class SequenceRuleGraftMatchMethods(unittest.TestCase):
         self.assertEqual(l1.current_match, "test with")
         self.assertEqual(alt_set.current_match, "lots of")
         self.assertEqual(d1.current_match, "dictation")
-        self.assertEqual(l2.current_match, "and jsgf")
+        self.assertEqual(l2.current_match, "and JSGF")
         self.assertEqual(l3.current_match, "expansions")
         self.assertEqual(d2.current_match, "hopefully")
         self.assertEqual(d3.current_match, "maybe")
-        self.assertEqual(seq.current_match, "test with lots of dictation and jsgf "
+        self.assertEqual(seq.current_match, "test with lots of dictation and JSGF "
                                             "expansions hopefully maybe")
 
     def test_graft_matches_onto_unrelated(self):

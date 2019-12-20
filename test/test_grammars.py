@@ -220,6 +220,49 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertIsNone(r.grammar, "remove r from its grammar should reset "
                                      "r.grammar")
 
+    def test_case_sensitivity(self):
+        """JSGF Grammars support configurable case-sensitivity."""
+        grammar = Grammar("test")
+        direction = Rule("direction", False, AlternativeSet(
+            "Up", "Down", "Left", "Right"
+        ))
+        n = Rule("n", False, AlternativeSet("One", "Two", "Three"))
+        cmd_rule = Rule("cmd", True, Sequence(
+            NamedRuleRef("direction"), NamedRuleRef("n")
+        ))
+        grammar.add_rules(direction, n, cmd_rule)
+
+        expected_sensitive = "#JSGF V1.0;\n" \
+            "grammar test;\n" \
+            "<direction> = (Up|Down|Left|Right);\n" \
+            "<n> = (One|Two|Three);\n" \
+            "public <cmd> = <direction> <n>;\n"
+
+        expected_insensitive = "#JSGF V1.0;\n" \
+            "grammar test;\n" \
+            "<direction> = (up|down|left|right);\n" \
+            "<n> = (one|two|three);\n" \
+            "public <cmd> = <direction> <n>;\n"
+
+        # Test that default is case-insensitive.
+        self.assertFalse(grammar.case_sensitive)
+        self.assertEqual(grammar.compile(), expected_insensitive)
+
+        # Test case-sensitive compilation and matching.
+        grammar.case_sensitive = True
+        self.assertTrue(grammar.case_sensitive)
+        self.assertEqual(grammar.compile(), expected_sensitive)
+        self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
+        self.assertSequenceEqual(grammar.find_matching_rules("up two"), [])
+
+        # Switch back to case-insensitive to test that the casing of rule literals is
+        # never lost.
+        grammar.case_sensitive = False
+        self.assertFalse(grammar.case_sensitive)
+        self.assertEqual(grammar.compile(), expected_insensitive)
+        self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
+        self.assertSequenceEqual(grammar.find_matching_rules("up two"), [cmd_rule])
+
 
 class TagTests(unittest.TestCase):
     """

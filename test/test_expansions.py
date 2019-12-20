@@ -516,11 +516,13 @@ class LiteralProperties(unittest.TestCase):
         e.text = "b"
         self.assertEqual(e.text, "b")
 
-    def test_text_lowercase(self):
-        """Literal.text gets and sets lowercase strings."""
+    def test_text_casing(self):
+        """Literal.text property can return lowered or unchanged strings."""
         e = Literal("A")
         self.assertEqual(e.text, "a")
-        e.text = "A"
+        e.case_sensitive = True
+        self.assertEqual(e.text, "A")
+        e.text = "a"
         self.assertEqual(e.text, "a")
 
     def test_set_text_valid_type(self):

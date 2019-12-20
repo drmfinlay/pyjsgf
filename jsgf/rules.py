@@ -5,8 +5,9 @@ This module contains classes for compiling and matching JSpeech Grammar Format
 rules.
 """
 
+from .errors import GrammarError
 from .references import BaseRef
-from .expansions import Expansion, NamedRuleRef, filter_expansion, \
+from .expansions import Expansion, Literal, NamedRuleRef, filter_expansion, \
     map_expansion, TraversalOrder
 
 
@@ -41,6 +42,7 @@ class Rule(BaseRef):
         self.expansion = expansion
         self._active = True
         self.grammar = None
+        self._case_sensitive = None
 
     @property
     def expansion(self):
@@ -117,6 +119,46 @@ class Rule(BaseRef):
         return hash("%s%s%s" % (hash(self.name),
                                 hash(self.visible), hash(self.expansion)))
 
+    @property
+    def case_sensitive(self):
+        """
+        Case sensitivity used when matching and compiling :class:`Literal` rule
+        expansions.
+
+        This property can be ``True`` or ``False``. Matching and compilation will
+        be *case-sensitive* if ``True`` and *case-insensitive* if ``False``. The
+        default value is ``False``.
+
+        Setting this property will override the ``case_sensitive`` value for each
+        :class:`Literal` in the rule and in referenced rules.
+
+        :rtype: bool
+        :returns: literal case sensitivity
+        """
+        return self._case_sensitive
+
+    @case_sensitive.setter
+    def case_sensitive(self, value):
+        value = bool(value)
+        self._case_sensitive = value
+
+        # Define a function for setting case_sensitive for all Literal rule
+        # expansions.
+        def func(e):
+            if isinstance(e, Literal):
+                e.case_sensitive = value
+            elif isinstance(e, NamedRuleRef):
+                # Set case_sensitive for referenced rules. Ignore references that
+                # don't resolve to actual Rule objects.
+                try:
+                    e.referenced_rule.case_sensitive = value
+                except GrammarError:
+                    pass
+
+        # Recursively operate on the rule expansion tree. Do *not* operate on
+        # referenced rules directly.
+        map_expansion(self.expansion, func, shallow=True)
+
     def enable(self):
         """
         Allow this rule to produce compile output and to match speech strings.
@@ -168,7 +210,7 @@ class Rule(BaseRef):
 
         # Strip whitespace at the start of 'speech' and lower it to match regex
         # properly.
-        speech = speech.lstrip().lower()
+        speech = speech.lstrip()
 
         # Reset match data for this rule and referenced rules.
         self.expansion.reset_for_new_match()

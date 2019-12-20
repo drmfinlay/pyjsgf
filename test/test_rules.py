@@ -139,6 +139,56 @@ class MemberTests(unittest.TestCase):
         self.assertIsNone(r1.find_matching_part("hello world"))
         self.assertIsNone(r1.find_matching_part("test"))
 
+    def test_case_sensitive(self):
+        """JSGF Rules support configurable case-sensitivity."""
+        direction = Rule("direction", False, AlternativeSet(
+            "Up", "Down", "Left", "Right"
+        ))
+        cmd = Rule("cmd", True, Sequence("Go", RuleRef(direction)))
+
+        # Add our rules to a grammar so that matcher invalidation works.
+        grammar = Grammar()
+        grammar.add_rules(direction, cmd)
+
+        # Change sensitivity for one rule. Check compilation and matching.
+        direction.case_sensitive = True
+        self.assertTrue(direction.case_sensitive)
+        self.assertEqual(direction.compile(), "<direction> = (Up|Down|Left|Right);")
+        self.assertTrue(direction.matches("Up"))
+        self.assertFalse(direction.matches("up"))
+
+        # Test that the "cmd" rule's matches() method is affected by the "direction"
+        # rule's case-sensitivity.
+        self.assertFalse(cmd.matches("go up"))
+        self.assertTrue(cmd.matches("go Up"))
+
+        # Change sensitivity back and check again to make sure the casing is not
+        # lost.
+        direction.case_sensitive = False
+        self.assertFalse(direction.case_sensitive)
+        self.assertEqual(direction.compile(), "<direction> = (up|down|left|right);")
+        self.assertTrue(direction.matches("Up"))
+        self.assertTrue(direction.matches("up"))
+
+        # Test "cmd" matching again.
+        self.assertTrue(cmd.matches("go up"))
+        self.assertTrue(cmd.matches("go Up"))
+
+        # Change sensitivity for the "cmd" rule.
+        cmd.case_sensitive = True
+        self.assertTrue(cmd.case_sensitive)
+        self.assertEqual(cmd.compile(), "public <cmd> = Go <direction>;")
+
+        # Test that the "direction" rule was affected by the change.
+        self.assertTrue(direction.case_sensitive)
+        self.assertEqual(direction.compile(), "<direction> = (Up|Down|Left|Right);")
+        self.assertTrue(direction.matches("Up"))
+        self.assertFalse(direction.matches("up"))
+
+        # Check compilation and matching.
+        self.assertTrue(cmd.matches("Go Up"))
+        self.assertFalse(cmd.matches("go up"))
+
 
 class InvalidRules(unittest.TestCase):
     def test_invalid_rules(self):

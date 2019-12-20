@@ -71,6 +71,7 @@ class Grammar(BaseRef):
         self._imports = []
         self.jsgf_version, self.charset_name, self.language_name =\
             self.default_header_values
+        self._case_sensitive = False
 
     @property
     def jsgf_header(self):
@@ -94,6 +95,29 @@ class Grammar(BaseRef):
     @staticmethod
     def valid(name):
         return grammar_name.matches(name)
+
+    @property
+    def case_sensitive(self):
+        """
+        Case sensitivity used when matching and compiling :class:`Literal` rule
+        expansions whose ``case_sensitive`` values are ``None`` (default).
+
+        Grammars are *case-insensitive* by default.
+
+        Setting this property will override the ``case_sensitive`` value for each
+        :class:`Rule` and :class:`Literal` expansion in the grammar.
+
+        :rtype: bool
+        :returns: case sensitivity
+        """
+        return self._case_sensitive
+
+    @case_sensitive.setter
+    def case_sensitive(self, value):
+        value = bool(value)
+        self._case_sensitive = value
+        for rule in self.rules:
+            rule.case_sensitive = value
 
     def compile(self):
         """
