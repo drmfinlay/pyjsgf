@@ -292,6 +292,13 @@ class Comparisons(unittest.TestCase):
         self.assertNotEqual(Literal("hey"), Literal("hello"))
         self.assertNotEqual(Literal("hey"), Sequence(Literal("hello")))
 
+        # Check case-sensitive vs case-insensitive literals.
+        self.assertEqual(Literal("HELLO", False), Literal("HELLO", False))
+        self.assertEqual(Literal("HELLO", True), Literal("HELLO", True))
+        self.assertEqual(Literal("hello", False), Literal("HELLO", False))
+        self.assertNotEqual(Literal("hello", False), Literal("HELLO", True))
+        self.assertNotEqual(Literal("HELLO", False), Literal("HELLO", True))
+
     def test_alt_sets(self):
         self.assertEqual(AlternativeSet("hello", "hi"),
                          AlternativeSet("hello", "hi"))
@@ -516,11 +523,13 @@ class LiteralProperties(unittest.TestCase):
         e.text = "b"
         self.assertEqual(e.text, "b")
 
-    def test_text_lowercase(self):
-        """Literal.text gets and sets lowercase strings."""
+    def test_text_casing(self):
+        """Literal.text property can return lowered or unchanged strings."""
         e = Literal("A")
         self.assertEqual(e.text, "a")
-        e.text = "A"
+        e.case_sensitive = True
+        self.assertEqual(e.text, "A")
+        e.text = "a"
         self.assertEqual(e.text, "a")
 
     def test_set_text_valid_type(self):

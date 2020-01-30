@@ -15,13 +15,8 @@ class SequenceRule(Rule):
     Class representing a list of regular expansions and ``Dictation`` expansions
     that must be spoken in a sequence.
     """
-    def __init__(self, name, visible, expansion):
-        """
-        :param name: str
-        :param visible: bool
-        :param expansion:
-        """
-        super(SequenceRule, self).__init__(name, visible, expansion)
+    def __init__(self, name, visible, expansion, case_sensitive=False):
+        super(SequenceRule, self).__init__(name, visible, expansion, case_sensitive)
 
         # Keep the original expansion and use a copy of it for the sequence
         self._original_expansion = self.expansion
@@ -293,8 +288,9 @@ class PublicSequenceRule(SequenceRule):
     """
     SequenceRule subclass with ``visible`` set to True.
     """
-    def __init__(self, name, expansion):
-        super(PublicSequenceRule, self).__init__(name, True, expansion)
+    def __init__(self, name, expansion, case_sensitive=False):
+        super(PublicSequenceRule, self).__init__(name, True, expansion,
+                                                 case_sensitive)
 
     def __hash__(self):
         return super(PublicSequenceRule, self).__hash__()
@@ -308,8 +304,9 @@ class HiddenSequenceRule(SequenceRule):
     """
     SequenceRule subclass with ``visible`` set to False.
     """
-    def __init__(self, name, expansion):
-        super(HiddenSequenceRule, self).__init__(name, False, expansion)
+    def __init__(self, name, expansion, case_sensitive=False):
+        super(HiddenSequenceRule, self).__init__(name, False, expansion,
+                                                 case_sensitive)
 
     def __hash__(self):
         return super(HiddenSequenceRule, self).__hash__()

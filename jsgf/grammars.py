@@ -65,12 +65,13 @@ class Grammar(BaseRef):
         ""
     )
 
-    def __init__(self, name="default"):
+    def __init__(self, name="default", case_sensitive=False):
         super(Grammar, self).__init__(name)
         self._rules = []
         self._imports = []
         self.jsgf_version, self.charset_name, self.language_name =\
             self.default_header_values
+        self._case_sensitive = case_sensitive
 
     @property
     def jsgf_header(self):
@@ -94,6 +95,28 @@ class Grammar(BaseRef):
     @staticmethod
     def valid(name):
         return grammar_name.matches(name)
+
+    @property
+    def case_sensitive(self):
+        """
+        Case sensitivity used when matching and compiling :class:`Literal` rule
+        expansions.
+
+        Setting this property will override the ``case_sensitive`` values for each
+        :class:`Rule` and :class:`Literal` expansion in the grammar or in any newly
+        added grammar rules.
+
+        :rtype: bool
+        :returns: case sensitivity
+        """
+        return self._case_sensitive
+
+    @case_sensitive.setter
+    def case_sensitive(self, value):
+        value = bool(value)
+        self._case_sensitive = value
+        for rule in self.rules:
+            rule.case_sensitive = value
 
     def compile(self):
         """
@@ -266,7 +289,8 @@ class Grammar(BaseRef):
 
     def __eq__(self, other):
         return (self.name == other.name and self.jsgf_header == other.jsgf_header
-                and self.rules == other.rules and self.imports == other.imports)
+                and self.rules == other.rules and self.imports == other.imports
+                and self.case_sensitive == other.case_sensitive)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -274,6 +298,9 @@ class Grammar(BaseRef):
     def add_rules(self, *rules):
         """
         Add multiple rules to the grammar.
+
+        This method will override each new rule's :py:attr:`~Rule.case_sensitive`
+        value with the grammar's :py:attr:`~case_sensitive` value.
 
         :param rules: rules
         :raises: GrammarError
@@ -294,6 +321,9 @@ class Grammar(BaseRef):
         """
         Add a rule to the grammar.
 
+        This method will override the new rule's :py:attr:`~Rule.case_sensitive`
+        value with the grammar's :py:attr:`~case_sensitive` value.
+
         :param rule: Rule
         :raises: GrammarError
         """
@@ -312,6 +342,9 @@ class Grammar(BaseRef):
 
         self._rules.append(rule)
         rule.grammar = self
+
+        # Set case sensitivity.
+        rule.case_sensitive = self.case_sensitive
 
     def add_import(self, _import):
         """
@@ -451,8 +484,8 @@ class RootGrammar(Grammar):
 
     This is useful if you are using JSGF grammars with CMU Pocket Sphinx.
     """
-    def __init__(self, rules=None, name="root"):
-        super(RootGrammar, self).__init__(name)
+    def __init__(self, rules=None, name="root", case_sensitive=False):
+        super(RootGrammar, self).__init__(name, case_sensitive)
         if rules:
             self.add_rules(*rules)
 

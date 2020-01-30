@@ -187,6 +187,12 @@ class BasicGrammarCase(unittest.TestCase):
 
         self.assertEqual(RootGrammar(name="test"), Grammar(name="test"),
                          "grammars with only different types should be equal")
+
+        # Check case-sensitive vs case-insensitive grammars.
+        self.assertNotEqual(
+            Grammar(case_sensitive=False), Grammar(case_sensitive=True),
+            "grammars with different case sensitivity should not be equal")
+
     def test_jsgf_header(self):
         """ JSGF header uses grammar header attributes correctly. """
         grammar = Grammar()
@@ -219,6 +225,54 @@ class BasicGrammarCase(unittest.TestCase):
         g.remove_rule(r)
         self.assertIsNone(r.grammar, "remove r from its grammar should reset "
                                      "r.grammar")
+
+    def test_case_sensitivity(self):
+        """JSGF Grammars support configurable case-sensitivity."""
+        grammar = Grammar("test")
+        direction = Rule("direction", False, AlternativeSet(
+            "Up", "Down", "Left", "Right"
+        ))
+        n = Rule("n", False, AlternativeSet("One", "Two", "Three"))
+        cmd_rule = Rule("cmd", True, Sequence(
+            NamedRuleRef("direction"), NamedRuleRef("n")
+        ))
+        grammar.add_rules(direction, n, cmd_rule)
+
+        expected_sensitive = "#JSGF V1.0;\n" \
+            "grammar test;\n" \
+            "<direction> = (Up|Down|Left|Right);\n" \
+            "<n> = (One|Two|Three);\n" \
+            "public <cmd> = <direction> <n>;\n"
+
+        expected_insensitive = "#JSGF V1.0;\n" \
+            "grammar test;\n" \
+            "<direction> = (up|down|left|right);\n" \
+            "<n> = (one|two|three);\n" \
+            "public <cmd> = <direction> <n>;\n"
+
+        # Test that default is case-insensitive.
+        self.assertFalse(grammar.case_sensitive)
+        self.assertEqual(grammar.compile(), expected_insensitive)
+
+        # Test that setting grammar.case_sensitive overrides the values for each
+        # grammar rule.
+        grammar.case_sensitive = True
+        self.assertTrue(grammar.case_sensitive)
+        for rule in grammar.rules:
+            self.assertTrue(rule.case_sensitive)
+
+        # Test case-sensitive compilation and matching.
+        self.assertEqual(grammar.compile(), expected_sensitive)
+        self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
+        self.assertSequenceEqual(grammar.find_matching_rules("up two"), [])
+
+        # Switch back to case-insensitive to test that the casing of rule literals is
+        # never lost.
+        grammar.case_sensitive = False
+        self.assertFalse(grammar.case_sensitive)
+        self.assertEqual(grammar.compile(), expected_insensitive)
+        self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
+        self.assertSequenceEqual(grammar.find_matching_rules("up two"), [cmd_rule])
 
 
 class TagTests(unittest.TestCase):

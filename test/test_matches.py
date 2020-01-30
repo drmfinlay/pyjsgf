@@ -216,7 +216,7 @@ class MatchesCase(unittest.TestCase):
 
         # Test the order in which child expansions are matched.
         self.assertEqual(repr(e.matcher_element),
-                         '{"three" ^ "two" ^ "one"}')
+                         '{"three" ^ "two" ^ "one"}'.replace('"', "'"))
 
         # Each alternative should be matchable with non-zero weights.
         r = Rule("test", True, e)
@@ -232,7 +232,7 @@ class MatchesCase(unittest.TestCase):
 
         # Test the order in which child expansions are matched.
         self.assertEqual(repr(e.matcher_element),
-                         '{"three" ^ "two"}')
+                         '{"three" ^ "two"}'.replace('"', "'"))
 
         # Test that no alternatives can match if all weights are 0.
         e.weights = {one: 0, two: 0, three: 0}
