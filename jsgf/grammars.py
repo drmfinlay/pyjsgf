@@ -71,10 +71,7 @@ class Grammar(BaseRef):
         self._imports = []
         self.jsgf_version, self.charset_name, self.language_name =\
             self.default_header_values
-
-        # Set case sensitivity (backing attribute and property).
         self._case_sensitive = case_sensitive
-        self.case_sensitive = case_sensitive
 
     @property
     def jsgf_header(self):
@@ -106,7 +103,8 @@ class Grammar(BaseRef):
         expansions.
 
         Setting this property will override the ``case_sensitive`` values for each
-        :class:`Rule` and :class:`Literal` expansion in the grammar.
+        :class:`Rule` and :class:`Literal` expansion in the grammar or in any newly
+        added grammar rules.
 
         :rtype: bool
         :returns: case sensitivity
@@ -300,6 +298,9 @@ class Grammar(BaseRef):
         """
         Add multiple rules to the grammar.
 
+        This method will override each new rule's :py:attr:`~Rule.case_sensitive`
+        value with the grammar's :py:attr:`~case_sensitive` value.
+
         :param rules: rules
         :raises: GrammarError
         """
@@ -319,6 +320,9 @@ class Grammar(BaseRef):
         """
         Add a rule to the grammar.
 
+        This method will override the new rule's :py:attr:`~Rule.case_sensitive`
+        value with the grammar's :py:attr:`~case_sensitive` value.
+
         :param rule: Rule
         :raises: GrammarError
         """
@@ -337,6 +341,9 @@ class Grammar(BaseRef):
 
         self._rules.append(rule)
         rule.grammar = self
+
+        # Set case sensitivity.
+        rule.case_sensitive = self.case_sensitive
 
     def add_import(self, _import):
         """

@@ -248,9 +248,14 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertFalse(grammar.case_sensitive)
         self.assertEqual(grammar.compile(), expected_insensitive)
 
-        # Test case-sensitive compilation and matching.
+        # Test that setting grammar.case_sensitive overrides the values for each
+        # grammar rule.
         grammar.case_sensitive = True
         self.assertTrue(grammar.case_sensitive)
+        for rule in grammar.rules:
+            self.assertTrue(rule.case_sensitive)
+
+        # Test case-sensitive compilation and matching.
         self.assertEqual(grammar.compile(), expected_sensitive)
         self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
         self.assertSequenceEqual(grammar.find_matching_rules("up two"), [])
