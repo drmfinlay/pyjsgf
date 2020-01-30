@@ -1445,7 +1445,8 @@ class Literal(Expansion):
         return self._set_matcher_element_attributes(matcher_cls(text))
 
     def __eq__(self, other):
-        return super(Literal, self).__eq__(other) and self.text == other.text
+        return (super(Literal, self).__eq__(other) and self.text == other.text and
+                self.case_sensitive == other.case_sensitive)
 
 
 class RuleRef(NamedRuleRef):

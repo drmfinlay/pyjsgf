@@ -363,7 +363,8 @@ class Rule(BaseRef):
     def __eq__(self, other):
         return (self.name == other.name and
                 self.expansion == other.expansion and
-                self.visible == other.visible)
+                self.visible == other.visible and
+                self.case_sensitive == other.case_sensitive)
 
     def __ne__(self, other):
         return not self.__eq__(other)

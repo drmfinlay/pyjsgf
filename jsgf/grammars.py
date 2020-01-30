@@ -289,7 +289,8 @@ class Grammar(BaseRef):
 
     def __eq__(self, other):
         return (self.name == other.name and self.jsgf_header == other.jsgf_header
-                and self.rules == other.rules and self.imports == other.imports)
+                and self.rules == other.rules and self.imports == other.imports
+                and self.case_sensitive == other.case_sensitive)
 
     def __ne__(self, other):
         return not self.__eq__(other)
