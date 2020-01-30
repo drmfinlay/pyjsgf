@@ -173,3 +173,11 @@ texinfo_documents = [
                        'and parser package for Python.',
      'Miscellaneous'),
 ]
+
+
+# -- Options for auto doc -------------------------------------------------
+
+# This value selects what content will be inserted into the main body of an
+# autoclass directive. We want both the class' and the __init__ method's
+# docstring concatenated and inserted.
+autoclass_content = "both"
