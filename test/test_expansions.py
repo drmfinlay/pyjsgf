@@ -292,6 +292,13 @@ class Comparisons(unittest.TestCase):
         self.assertNotEqual(Literal("hey"), Literal("hello"))
         self.assertNotEqual(Literal("hey"), Sequence(Literal("hello")))
 
+        # Check case-sensitive vs case-insensitive literals.
+        self.assertEqual(Literal("HELLO", False), Literal("HELLO", False))
+        self.assertEqual(Literal("HELLO", True), Literal("HELLO", True))
+        self.assertEqual(Literal("hello", False), Literal("HELLO", False))
+        self.assertNotEqual(Literal("hello", False), Literal("HELLO", True))
+        self.assertNotEqual(Literal("HELLO", False), Literal("HELLO", True))
+
     def test_alt_sets(self):
         self.assertEqual(AlternativeSet("hello", "hi"),
                          AlternativeSet("hello", "hi"))

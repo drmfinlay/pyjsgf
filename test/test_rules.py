@@ -257,6 +257,16 @@ class ComparisonTests(unittest.TestCase):
             PublicRule("test", "test"), Rule("test", True, "test"),
             "rules with only different types were not equal")
 
+    def test_case_sensitive(self):
+        # Check case-sensitive vs case-insensitive rules.
+        r1 = Rule("test", True, "hello", True)
+        r2 = Rule("test", True, "hello", True)
+        self.assertEqual(r1, r2)
+        r1.case_sensitive = False
+        self.assertNotEqual(r1, r2)
+        r2.case_sensitive = False
+        self.assertEqual(r1, r2)
+
     def test_hashing(self):
         h = hash
         # Rules that are the same should generate the same hash

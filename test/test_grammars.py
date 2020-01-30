@@ -187,6 +187,12 @@ class BasicGrammarCase(unittest.TestCase):
 
         self.assertEqual(RootGrammar(name="test"), Grammar(name="test"),
                          "grammars with only different types should be equal")
+
+        # Check case-sensitive vs case-insensitive grammars.
+        self.assertNotEqual(
+            Grammar(case_sensitive=False), Grammar(case_sensitive=True),
+            "grammars with different case sensitivity should not be equal")
+
     def test_jsgf_header(self):
         """ JSGF header uses grammar header attributes correctly. """
         grammar = Grammar()
