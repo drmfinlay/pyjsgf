@@ -30,11 +30,13 @@ class Rule(BaseRef):
     used as rule names. You can however change the case to 'null' or 'void' to use
     them, as names are case-sensitive.
     """
-    def __init__(self, name, visible, expansion):
+    def __init__(self, name, visible, expansion, case_sensitive=False):
         """
         :param name: str
         :param visible: bool
         :param expansion: a string or Expansion object
+        :param case_sensitive: whether rule literals should be case sensitive
+            (default False).
         """
         super(Rule, self).__init__(name)
         self.visible = visible
@@ -42,7 +44,10 @@ class Rule(BaseRef):
         self.expansion = expansion
         self._active = True
         self.grammar = None
-        self._case_sensitive = None
+
+        # Set case sensitivity (backing attribute and property).
+        self._case_sensitive = case_sensitive
+        self.case_sensitive = case_sensitive
 
     @property
     def expansion(self):
@@ -368,8 +373,8 @@ class PublicRule(Rule):
     """
     Rule subclass with ``visible`` set to True.
     """
-    def __init__(self, name, expansion):
-        super(PublicRule, self).__init__(name, True, expansion)
+    def __init__(self, name, expansion, case_sensitive=False):
+        super(PublicRule, self).__init__(name, True, expansion, case_sensitive)
 
     def __hash__(self):
         return super(PublicRule, self).__hash__()
@@ -383,8 +388,8 @@ class HiddenRule(Rule):
     """
     Rule subclass with ``visible`` set to False.
     """
-    def __init__(self, name, expansion):
-        super(HiddenRule, self).__init__(name, False, expansion)
+    def __init__(self, name, expansion, case_sensitive=False):
+        super(HiddenRule, self).__init__(name, False, expansion, case_sensitive)
 
     def __hash__(self):
         return super(HiddenRule, self).__hash__()

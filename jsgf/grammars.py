@@ -65,13 +65,16 @@ class Grammar(BaseRef):
         ""
     )
 
-    def __init__(self, name="default"):
+    def __init__(self, name="default", case_sensitive=False):
         super(Grammar, self).__init__(name)
         self._rules = []
         self._imports = []
         self.jsgf_version, self.charset_name, self.language_name =\
             self.default_header_values
-        self._case_sensitive = False
+
+        # Set case sensitivity (backing attribute and property).
+        self._case_sensitive = case_sensitive
+        self.case_sensitive = case_sensitive
 
     @property
     def jsgf_header(self):
@@ -100,11 +103,9 @@ class Grammar(BaseRef):
     def case_sensitive(self):
         """
         Case sensitivity used when matching and compiling :class:`Literal` rule
-        expansions whose ``case_sensitive`` values are ``None`` (default).
+        expansions.
 
-        Grammars are *case-insensitive* by default.
-
-        Setting this property will override the ``case_sensitive`` value for each
+        Setting this property will override the ``case_sensitive`` values for each
         :class:`Rule` and :class:`Literal` expansion in the grammar.
 
         :rtype: bool
@@ -475,8 +476,8 @@ class RootGrammar(Grammar):
 
     This is useful if you are using JSGF grammars with CMU Pocket Sphinx.
     """
-    def __init__(self, rules=None, name="root"):
-        super(RootGrammar, self).__init__(name)
+    def __init__(self, rules=None, name="root", case_sensitive=False):
+        super(RootGrammar, self).__init__(name, case_sensitive)
         if rules:
             self.add_rules(*rules)
 

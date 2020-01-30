@@ -1327,11 +1327,11 @@ class Literal(Expansion):
     """
     Expansion class for literals.
     """
-    def __init__(self, text):
+    def __init__(self, text, case_sensitive=False):
         # Set _text and use the text setter to validate the input.
         self._text = ""
         self.text = text
-        self._case_sensitive = None
+        self._case_sensitive = bool(case_sensitive)
         super(Literal, self).__init__([])
 
     def __str__(self):

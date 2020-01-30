@@ -15,12 +15,13 @@ class DictationGrammar(Grammar):
     Grammar subclass that processes rules using ``Dictation`` expansions so they can
     be compiled, matched and used with normal JSGF rules with utterance breaks.
     """
-    def __init__(self, rules=None, name="default"):
+    def __init__(self, rules=None, name="default", case_sensitive=False):
         """
         :param rules: list
         :param name: str
+        :param case_sensitive: bool
         """
-        super(DictationGrammar, self).__init__(name)
+        super(DictationGrammar, self).__init__(name, case_sensitive=case_sensitive)
         self._dictation_rules = []
         self._original_rule_map = {}
         self._init_jsgf_only_grammar()
@@ -35,7 +36,8 @@ class DictationGrammar(Grammar):
 
         Override this to use a different grammar class.
         """
-        self._jsgf_only_grammar = Grammar(name=self.name)
+        self._jsgf_only_grammar = Grammar(name=self.name,
+                                          case_sensitive=self.case_sensitive)
 
     @property
     def rules(self):
