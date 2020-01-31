@@ -7,8 +7,8 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
-Unreleased_
------------
+1.8.0_ -- 2020-01-31
+--------------------
 
 Added
 ^^^^^
@@ -248,6 +248,7 @@ First tagged release and start of proper versioning. Too many changes to list he
 
 .. Release links.
 .. _Unreleased: https://github.com/Danesprite/pyjsgf/compare/v1.7.1...HEAD
+.. _1.8.0: https://github.com/Danesprite/pyjsgf/compare/v1.7.1...v1.8.0
 .. _1.7.1: https://github.com/Danesprite/pyjsgf/compare/v1.7.0...v1.7.1
 .. _1.7.0: https://github.com/Danesprite/pyjsgf/compare/v1.6.0...v1.7.0
 .. _1.6.0: https://github.com/Danesprite/pyjsgf/compare/v1.5.1...v1.6.0
