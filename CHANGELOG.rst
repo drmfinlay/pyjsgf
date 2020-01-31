@@ -7,6 +7,23 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
+Unreleased_
+-----------
+
+Added
+^^^^^
+* Add 'case_sensitive' properties to Literal, Rule & Grammar classes.
+
+Changed
+^^^^^^^
+* Change ChildList into a list wrapper class instead of a sub-class.
+
+Fixed
+^^^^^
+* Fix a pyparsing-related bug with the Repeat expansion class.
+* Fix issues preventing serialization of expansions, rules and grammars.
+
+
 1.7.1_ -- 2019-07-10
 --------------------
 
