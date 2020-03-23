@@ -35,6 +35,26 @@ class Import(BaseRef):
     def compile(self):
         return "import <%s>;" % self.name
 
+    @property
+    def grammar_name(self):
+        """
+        The full name of the grammar to import from.
+
+        :returns: bool
+        :rtype: bool
+        """
+        return ".".join(self.name.split(".")[:-1])
+
+    @property
+    def wildcard_import(self):
+        """
+        Whether this import statement imports every grammar rule.
+
+        :returns: bool
+        :rtype: bool
+        """
+        return self.name.endswith(".*")
+
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, self.name)
 
