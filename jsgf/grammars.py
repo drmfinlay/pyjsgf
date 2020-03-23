@@ -288,6 +288,15 @@ class Grammar(BaseRef):
         """
     )
 
+    import_names = property(
+        lambda self: [import_.name for import_ in self._imports],
+        doc="""
+        The import names associated with this grammar.
+
+        :returns: list
+        """
+    )
+
     @property
     def match_rules(self):
         """
