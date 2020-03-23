@@ -1234,7 +1234,10 @@ class VoidRef(BaseExpansionRef):
 
 
 class ExpansionWithChildren(Expansion):
-    def compile(self, ignore_tags=False):
+
+    def validate_compilable(self):
+        super(ExpansionWithChildren, self).validate_compilable()
+
         # Add a reference to the built-in NULL rule to produce a valid JSGF rule
         # expansion: "<NULL>" instead of "()";
         if not self.children:
@@ -1303,7 +1306,7 @@ class Sequence(VariableChildExpansion):
     Class for expansions to be spoken in sequence.
     """
     def compile(self, ignore_tags=False):
-        super(Sequence, self).compile()
+        self.validate_compilable()
         seq = " ".join([
             e.compile(ignore_tags) for e in self.children
         ])
@@ -1409,7 +1412,7 @@ class Literal(Expansion):
                                    % (self.__class__.__name__, self.text))
 
     def compile(self, ignore_tags=False):
-        super(Literal, self).compile()
+        self.validate_compilable()
         if self.tag and not ignore_tags:
             return "%s%s" % (self.text, self.compiled_tag)
         else:
@@ -1495,7 +1498,7 @@ class Repeat(SingleChildExpansion):
         self._repetitions_matched = []
 
     def compile(self, ignore_tags=False):
-        super(Repeat, self).compile()
+        self.validate_compilable()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "(%s)+%s" % (compiled, self.compiled_tag)
@@ -1612,7 +1615,7 @@ class KleeneStar(Repeat):
         <kleene> = (please)* don't crash;
     """
     def compile(self, ignore_tags=False):
-        super(KleeneStar, self).compile()
+        self.validate_compilable()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "(%s)*%s" % (compiled, self.compiled_tag)
@@ -1644,7 +1647,7 @@ class OptionalGrouping(SingleChildExpansion):
     Class for expansions that can be optionally spoken in a rule.
     """
     def compile(self, ignore_tags=False):
-        super(OptionalGrouping, self).compile()
+        self.validate_compilable()
         compiled = self.child.compile(ignore_tags)
         if self.tag and not ignore_tags:
             return "[%s]%s" % (compiled, self.compiled_tag)
@@ -1672,7 +1675,7 @@ class RequiredGrouping(Sequence):
     Subclass of ``Sequence`` for wrapping multiple expansions in parenthesises.
     """
     def compile(self, ignore_tags=False):
-        super(RequiredGrouping, self).compile()
+        self.validate_compilable()
         grouping = " ".join([
             e.compile(ignore_tags) for e in self.children
         ])
@@ -1781,7 +1784,7 @@ class AlternativeSet(VariableChildExpansion):
                                    "value" % e)
 
     def compile(self, ignore_tags=False):
-        super(AlternativeSet, self).compile()
+        self.validate_compilable()
         if self._weights:
             self._validate_weights()
 
