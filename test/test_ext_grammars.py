@@ -30,7 +30,7 @@ class DictationGrammarCase(unittest.TestCase):
         expected = "#JSGF V1.0;\n" \
                    "grammar default;\n" \
                    "public <b> = hello world;\n" \
-                   "public <c_0> = (hey|hello);\n"
+                   "public <c_0> = hey|hello;\n"
 
         self.assertEqual(grammar.compile(), expected)
 
@@ -46,9 +46,9 @@ class DictationGrammarCase(unittest.TestCase):
 
         expected = "#JSGF V1.0;\n" \
                    "grammar default;\n" \
-                   "public <root> = (<b>|<c_0>);\n" \
+                   "public <root> = <b>|<c_0>;\n" \
                    "<b> = hello world;\n" \
-                   "<c_0> = (hey|hello);\n"
+                   "<c_0> = hey|hello;\n"
 
         self.assertEqual(grammar.compile_as_root_grammar(), expected)
 
