@@ -1801,8 +1801,8 @@ class AlternativeSet(VariableChildExpansion):
         if self.tag and not ignore_tags:
             return "(%s)%s" % (alt_set, self.compiled_tag)
         else:
-            return "(%s)" % alt_set
-        
+            return "%s" % alt_set
+
     def generate(self):
         """
         Generate a matching string for this alternative set.
