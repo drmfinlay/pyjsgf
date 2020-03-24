@@ -314,6 +314,23 @@ class TagTests(unittest.TestCase):
         self.assertListEqual(g.find_tagged_rules("tag"), [r])
         self.assertListEqual(g.find_tagged_rules("  tag "), [r])
 
+    def test_get_rules_from_names(self):
+        g = Grammar()
+        x = PublicRule("X", "x")
+        y = HiddenRule("Y", "y")
+        z = PublicRule("Z", "z")
+        g.add_rules(x, y, z)
+
+        # Test that rules are retrievable with both methods.
+        self.assertEqual(g.get_rules_from_names("X", "Y"), [x, y])
+        self.assertEqual(g.get_rules("X", "Y"), [x, y])
+
+        # Test that a GrammarError is raised if any name is invalid.
+        self.assertRaises(GrammarError, g.get_rules_from_names, "W")
+        self.assertRaises(GrammarError, g.get_rules_from_names, "X", "W")
+        self.assertRaises(GrammarError, g.get_rules, "W")
+        self.assertRaises(GrammarError, g.get_rules, "X", "W")
+
 
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):

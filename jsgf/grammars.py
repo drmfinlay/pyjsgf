@@ -420,6 +420,22 @@ class Grammar(BaseRef):
 
         return self.rules[self.rule_names.index(name)]
 
+    #: Alias of :meth:`get_rule_from_name`.
+    get_rule = get_rule_from_name
+
+    def get_rules_from_names(self, *names):
+        """
+        Get rule objects with the specified names, if they exist in the grammar.
+
+        :param names: str
+        :returns: list
+        :raises: GrammarError
+        """
+        return [self.get_rule_from_name(name) for name in names]
+
+    #: Alias of :meth:`get_rules_from_names`.
+    get_rules = get_rules_from_names
+
     def remove_rule(self, rule, ignore_dependent=False):
         """
         Remove a rule from this grammar.
