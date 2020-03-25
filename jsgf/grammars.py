@@ -7,12 +7,12 @@ import os
 
 from six import string_types
 
-from .references import BaseRef, import_name, grammar_name
+from . import references
 from .rules import Rule
 from .errors import GrammarError, JSGFImportError
 
 
-class Import(BaseRef):
+class Import(references.BaseRef):
     """
     Import objects used in grammar compilation and import resolution.
 
@@ -76,9 +76,9 @@ class Import(BaseRef):
 
     def _get_import_grammar(self, memo, file_exts):
         """ Internal method to get the grammar from a file if necessary. """
-        import_grammar_name = self.grammar_name
-        if import_grammar_name in memo:
-            return memo[import_grammar_name]
+        grammar_name = self.grammar_name
+        if grammar_name in memo:
+            return memo[grammar_name]
 
         # Import the parser function locally to avoid import cycles; this module is
         # used by the parser.
@@ -88,8 +88,8 @@ class Import(BaseRef):
         # sub-directory based on the grammar's full name.
         result = None
         for file_ext in file_exts:
-            grammar_path1 = import_grammar_name + file_ext
-            grammar_path2 = os.path.join(*import_grammar_name.split(".")) + file_ext
+            grammar_path1 = grammar_name + file_ext
+            grammar_path2 = os.path.join(*grammar_name.split(".")) + file_ext
             if os.path.isfile(grammar_path1):
                 result = parse_grammar_file(grammar_path1)
                 break
@@ -105,7 +105,7 @@ class Import(BaseRef):
             raise JSGFImportError("The grammar file for grammar %r could not be "
                                   "found" % grammar_name)
 
-        memo[import_grammar_name] = result
+        memo[grammar_name] = result
         return result
 
     def resolve(self, memo=None, file_exts=None):
@@ -137,6 +137,7 @@ class Import(BaseRef):
         # Check if this import statement has already been resolved or is in the
         # process of being resolved.
         import_name = self.name
+        grammar_name = self.grammar_name
         if import_name in memo:
             return memo[import_name]
 
@@ -150,9 +151,8 @@ class Import(BaseRef):
         # Add the grammar to the dictionary.
         # TODO Decide whether it is worth allowing different file and grammar names.
         import_rule_name = self.rule_name
-        import_grammar_name = self.grammar_name
         wildcard_import = self.wildcard_import
-        memo[import_grammar_name] = parsed_grammar
+        memo[grammar_name] = parsed_grammar
         memo[parsed_grammar.name] = parsed_grammar
         if wildcard_import:
             memo[import_name] = parsed_grammar
@@ -167,17 +167,17 @@ class Import(BaseRef):
         for rule in parsed_grammar.rules:
             if wildcard_import or rule.name == import_rule_name:
                 memo[rule.fully_qualified_name] = rule
-                memo["%s.%s" % (import_grammar_name, rule.name)] = rule
+                memo["%s.%s" % (grammar_name, rule.name)] = rule
 
         # Return the imported rule(s).
         return memo[import_name]
 
     @staticmethod
     def valid(name):
-        return import_name.matches(name)
+        return references.import_name.matches(name)
 
 
-class Grammar(BaseRef):
+class Grammar(references.BaseRef):
     """
     Base class for JSGF grammars.
 
@@ -228,7 +228,7 @@ class Grammar(BaseRef):
 
     @staticmethod
     def valid(name):
-        return grammar_name.matches(name)
+        return references.grammar_name.matches(name)
 
     @property
     def case_sensitive(self):

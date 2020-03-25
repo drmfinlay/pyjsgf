@@ -6,12 +6,12 @@ rules.
 """
 
 from .errors import GrammarError
-from .references import BaseRef
+from . import references
 from .expansions import Expansion, Literal, NamedRuleRef, filter_expansion, \
     map_expansion, TraversalOrder
 
 
-class Rule(BaseRef):
+class Rule(references.BaseRef):
     """
     Base class for JSGF rules.
 

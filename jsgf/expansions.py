@@ -13,7 +13,7 @@ import pyparsing
 from six import string_types, integer_types
 
 from .errors import CompilationError, GrammarError
-from .references import BaseRef, optionally_qualified_name
+from . import references
 
 
 class TraversalOrder(object):
@@ -1097,18 +1097,18 @@ class Expansion(object):
         return result
 
 
-class BaseExpansionRef(BaseRef, Expansion):
+class BaseExpansionRef(references.BaseRef, Expansion):
     """
     Base class which RuleRef, NamedRuleRef, NullRef and VoidRef inherit from.
     """
     def __init__(self, name):
         # Call both super constructors
-        BaseRef.__init__(self, name)
+        references.BaseRef.__init__(self, name)
         Expansion.__init__(self, [])
 
     @staticmethod
     def valid(name):
-        return optionally_qualified_name.matches(name)
+        return references.optionally_qualified_name.matches(name)
 
     def compile(self, ignore_tags=False):
         self.validate_compilable()
@@ -1124,7 +1124,8 @@ class BaseExpansionRef(BaseRef, Expansion):
         return hash("%s" % self)
 
     def __eq__(self, other):
-        return Expansion.__eq__(self, other) and BaseRef.__eq__(self, other)
+        return (Expansion.__eq__(self, other) and
+                references.BaseRef.__eq__(self, other))
 
     def __copy__(self):
         e = type(self)(self.name)
