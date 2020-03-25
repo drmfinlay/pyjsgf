@@ -3,11 +3,13 @@ This module contains classes for compiling, importing from and matching JSpeech
 Grammar Format grammars.
 """
 
+import os
+
 from six import string_types
 
 from .references import BaseRef, import_name, grammar_name
 from .rules import Rule
-from .errors import GrammarError
+from .errors import GrammarError, JSGFImportError
 
 
 class Import(BaseRef):
@@ -29,6 +31,10 @@ class Import(BaseRef):
     cannot be used as import names. You can however change the case to 'null'
     or 'void' to use them, as names are case-sensitive.
     """
+
+    #: Default file extensions to consider during import resolution.
+    grammar_file_exts = (".jsgf", ".jgram")
+
     def __init__(self, name):
         super(Import, self).__init__(name)
 
@@ -40,8 +46,8 @@ class Import(BaseRef):
         """
         The full name of the grammar to import from.
 
-        :returns: bool
-        :rtype: bool
+        :returns: grammar name
+        :rtype: str
         """
         return ".".join(self.name.split(".")[:-1])
 
@@ -55,8 +61,116 @@ class Import(BaseRef):
         """
         return self.name.endswith(".*")
 
+    @property
+    def rule_name(self):
+        """
+        The name of the rule to import from the grammar.
+
+        :returns: rule name
+        :rtype: str
+        """
+        return self.name.split(".")[-1]
+
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, self.name)
+
+    def _get_import_grammar(self, memo, file_exts):
+        """ Internal method to get the grammar from a file if necessary. """
+        import_grammar_name = self.grammar_name
+        if import_grammar_name in memo:
+            return memo[import_grammar_name]
+
+        # Import the parser function locally to avoid import cycles; this module is
+        # used by the parser.
+        from jsgf.parser import parse_grammar_file
+
+        # Look for the file in the current working directory and in a
+        # sub-directory based on the grammar's full name.
+        result = None
+        for file_ext in file_exts:
+            grammar_path1 = import_grammar_name + file_ext
+            grammar_path2 = os.path.join(*import_grammar_name.split(".")) + file_ext
+            if os.path.isfile(grammar_path1):
+                result = parse_grammar_file(grammar_path1)
+                break
+
+            # Look for the file in sub-directories based on the grammar's full
+            # name.
+            elif os.path.isfile(grammar_path2):
+                result = parse_grammar_file(grammar_path2)
+                break
+
+        # The grammar file doesn't exist, so raise an error.
+        if result is None:
+            raise JSGFImportError("The grammar file for grammar %r could not be "
+                                  "found" % grammar_name)
+
+        memo[import_grammar_name] = result
+        return result
+
+    def resolve(self, memo=None, file_exts=None):
+        """
+        Resolve this import statement and return the imported :class:`Rule` or
+        :class:`Grammar` object (for wildcard imports).
+
+        This method attempts to parse grammar files in the working directory. If a
+        dictionary was passed for the *memo* argument, then that dictionary will be
+        updated with appropriate parsed grammars and rules.
+
+        An error will be raised if an import statement could not be resolved.
+
+        :param memo: dictionary of import names to grammar rules
+        :type memo: dict
+        :param file_exts: list of grammar file extensions to check against (default:
+            ``(".jsgf", ".jgram")``)
+        :type file_exts: list | tuple
+        :returns: imported Rule or Grammar
+        :rtype: Rule | Grammar
+        :raises: GrammarError | JSGFImportError
+        """
+        if memo is None:
+            memo = {}
+
+        if file_exts is None:
+            file_exts = self.grammar_file_exts
+
+        # Check if this import statement has already been resolved or is in the
+        # process of being resolved.
+        import_name = self.name
+        if import_name in memo:
+            return memo[import_name]
+
+        # Parse the grammar from its file, if it exists.
+        parsed_grammar = self._get_import_grammar(memo, file_exts)
+
+        # TODO Recursively resolve import statements in imported grammars using this
+        # method's arguments.
+        # parsed_grammar.resolve_imports(memo, file_exts)
+
+        # Add the grammar to the dictionary.
+        # TODO Decide whether it is worth allowing different file and grammar names.
+        import_rule_name = self.rule_name
+        import_grammar_name = self.grammar_name
+        wildcard_import = self.wildcard_import
+        memo[import_grammar_name] = parsed_grammar
+        memo[parsed_grammar.name] = parsed_grammar
+        if wildcard_import:
+            memo[import_name] = parsed_grammar
+
+        # If this is not a wildcard import and the grammar doesn't contain the
+        # expected rule, then raise an error.
+        elif import_rule_name not in parsed_grammar.rule_names:
+            raise JSGFImportError("no rule with name %r was found in grammar %r"
+                                  % (import_rule_name, grammar_name))
+
+        # Add any appropriate rules.
+        for rule in parsed_grammar.rules:
+            if wildcard_import or rule.name == import_rule_name:
+                memo[rule.fully_qualified_name] = rule
+                memo["%s.%s" % (import_grammar_name, rule.name)] = rule
+
+        # Return the imported rule(s).
+        return memo[import_name]
 
     @staticmethod
     def valid(name):

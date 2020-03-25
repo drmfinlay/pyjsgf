@@ -6,6 +6,7 @@ optional and required groupings.
 from .errors import CompilationError
 from .errors import ExpansionError
 from .errors import GrammarError
+from .errors import JSGFImportError
 from .errors import MatchError
 
 from .expansions import AlternativeSet

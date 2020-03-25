@@ -20,6 +20,18 @@ class GrammarError(Exception):
     """
 
 
+class JSGFImportError(Exception):
+    """
+    Error raised when a JSGF import statement could not be resolved.
+
+    This error is raised under the following circumstances:
+
+    * When a grammar file could not be found and read from successfully during import
+      resolution.
+    * When an imported grammar does not define the specified rule.
+    """
+
+
 class ExpansionError(Exception):
     """
     This error class has been **deprecated** and is no longer used.
