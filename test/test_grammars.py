@@ -288,6 +288,12 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertEqual(grammar.imports, [Import(import_name)])
         self.assertEqual(grammar.import_names, [import_name])
 
+    def test_remove_import_type(self):
+        """ Grammar.remove_import only accepts Import objects. """
+        grammar = Grammar("test")
+        grammar.add_import(Import("com.example.grammar.X"))
+        self.assertRaises(TypeError, grammar.remove_import, "com.example.grammar.X")
+
 
 class TagTests(unittest.TestCase):
     """

@@ -628,6 +628,11 @@ class Grammar(references.BaseRef):
         """
         if _import in self._imports:
             self._imports.remove(_import)
+        elif isinstance(_import, Import):
+            raise GrammarError("%r is not an import statement in Grammar '%r'"
+                               % (_import, self.name))
+        else:
+            raise TypeError("object '%s' is not a JSGF Import object" % _import)
 
 
 class RootGrammar(Grammar):
