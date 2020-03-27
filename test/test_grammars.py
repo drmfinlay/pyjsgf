@@ -293,6 +293,7 @@ class BasicGrammarCase(unittest.TestCase):
         grammar = Grammar("test")
         grammar.add_import(Import("com.example.grammar.X"))
         self.assertRaises(TypeError, grammar.remove_import, "com.example.grammar.X")
+        self.assertRaises(TypeError, grammar.remove_imports, "com.example.grammar.X")
 
 
 class TagTests(unittest.TestCase):

@@ -634,6 +634,15 @@ class Grammar(references.BaseRef):
         else:
             raise TypeError("object '%s' is not a JSGF Import object" % _import)
 
+    def remove_imports(self, *imports):
+        """
+        Remove multiple imports from the grammar.
+
+        :param imports: imports
+        """
+        for i in imports:
+            self.remove_import(i)
+
 
 class RootGrammar(Grammar):
     """
