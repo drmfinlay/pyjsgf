@@ -29,6 +29,7 @@ class JSGFImportError(Exception):
     * When a grammar file could not be found and read from successfully during import
       resolution.
     * When an imported grammar does not define the specified rule.
+    * When an imported grammar does define the specified rule, but it is private.
     """
 
 
