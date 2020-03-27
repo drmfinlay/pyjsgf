@@ -90,3 +90,12 @@ class ImportClassCase(ImportResolutionCase):
         that exists in a grammar, but is private (visible=False).
         """
         self.assertRaises(JSGFImportError, Import("grammars.test1.X").resolve)
+
+    def test_hash_cmp(self):
+        """ Import objects with the same name are equivalent. """
+        name1 = "grammars.test1.Z"
+        name2 = "grammars.test1.*"
+        self.assertEqual(Import(name1), Import(name1))
+        self.assertEqual(hash(Import(name1)), hash(Import(name1)))
+        self.assertNotEqual(Import(name1), Import(name2))
+        self.assertNotEqual(hash(Import(name1)), hash(Import(name2)))
