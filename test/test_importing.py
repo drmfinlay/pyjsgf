@@ -5,7 +5,7 @@ from jsgf import *
 
 
 class ImportResolutionCase(unittest.TestCase):
-    """ Tests related to JSGF import resolution. """
+    """ Base JSGF import resolution TestCase class. """
 
     @classmethod
     def setUpClass(cls):
@@ -36,7 +36,11 @@ class ImportResolutionCase(unittest.TestCase):
         # CD back to the previous directory. This may do nothing.
         os.chdir(cls.cwd)
 
-    def test_import_resolve(self):
+
+class ImportClassCase(ImportResolutionCase):
+    """ Import class tests. """
+
+    def test_resolve(self):
         """ Test that the Import.resolve() method works correctly. """
         import1 = Import("grammars.test1.Z")
         expected_grammar = self.grammars.test1
@@ -65,7 +69,7 @@ class ImportResolutionCase(unittest.TestCase):
             "grammars.test1.*": [Z]
         })
 
-    def test_import_resolve_non_existant_grammars(self):
+    def test_resolve_non_existant_grammars(self):
         """
         Test that errors are raised when resolving import statements for
         non-existent grammars.
@@ -73,14 +77,14 @@ class ImportResolutionCase(unittest.TestCase):
         self.assertRaises(JSGFImportError, Import("grammars.test0.*").resolve)
         self.assertRaises(JSGFImportError, Import("grammars.test0.X").resolve)
 
-    def test_import_resolve_non_existant_rule(self):
+    def test_resolve_non_existant_rule(self):
         """
         Test that an error is raised when resolving an import statement for a rule
         that doesn't exist in a grammar.
         """
         self.assertRaises(JSGFImportError, Import("grammars.test1.A").resolve)
 
-    def test_import_resolve_private_rules(self):
+    def test_resolve_private_rules(self):
         """
         Test that an error is raised when resolving an import statement for a rule
         that exists in a grammar, but is private (visible=False).
