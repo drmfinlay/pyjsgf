@@ -11,16 +11,16 @@ class MemberTests(unittest.TestCase):
     Test some methods and properties of the Rule class.
     """
     def test_dependencies_simple(self):
-        rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        rule3 = HiddenRule("name", AlternativeSet("peter", "john", "mary", "anna"))
+        rule2 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
+        rule3 = PrivateRule("name", AlternativeSet("peter", "john", "mary", "anna"))
         rule1 = PublicRule("greet", RequiredGrouping(RuleRef(rule2), RuleRef(rule3)))
         self.assertSetEqual(rule1.dependencies, {rule2, rule3})
 
     def test_dependencies_complex(self):
-        rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        rule3 = HiddenRule("firstName", AlternativeSet("peter", "john", "mary", "anna"))
-        rule4 = HiddenRule("lastName", AlternativeSet("smith", "ryan", "king", "turner"))
-        rule5 = HiddenRule("name", RequiredGrouping(RuleRef(rule3),
+        rule2 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
+        rule3 = PrivateRule("firstName", AlternativeSet("peter", "john", "mary", "anna"))
+        rule4 = PrivateRule("lastName", AlternativeSet("smith", "ryan", "king", "turner"))
+        rule5 = PrivateRule("name", RequiredGrouping(RuleRef(rule3),
                                                     OptionalGrouping(RuleRef(rule4))))
         rule1 = PublicRule("greet", RequiredGrouping(RuleRef(rule2), RuleRef(rule5)))
 
@@ -32,10 +32,10 @@ class MemberTests(unittest.TestCase):
         self.assertSetEqual(rule4.dependencies, set())
 
     def test_dependencies_named_rule_ref(self):
-        rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        rule3 = HiddenRule("firstName", AlternativeSet("peter", "john", "mary", "anna"))
-        rule4 = HiddenRule("lastName", AlternativeSet("smith", "ryan", "king", "turner"))
-        rule5 = HiddenRule("name", RequiredGrouping(
+        rule2 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
+        rule3 = PrivateRule("firstName", AlternativeSet("peter", "john", "mary", "anna"))
+        rule4 = PrivateRule("lastName", AlternativeSet("smith", "ryan", "king", "turner"))
+        rule5 = PrivateRule("name", RequiredGrouping(
             NamedRuleRef("firstName"), OptionalGrouping(NamedRuleRef("lastName"))
         ))
         rule1 = PublicRule("greet", RequiredGrouping(NamedRuleRef("greetWord"),
@@ -246,11 +246,11 @@ class ComparisonTests(unittest.TestCase):
 
     def test_different_types(self):
         self.assertNotEqual(
-            HiddenRule("test", "test"), PublicRule("test", "test"),
+            PrivateRule("test", "test"), PublicRule("test", "test"),
             "rules with only different visibility were equal")
 
         self.assertEqual(
-            HiddenRule("test", "test"), Rule("test", False, "test"),
+            PrivateRule("test", "test"), Rule("test", False, "test"),
             "rules with only different types were not equal")
 
         self.assertEqual(
@@ -279,7 +279,7 @@ class ComparisonTests(unittest.TestCase):
 
         # Rules that are different should generate different values
         self.assertNotEqual(h(PublicRule("a", "a")),
-                            h(HiddenRule("a", "a")))
+                            h(PrivateRule("a", "a")))
         self.assertNotEqual(h(PublicRule("a", "a")),
                             h(Rule("a", False, "a")))
         self.assertNotEqual(h(PublicRule("a", "a")),

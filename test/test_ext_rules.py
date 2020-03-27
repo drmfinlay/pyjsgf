@@ -378,7 +378,7 @@ class SequenceRuleMatchCase(unittest.TestCase):
                                          "more testing", "world"))
 
     def test_with_rule_references(self):
-        r = HiddenRule("test", "test")
+        r = PrivateRule("test", "test")
         e1 = Seq(Dict(), RuleRef(r))
         self.assert_rule_matches_speech(e1, (
             "hello world", "test"

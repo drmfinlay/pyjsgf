@@ -76,11 +76,11 @@ class DictationGrammarCase(unittest.TestCase):
                           PublicRule("test", "hello"))
 
         self.assertRaises(GrammarError, grammar.add_rule,
-                          HiddenRule("test", Dictation()))
+                          PrivateRule("test", Dictation()))
 
         rules_to_add = [
             PublicRule("test", "hello"),
-            HiddenRule("test", Dictation())
+            PrivateRule("test", Dictation())
         ]
         self.assertRaises(GrammarError, grammar.add_rules,
                           *rules_to_add)
@@ -106,10 +106,10 @@ class DictationGrammarCase(unittest.TestCase):
                            PublicRule("test", Sequence("test", Dictation()))])
         self.assertRaises(GrammarError, DictationGrammar,
                           [PublicRule("test", Sequence("test", Dictation())),
-                           HiddenRule("test", Sequence("test", Dictation()))])
+                           PrivateRule("test", Sequence("test", Dictation()))])
         self.assertRaises(GrammarError, DictationGrammar,
                           [PublicRule("test", Sequence("testing", Dictation())),
-                           HiddenRule("test", Sequence("test", Dictation()))])
+                           PrivateRule("test", Sequence("test", Dictation()))])
 
     def test_add_remove_rules(self):
         grammar = DictationGrammar()
