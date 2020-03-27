@@ -274,6 +274,23 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
         self.assertSequenceEqual(grammar.find_matching_rules("up two"), [cmd_rule])
 
+    def test_add_import(self):
+        """ Import objects can be added and used by grammars. """
+        grammar = Grammar("test")
+        X = "com.example.grammar.X"
+        Y = "com.example.grammar.Y"
+        Z = "com.example.grammar.Z"
+        grammar.add_import(Import(X))
+        grammar.add_imports(Import(Y), Import(Z))
+        self.assertEqual(grammar.compile(),
+                         "#JSGF V1.0;\n"
+                         "grammar test;\n"
+                         "import <com.example.grammar.X>;\n"
+                         "import <com.example.grammar.Y>;\n"
+                         "import <com.example.grammar.Z>;\n")
+        self.assertEqual(grammar.imports, [Import(i) for i in (X, Y, Z)])
+        self.assertEqual(grammar.import_names, [X, Y, Z])
+
     def test_add_import_optimal(self):
         """ Import objects added to grammars multiple times are only added once. """
         grammar = Grammar("test")
@@ -288,12 +305,43 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertEqual(grammar.imports, [Import(import_name)])
         self.assertEqual(grammar.import_names, [import_name])
 
+    def test_add_import_type(self):
+        """ Grammar.add_import only accepts Import objects. """
+        grammar = Grammar("test")
+        grammar.add_import(Import("com.example.grammar.X"))
+        self.assertRaises(TypeError, grammar.add_import, "com.example.grammar.Y")
+        self.assertRaises(TypeError, grammar.add_imports, "com.example.grammar.Y")
+
+    def test_remove_import(self):
+        """ Import objects can be properly removed from grammars. """
+        grammar = Grammar("test")
+        expected = "#JSGF V1.0;\ngrammar test;\n"
+        import_name = "com.example.grammar.X"
+        import_ = Import(import_name)
+
+        # Both identical and equivalent Import objects should work.
+        for remove_item in (import_, Import(import_name)):
+            grammar.add_import(import_)
+            grammar.remove_import(remove_item)
+            self.assertEqual(grammar.compile(), expected)
+            self.assertEqual(grammar.imports, [])
+            self.assertEqual(grammar.import_names, [])
+
     def test_remove_import_type(self):
         """ Grammar.remove_import only accepts Import objects. """
         grammar = Grammar("test")
         grammar.add_import(Import("com.example.grammar.X"))
         self.assertRaises(TypeError, grammar.remove_import, "com.example.grammar.X")
         self.assertRaises(TypeError, grammar.remove_imports, "com.example.grammar.X")
+
+    def test_remove_import_unknown(self):
+        """ Removing an Import object that isn't in a grammar raises an error. """
+        grammar = Grammar("test")
+        self.assertRaises(GrammarError, grammar.remove_import,
+                          Import("com.example.grammar.X"))
+        self.assertRaises(GrammarError, grammar.remove_imports,
+                          Import("com.example.grammar.X"),
+                          Import("com.example.grammar.Y"))
 
 
 class TagTests(unittest.TestCase):
