@@ -496,8 +496,10 @@ class Grammar(references.BaseRef):
         :param _import: Import
         """
         if not isinstance(_import, Import):
-            raise TypeError("object '%s' was not a JSGF Import object" % _import)
-        self._imports.append(_import)
+            raise TypeError("object '%s' is not a JSGF Import object" % _import)
+
+        if _import not in self._imports:
+            self._imports.append(_import)
 
     def find_matching_rules(self, speech):
         """

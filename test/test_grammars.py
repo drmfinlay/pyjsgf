@@ -274,6 +274,20 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
         self.assertSequenceEqual(grammar.find_matching_rules("up two"), [cmd_rule])
 
+    def test_add_import_optimal(self):
+        """ Import objects added to grammars multiple times are only added once. """
+        grammar = Grammar("test")
+        import_name = "com.example.grammar.X"
+        for i in range(2):
+            grammar.add_import(Import(import_name))
+
+        self.assertEqual(grammar.compile(),
+                         "#JSGF V1.0;\n"
+                         "grammar test;\n"
+                         "import <com.example.grammar.X>;\n")
+        self.assertEqual(grammar.imports, [Import(import_name)])
+        self.assertEqual(grammar.import_names, [import_name])
+
 
 class TagTests(unittest.TestCase):
     """
