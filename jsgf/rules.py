@@ -399,16 +399,20 @@ class PublicRule(Rule):
                (self.__class__.__name__, self.name, self.expansion)
 
 
-class HiddenRule(Rule):
+class PrivateRule(Rule):
     """
     Rule subclass with ``visible`` set to False.
     """
     def __init__(self, name, expansion, case_sensitive=False):
-        super(HiddenRule, self).__init__(name, False, expansion, case_sensitive)
+        super(PrivateRule, self).__init__(name, False, expansion, case_sensitive)
 
     def __hash__(self):
-        return super(HiddenRule, self).__hash__()
+        return super(PrivateRule, self).__hash__()
 
     def __str__(self):
         return "%s(name='%s', expansion=%s)" %\
                (self.__class__.__name__, self.name, self.expansion)
+
+
+#: Alias of :class:`PrivateRule` kept in for backwards compatibility.
+HiddenRule = PrivateRule

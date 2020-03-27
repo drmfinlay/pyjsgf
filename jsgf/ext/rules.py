@@ -300,17 +300,21 @@ class PublicSequenceRule(SequenceRule):
                (self.__class__.__name__, self.name, self.original_expansion)
 
 
-class HiddenSequenceRule(SequenceRule):
+class PrivateSequenceRule(SequenceRule):
     """
     SequenceRule subclass with ``visible`` set to False.
     """
     def __init__(self, name, expansion, case_sensitive=False):
-        super(HiddenSequenceRule, self).__init__(name, False, expansion,
+        super(PrivateSequenceRule, self).__init__(name, False, expansion,
                                                  case_sensitive)
 
     def __hash__(self):
-        return super(HiddenSequenceRule, self).__hash__()
+        return super(PrivateSequenceRule, self).__hash__()
 
     def __str__(self):
         return "%s(name='%s', expansion=%s)" %\
                (self.__class__.__name__, self.name, self.original_expansion)
+
+
+#: Alias of :class:`PrivateSequenceRule` kept in for backwards compatibility.
+HiddenSequenceRule = PrivateSequenceRule
