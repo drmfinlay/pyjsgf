@@ -20,6 +20,13 @@ class ImportResolutionCase(unittest.TestCase):
             assert False, "tests are running from an unusual working directory"
 
         # Parse test file grammars.
+        def _file_ext_grammars(grammar_name, *exts):
+            return [parse_grammar_string("""
+                #JSGF V1.0;
+                grammar {};
+                public <rule> = test {};
+            """.format(grammar_name, ext)) for ext in exts]
+
         class Grammars(object):
             test1 = parse_grammar_string("""
                 #JSGF V1.0;
@@ -28,6 +35,11 @@ class ImportResolutionCase(unittest.TestCase):
                 <Y> = y;
                 public <Z> = <X>|<Y>;
             """)
+
+            test2jsgf, test2jgram, test2jgrammar = _file_ext_grammars(
+                "grammars.test2", "jsgf", "jgram", "jgrammar")
+            test3jsgf, test3jgram, test3jgrammar = _file_ext_grammars(
+                "grammars.test3", "jsgf", "jgram", "jgrammar")
 
         cls.grammars = Grammars
 
@@ -74,6 +86,43 @@ class ImportClassCase(ImportResolutionCase):
         self.assertIs(Import("grammars.test1.Z").resolve(memo),
                       import1_z)
         self.assertIs(memo["grammars.test1"], import1_grammar)
+
+    def test_resolve_sub_directory_import(self):
+        """ Import.resolve() parses grammar files from sub-directories. """
+        memo = {}
+        Import("grammars.test1.Z").resolve(memo)
+        self.assertEqual(memo["grammars.test1"], self.grammars.test1)
+
+    def test_resolve_working_directory_import(self):
+        """ Import.resolve() parses grammar files from the working directory. """
+        memo = {}
+        Import("grammars.test2.rule").resolve(memo)
+        self.assertEqual(memo["grammars.test2"], self.grammars.test2jsgf)
+
+    def test_resolve_file_exts_non_existant(self):
+        """ Import.resolve() only parses grammar files with matching file extensions.
+        """
+        # test1 is defined in a .jsgf file, so excluding that extension when
+        # resolving an import statement for it should raise an error.
+        self.assertRaises(JSGFImportError, Import("grammars.test1.Z").resolve,
+                          file_exts=[".jgram"])
+
+        # test2 is effectively defined in 3 separate files. Specifying no extensions
+        # when resolving an import statement for it should raise an error.
+        self.assertRaises(JSGFImportError, Import("grammars.test2.rule").resolve,
+                          file_exts=[])
+
+    def test_resolve_file_exts_ordering(self):
+        """ Import.resolve() checks against given file extensions in order.
+        """
+        exts_grammars = {(".jsgf", ".jgram", ".jgrammar"): self.grammars.test3jsgf,
+                         (".jgram", ".jgrammar"): self.grammars.test3jgram,
+                         (".jgrammar",): self.grammars.test3jgrammar}
+        memo = {}
+        for exts, grammar in exts_grammars.items():
+            Import("grammars.test3.rule").resolve(memo, exts)
+            self.assertEqual(memo["grammars.test3"], grammar)
+            memo.clear()
 
     def test_resolve_non_existant_grammars(self):
         """ Resolving import statements for non-existent grammars raises errors. """
