@@ -34,6 +34,7 @@ class ImportResolutionCase(unittest.TestCase):
                 <X> = x;
                 <Y> = y;
                 public <Z> = <X>|<Y>;
+                public <W> = w;
             """)
 
             test2jsgf, test2jgram, test2jgrammar = _file_ext_grammars(
@@ -68,13 +69,14 @@ class ImportClassCase(ImportResolutionCase):
     def test_resolve_wildcard(self):
         """ Import.resolve() correctly handles wildcard import statements. """
         expected_grammar = self.grammars.test1
-        Z, = expected_grammar.get_rules("Z")
+        Z, W = expected_grammar.get_rules("Z", "W")
         memo = {}
-        self.assertEqual(Import("grammars.test1.*").resolve(memo), [Z])
+        self.assertEqual(Import("grammars.test1.*").resolve(memo), [Z, W])
         self.assertDictEqual(memo, {
             "grammars.test1": expected_grammar,
             "grammars.test1.Z": Z,
-            "grammars.test1.*": [Z]
+            "grammars.test1.W": W,
+            "grammars.test1.*": [Z, W]
         })
 
     def test_resolve_memo_dictionary_reused(self):

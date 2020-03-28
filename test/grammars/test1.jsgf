@@ -3,3 +3,4 @@ grammar grammars.test1;
 <X> = x;
 <Y> = y;
 public <Z> = <X>|<Y>;
+public <W> = w;
