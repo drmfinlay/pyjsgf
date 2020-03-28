@@ -124,6 +124,13 @@ class ImportClassCase(ImportResolutionCase):
             self.assertEqual(memo["grammars.test3"], grammar)
             memo.clear()
 
+    def test_resolve_file_exts_without_dots(self):
+        """ File extensions passed to Import.resolve() are given leading dots.
+        """
+        memo = {}
+        Import("grammars.test3.rule").resolve(memo, ["jgrammar"])
+        self.assertEqual(memo["grammars.test3"], self.grammars.test3jgrammar)
+
     def test_resolve_non_existant_grammars(self):
         """ Resolving import statements for non-existent grammars raises errors. """
         self.assertRaises(JSGFImportError, Import("grammars.test0.*").resolve)

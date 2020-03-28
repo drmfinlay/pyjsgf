@@ -88,6 +88,10 @@ class Import(references.BaseRef):
         # sub-directory based on the grammar's full name.
         result = None
         for file_ext in file_exts:
+            # Add a leading dot to the file extension if necessary.
+            if not file_ext.startswith("."):
+                file_ext = "." + file_ext
+
             grammar_path1 = grammar_name + file_ext
             grammar_path2 = os.path.join(*grammar_name.split(".")) + file_ext
             if os.path.isfile(grammar_path1):
