@@ -189,6 +189,31 @@ class MemberTests(unittest.TestCase):
         self.assertTrue(cmd.matches("Go Up"))
         self.assertFalse(cmd.matches("go up"))
 
+    def test_qualified_name(self):
+        """ Rule.qualified_name returns the correct strings."""
+        # Qualified name is the same as the rule name if the rule is not part of a
+        # grammar.
+        cmd = Rule("cmd", True, "test")
+        self.assertEqual(cmd.qualified_name, "cmd")
+
+        # Qualified name is the last part of the grammar name plus the rule name if
+        # the rule is part of a grammar.
+        grammar = Grammar("com.example.grammar")
+        grammar.add_rule(cmd)
+        self.assertEqual(cmd.qualified_name, "grammar.cmd")
+
+    def test_fully_qualified_name(self):
+        """ Rule.fully_qualified_name returns the correct strings."""
+        # Fully-qualified name is the same as the rule name if the rule is not part
+        # of a grammar.
+        cmd = Rule("cmd", True, "test")
+        self.assertEqual(cmd.fully_qualified_name, "cmd")
+
+        # Fully-qualified name is the full grammar name plus the rule name.
+        grammar = Grammar("com.example.grammar")
+        grammar.add_rule(cmd)
+        self.assertEqual(cmd.fully_qualified_name, "com.example.grammar.cmd")
+
 
 class InvalidRules(unittest.TestCase):
     def test_invalid_rules(self):

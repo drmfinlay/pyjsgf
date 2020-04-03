@@ -63,13 +63,29 @@ class Rule(references.BaseRef):
         self._set_expansion(value)
 
     @property
+    def qualified_name(self):
+        """
+        This rule's qualified name.
+
+        Qualified rule names are the last part of the grammar name plus the rule
+        name. For example, if ``"com.example.grammar"`` is the full grammar name and
+        ``"rule"`` is the rule name, then ``"grammar.rule"`` is the qualified name.
+        """
+        if self.grammar is not None:
+            grammar_part = self.grammar.name.split(".")[-1]
+            return "%s.%s" % (grammar_part, self._name)
+        else:
+            return self._name
+
+    @property
     def fully_qualified_name(self):
         """
         This rule's fully qualified name.
 
-        Fully-qualified rule names are the grammar plus the rule name. For example,
-        if ``"com.example.grammar"`` is the grammar name and ``"rule"`` is the rule
-        name, then ``"com.example.grammar.rule"`` is the fully-qualified name.
+        Fully-qualified rule names are the grammar name plus the rule name.
+        For example, if ``"com.example.grammar"`` is the grammar name and ``"rule"``
+        is the rule name, then ``"com.example.grammar.rule"`` is the fully-qualified
+        name.
         """
         if self.grammar is not None:
             return "%s.%s" % (self.grammar.name, self._name)
