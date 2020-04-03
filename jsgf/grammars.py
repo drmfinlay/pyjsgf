@@ -488,11 +488,11 @@ class Grammar(references.BaseRef):
                 raise GrammarError("JSGF grammars cannot have multiple rules with "
                                    "the same name")
 
-        self._rules.append(rule)
-        rule.grammar = self
-
         # Set case sensitivity.
         rule.case_sensitive = self.case_sensitive
+
+        self._rules.append(rule)
+        rule.grammar = self
 
     def add_import(self, _import):
         """
