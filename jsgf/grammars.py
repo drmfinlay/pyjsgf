@@ -588,16 +588,68 @@ class Grammar(references.BaseRef):
 
     def get_rule_from_name(self, name):
         """
-        Get a rule object with the specified name, if one exists in the grammar.
+        Get a rule object with the specified name if one exists in the grammar or its
+        imported rules.
+
+        If ``name`` is a fully-qualified rule name, then this method will attempt to
+        import it.
 
         :param name: str
         :returns: Rule
-        :raises: GrammarError
+        :raises: GrammarError | TypeError | JSGFImportError
         """
-        if name not in self.rule_names:
-            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (name, self))
+        if not isinstance(name, string_types):
+            raise TypeError("string expected, got %r instead" % name)
 
-        return self.rules[self.rule_names.index(name)]
+        if not references.optionally_qualified_name.matches(name):
+            raise GrammarError("%r is not a valid JSGF reference name" % name)
+
+        for rule in self.rules:
+            if rule.name == name:
+                return rule
+
+        # No local rules matched, so resolve import statements.
+        self.resolve_imports()
+        import_names = self.import_names
+        imported_rules = []
+        for (key, value) in self.import_environment.items():
+            if key not in import_names:
+                continue
+
+            # Handle single rule imports.
+            if isinstance(value, Rule):
+                imported_rules.append(value)
+
+            # Handle wildcard rule imports.
+            elif isinstance(value, list):
+                imported_rules.extend(value)
+
+        # Check against imported rules.
+        matching_rules = []
+        qualified_name = ".".join(name.split(".")[-2:])  # get only the last part
+        for rule in imported_rules:
+            if name == rule.name or qualified_name == rule.qualified_name:
+                matching_rules.append(rule)
+
+        # Return the matching imported rule if there is only one.
+        if len(matching_rules) == 1:
+            return matching_rules[0]
+
+        # Raise an error if there are multiple matches and the name is not fully
+        # qualified.
+        if len(matching_rules) > 1 and name.count(".") <= 1:
+            raise GrammarError("name %r is ambiguous; multiple imported rules match."
+                               " Use a qualified or fully-qualified name instead."
+                               % name)
+
+        # If the name is a fully-qualified rule name, then try to resolve it.
+        if name.count(".") > 0:
+            import_ = Import(name)
+            return import_.resolve(self._import_env)
+
+        # No local or imported rule matched. This is an error.
+        raise GrammarError("%r is not a local or imported rule in Grammar %r"
+                           % (name, self.name))
 
     #: Alias of :meth:`get_rule_from_name`.
     get_rule = get_rule_from_name
