@@ -1,7 +1,8 @@
 import os
 import unittest
 
-from jsgf import parse_grammar_string, Import, JSGFImportError, Grammar
+from jsgf import (parse_grammar_string, Import, JSGFImportError, Grammar, Rule,
+                  GrammarError, NamedRuleRef)
 
 
 class ImportResolutionCase(unittest.TestCase):
@@ -271,3 +272,57 @@ class GrammarImportCase(ImportResolutionCase):
                       cycle_test1)
         for grammar_ in (cycle_test1, cycle_test2):
             self.assertDictEqual(grammar_.import_environment, expected_environment)
+
+    def test_same_local_and_imported_rule_names(self):
+        """ Local rules with the same name have precedence over imported rules. """
+        grammar = Grammar("test")
+        local_z = Rule("Z", True, "z")
+        grammar.add_rule(local_z)
+        grammar.add_import(Import("grammars.test1.Z"))
+        self.assertEqual(grammar.get_rule("Z"), local_z)
+
+    def test_ambiguous_imported_rules(self):
+        """ Imported rules with the same name cannot be referenced locally. """
+        grammar = Grammar("test")
+        grammar.add_import(Import("grammars.test2.rule"))
+        grammar.add_import(Import("grammars.test3.rule"))
+        self.assertRaises(GrammarError, grammar.get_rule, "rule")
+
+    def test_ambiguous_qualified_names(self):
+        """ Imported rules with the same qualified name must be fully referenced. """
+        grammar = Grammar("test")
+        grammar.add_import(Import("grammars.test6.rule"))
+        grammar.add_import(Import("grammars2.test6.rule"))
+        self.assertRaises(GrammarError, grammar.get_rule, "rule")
+        self.assertRaises(GrammarError, grammar.get_rule, "test6.rule")
+
+        expected1 = parse_grammar_string("""
+            #JSGF V1.0;
+            grammar grammars.test6;
+            public <rule> = test grammars one;
+        """)
+        expected2 = parse_grammar_string("""
+            #JSGF V1.0;
+            grammar grammars2.test6;
+            public <rule> = test grammars two;
+        """)
+        self.assertEqual(grammar.get_rule("grammars.test6.rule"),
+                         expected1.get_rule("rule"))
+        self.assertEqual(grammar.get_rule("grammars2.test6.rule"),
+                         expected2.get_rule("rule"))
+
+    def test_fully_qualified_rule_reference(self):
+        """ Fully-qualified rule references do not require import statements. """
+        grammar = Grammar("test")
+        fully_qualified_ref = "grammars.test1.W"
+        named_ref = NamedRuleRef(fully_qualified_ref)
+        rule = Rule("rule", True, named_ref)
+        grammar.add_rule(rule)
+        expected_rule = self.grammars.test1.get_rule("W")
+        for x in range(2):
+            self.assertEqual(named_ref.referenced_rule, expected_rule)
+            self.assertEqual(grammar.get_rule(fully_qualified_ref), expected_rule)
+            self.assertEqual(grammar.find_matching_rules("w"), [rule])
+
+            # Check that the import statement is allowed.
+            grammar.add_import(Import(fully_qualified_ref))
