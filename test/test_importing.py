@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from jsgf import *
+from jsgf import parse_grammar_string, Import, JSGFImportError, Grammar
 
 
 class ImportResolutionCase(unittest.TestCase):
@@ -155,3 +155,119 @@ class ImportClassCase(ImportResolutionCase):
         self.assertEqual(hash(Import(name1)), hash(Import(name1)))
         self.assertNotEqual(Import(name1), Import(name2))
         self.assertNotEqual(hash(Import(name1)), hash(Import(name2)))
+
+
+class GrammarImportCase(ImportResolutionCase):
+    """ Grammar class import resolution tests. """
+
+    def test_resolve_imports_same_dictionary(self):
+        """ Grammar.resolve_imports() returns the same dictionary passed to it. """
+        memo = {}
+        grammar = Grammar()
+        result = grammar.resolve_imports(memo)
+        self.assertIs(result, memo)
+
+    def test_resolve_imports_self_added(self):
+        """ Grammar.resolve_imports() adds the current grammar to the dictionary. """
+        grammar = Grammar("test")
+        self.assertDictEqual(grammar.resolve_imports(), {
+            "test": grammar,
+        })
+
+    def test_resolve_imports_single(self):
+        """ Grammar.resolve_imports() correctly handles importing a single rule. """
+        memo = {}
+        grammar = Grammar("test")
+        grammar.add_import(Import("grammars.test1.Z"))
+        grammar.resolve_imports(memo)
+        expected_grammar = self.grammars.test1
+        Z, = expected_grammar.get_rules("Z")
+        self.assertDictEqual(memo, {
+            "test": grammar,
+            "grammars.test1": expected_grammar,
+            "grammars.test1.Z": Z
+        })
+
+    def test_resolve_imports_wildcard(self):
+        """ Grammar.resolve_imports() correctly handles wildcard import statements.
+        """
+        memo = {}
+        grammar = Grammar("test")
+        grammar.add_import(Import("grammars.test1.*"))
+        grammar.resolve_imports(memo)
+        expected_grammar = self.grammars.test1
+        Z, W = expected_grammar.get_rules("Z", "W")
+        self.assertDictEqual(memo, {
+            "test": grammar,
+            "grammars.test1": expected_grammar,
+            "grammars.test1.Z": Z,
+            "grammars.test1.W": W,
+            "grammars.test1.*": [Z, W]
+        })
+
+    def test_resolve_imports_multiple_grammars(self):
+        """ Similar import statements in multiple grammars are handled efficiently.
+        """
+        memo = {}
+        grammar = Grammar("test")
+        grammar.add_import(Import("grammars.test4.BackspaceRule"))
+        grammar.add_import(Import("grammars.test5.DeleteRule"))
+        grammar.resolve_imports(memo)
+        self.assertIn("grammars.test4", memo)
+        self.assertIn("grammars.test5", memo)
+        test4 = memo["grammars.test4"]
+        test5 = memo["grammars.test5"]
+
+        # The import environments of 'test', 'test4', 'test5' and 'numbers' should be
+        # the same. resolve_imports() should update the import environment of every
+        # grammar present in the memo dictionary.
+        test4.resolve_imports(memo)
+        test5.resolve_imports(memo)
+        self.assertIn("grammars.numbers", memo)
+        numbers = memo["grammars.numbers"]
+        expected_environment = {
+            "test": grammar,
+            "grammars.test4": test4,
+            "grammars.test4.BackspaceRule": test4.get_rule("BackspaceRule"),
+            "grammars.test5": test5,
+            "grammars.test5.DeleteRule": test5.get_rule("DeleteRule"),
+            "grammars.numbers": numbers,
+            "grammars.numbers.1to39": numbers.get_rule("1to39"),
+        }
+        for grammar_ in (grammar, test4, test5, numbers):
+            self.assertDictEqual(grammar_.import_environment, expected_environment)
+
+        # The 'numbers' grammar should have only be parsed once, even though it is
+        # used by two separate grammars.
+        for grammar_ in (test4, test5):
+            self.assertIs(grammar_.import_environment["grammars.numbers"], numbers)
+
+    def test_resolve_imports_cycles(self):
+        """ Grammars that import from one another are resolved correctly.
+        """
+        memo = {}
+        grammar = Grammar("test")
+        grammar.add_import(Import("grammars.cycle-test1.rule1"))
+        grammar.add_import(Import("grammars.cycle-test2.rule2"))
+        grammar.resolve_imports(memo)
+        self.assertIn("grammars.cycle-test1", memo)
+        self.assertIn("grammars.cycle-test2", memo)
+        cycle_test1 = memo["grammars.cycle-test1"]
+        cycle_test2 = memo["grammars.cycle-test2"]
+        cycle_test1.resolve_imports()
+        cycle_test2.resolve_imports()
+        expected_environment = {
+            "test": grammar,
+            "grammars.cycle-test1": cycle_test1,
+            "grammars.cycle-test1.rule1": cycle_test1.get_rule("rule1"),
+            "grammars.cycle-test1.Y": cycle_test1.get_rule("Y"),
+            "grammars.cycle-test2": cycle_test2,
+            "grammars.cycle-test2.rule2": cycle_test2.get_rule("rule2"),
+            "grammars.cycle-test2.X": cycle_test2.get_rule("X"),
+        }
+        self.assertIs(cycle_test1.import_environment["grammars.cycle-test2"],
+                      cycle_test2)
+        self.assertIs(cycle_test2.import_environment["grammars.cycle-test1"],
+                      cycle_test1)
+        for grammar_ in (cycle_test1, cycle_test2):
+            self.assertDictEqual(grammar_.import_environment, expected_environment)

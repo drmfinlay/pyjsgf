@@ -207,6 +207,7 @@ class Grammar(references.BaseRef):
         super(Grammar, self).__init__(name)
         self._rules = []
         self._imports = []
+        self._import_env = {}
         self.jsgf_version, self.charset_name, self.language_name =\
             self.default_header_values
         self._case_sensitive = case_sensitive
@@ -526,6 +527,64 @@ class Grammar(references.BaseRef):
             return [r for r in self.rules if r.has_tag(tag)]
         else:
             return [r for r in self.match_rules if r.has_tag(tag)]
+
+    @property
+    def import_environment(self):
+        """
+        A dictionary of imported rules and their grammars that functions as the
+        import environment of this grammar.
+
+        The import environment dictionary is updated internally by the
+        :meth:`resolve_imports` method.
+
+        :rtype: dict
+        :returns: dictionary of import names to grammar rules
+        """
+        return self._import_env
+
+    def resolve_imports(self, memo=None, file_exts=None):
+        """
+        Resolve each import statement in the grammar and make the imported
+        :class:`Rule` object(s) available for referencing and matching.
+
+        This method attempts to parse grammar files in the working directory and its
+        sub-directories. If a dictionary was passed for the *memo* argument, then
+        that dictionary will be updated with the parsed grammars and rules.
+
+        Errors will be raised if a grammar could not be found and parsed, or if an
+        import statement could not be resolved.
+
+        :param memo: dictionary of import names to grammar rules
+        :type memo: dict
+        :param file_exts: list of grammar file extensions to check against (default:
+            ``(".jsgf", ".jgram")``)
+        :type file_exts: list | tuple
+        :returns: dictionary of import names to grammar rules
+        :rtype: dict
+        :raises: GrammarError | JSGFImportError
+        """
+        if memo is None:
+            memo = self._import_env.copy()
+
+        if file_exts is None:
+            file_exts = Import.grammar_file_exts
+
+        # Add this grammar's name to the dictionary to avoid other grammars
+        # re-resolving this one unnecessarily.
+        memo[self._name] = self
+
+        # Resolve each import statement. Import.resolve() will update the memo
+        # dictionary.
+        for import_ in self._imports:
+            import_.resolve(memo, file_exts)
+
+        # Update the import environments of this and other grammars in the memo
+        # dictionary.
+        for value in memo.values():
+            if isinstance(value, Grammar):
+                value.import_environment.update(memo)
+
+        return memo
 
     def get_rule_from_name(self, name):
         """
