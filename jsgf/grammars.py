@@ -3,14 +3,16 @@ This module contains classes for compiling, importing from and matching JSpeech
 Grammar Format grammars.
 """
 
+import os
+
 from six import string_types
 
-from .references import BaseRef, import_name, grammar_name
+from . import references
 from .rules import Rule
-from .errors import GrammarError
+from .errors import GrammarError, JSGFImportError
 
 
-class Import(BaseRef):
+class Import(references.BaseRef):
     """
     Import objects used in grammar compilation and import resolution.
 
@@ -29,21 +31,157 @@ class Import(BaseRef):
     cannot be used as import names. You can however change the case to 'null'
     or 'void' to use them, as names are case-sensitive.
     """
+
+    #: Default file extensions to consider during import resolution.
+    grammar_file_exts = (".jsgf", ".jgram")
+
     def __init__(self, name):
         super(Import, self).__init__(name)
 
     def compile(self):
         return "import <%s>;" % self.name
 
+    @property
+    def grammar_name(self):
+        """
+        The full name of the grammar to import from.
+
+        :returns: grammar name
+        :rtype: str
+        """
+        return ".".join(self.name.split(".")[:-1])
+
+    @property
+    def wildcard_import(self):
+        """
+        Whether this import statement imports every grammar rule.
+
+        :returns: bool
+        :rtype: bool
+        """
+        return self.name.endswith(".*")
+
+    @property
+    def rule_name(self):
+        """
+        The name of the rule to import from the grammar.
+
+        :returns: rule name
+        :rtype: str
+        """
+        return self.name.split(".")[-1]
+
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, self.name)
 
+    def _get_import_grammar(self, memo, file_exts):
+        """ Internal method to get the grammar from a file if necessary. """
+        grammar_name = self.grammar_name
+        if grammar_name in memo:
+            return memo[grammar_name]
+
+        # Import the parser function locally to avoid import cycles; this module is
+        # used by the parser.
+        from jsgf.parser import parse_grammar_file
+
+        # Look for the file in the current working directory and in a
+        # sub-directory based on the grammar's full name.
+        result = None
+        for file_ext in file_exts:
+            # Add a leading dot to the file extension if necessary.
+            if not file_ext.startswith("."):
+                file_ext = "." + file_ext
+
+            grammar_path1 = grammar_name + file_ext
+            grammar_path2 = os.path.join(*grammar_name.split(".")) + file_ext
+            if os.path.isfile(grammar_path1):
+                result = parse_grammar_file(grammar_path1)
+                break
+
+            # Look for the file in sub-directories based on the grammar's full
+            # name.
+            elif os.path.isfile(grammar_path2):
+                result = parse_grammar_file(grammar_path2)
+                break
+
+        # The grammar file doesn't exist, so raise an error.
+        if result is None:
+            raise JSGFImportError("The grammar file for grammar %r could not be "
+                                  "found" % grammar_name)
+
+        memo[grammar_name] = result
+        return result
+
+    def resolve(self, memo=None, file_exts=None):
+        """
+        Resolve this import statement and return the imported :class:`Rule`
+        object(s).
+
+        This method attempts to parse grammar files in the working directory and its
+        sub-directories. If a dictionary was passed for the *memo* argument, then
+        that dictionary will be updated with the parsed grammar and rules.
+
+        Errors will be raised if the grammar could not be found and parsed, or if the
+        import statement could not be resolved.
+
+        :param memo: dictionary of import names to grammar rules
+        :type memo: dict
+        :param file_exts: list of grammar file extensions to check against (default:
+            ``(".jsgf", ".jgram")``)
+        :type file_exts: list | tuple
+        :returns: imported Rule or list of Rules
+        :rtype: Rule | list
+        :raises: GrammarError | JSGFImportError
+        """
+        if memo is None:
+            memo = {}
+
+        if file_exts is None:
+            file_exts = self.grammar_file_exts
+
+        # Check if this import statement has already been resolved.
+        import_name = self.name
+        if import_name in memo:
+            return memo[import_name]
+
+        # Parse the grammar from its file, if it exists.
+        grammar = self._get_import_grammar(memo, file_exts)
+
+        # Add the grammar to the dictionary.
+        # TODO Decide whether it is worth allowing different file and grammar names.
+        grammar_name = self.grammar_name
+        import_rule_name = self.rule_name
+        wildcard_import = self.wildcard_import
+        memo[grammar_name] = grammar
+        memo[grammar.name] = grammar
+
+        # The resolved value for wildcard import statements is a list of the
+        # grammar's public rules.
+        visible_rules = grammar.visible_rules
+        if wildcard_import:
+            memo[import_name] = visible_rules
+
+        # If this is not a wildcard import and the grammar doesn't contain the
+        # expected public rule, then raise an error.
+        elif import_rule_name not in [r.name for r in visible_rules]:
+            raise JSGFImportError("no public rule with name %r was found in grammar "
+                                  "%r" % (import_rule_name, grammar_name))
+
+        # Add any appropriate rules.
+        for rule in visible_rules:
+            if wildcard_import or rule.name == import_rule_name:
+                memo[rule.fully_qualified_name] = rule
+                memo["%s.%s" % (grammar_name, rule.name)] = rule
+
+        # Return the imported rule(s).
+        return memo[import_name]
+
     @staticmethod
     def valid(name):
-        return import_name.matches(name)
+        return references.import_name.matches(name)
 
 
-class Grammar(BaseRef):
+class Grammar(references.BaseRef):
     """
     Base class for JSGF grammars.
 
@@ -69,6 +207,7 @@ class Grammar(BaseRef):
         super(Grammar, self).__init__(name)
         self._rules = []
         self._imports = []
+        self._import_env = {}
         self.jsgf_version, self.charset_name, self.language_name =\
             self.default_header_values
         self._case_sensitive = case_sensitive
@@ -94,7 +233,7 @@ class Grammar(BaseRef):
 
     @staticmethod
     def valid(name):
-        return grammar_name.matches(name)
+        return references.grammar_name.matches(name)
 
     @property
     def case_sensitive(self):
@@ -268,6 +407,15 @@ class Grammar(BaseRef):
         """
     )
 
+    import_names = property(
+        lambda self: [import_.name for import_ in self._imports],
+        doc="""
+        The import names associated with this grammar.
+
+        :returns: list
+        """
+    )
+
     @property
     def match_rules(self):
         """
@@ -340,11 +488,11 @@ class Grammar(BaseRef):
                 raise GrammarError("JSGF grammars cannot have multiple rules with "
                                    "the same name")
 
-        self._rules.append(rule)
-        rule.grammar = self
-
         # Set case sensitivity.
         rule.case_sensitive = self.case_sensitive
+
+        self._rules.append(rule)
+        rule.grammar = self
 
     def add_import(self, _import):
         """
@@ -353,8 +501,10 @@ class Grammar(BaseRef):
         :param _import: Import
         """
         if not isinstance(_import, Import):
-            raise TypeError("object '%s' was not a JSGF Import object" % _import)
-        self._imports.append(_import)
+            raise TypeError("object '%s' is not a JSGF Import object" % _import)
+
+        if _import not in self._imports:
+            self._imports.append(_import)
 
     def find_matching_rules(self, speech):
         """
@@ -378,18 +528,144 @@ class Grammar(BaseRef):
         else:
             return [r for r in self.match_rules if r.has_tag(tag)]
 
+    @property
+    def import_environment(self):
+        """
+        A dictionary of imported rules and their grammars that functions as the
+        import environment of this grammar.
+
+        The import environment dictionary is updated internally by the
+        :meth:`resolve_imports` method.
+
+        :rtype: dict
+        :returns: dictionary of import names to grammar rules
+        """
+        return self._import_env
+
+    def resolve_imports(self, memo=None, file_exts=None):
+        """
+        Resolve each import statement in the grammar and make the imported
+        :class:`Rule` object(s) available for referencing and matching.
+
+        This method attempts to parse grammar files in the working directory and its
+        sub-directories. If a dictionary was passed for the *memo* argument, then
+        that dictionary will be updated with the parsed grammars and rules.
+
+        Errors will be raised if a grammar could not be found and parsed, or if an
+        import statement could not be resolved.
+
+        :param memo: dictionary of import names to grammar rules
+        :type memo: dict
+        :param file_exts: list of grammar file extensions to check against (default:
+            ``(".jsgf", ".jgram")``)
+        :type file_exts: list | tuple
+        :returns: dictionary of import names to grammar rules
+        :rtype: dict
+        :raises: GrammarError | JSGFImportError
+        """
+        if memo is None:
+            memo = self._import_env.copy()
+
+        if file_exts is None:
+            file_exts = Import.grammar_file_exts
+
+        # Add this grammar's name to the dictionary to avoid other grammars
+        # re-resolving this one unnecessarily.
+        memo[self._name] = self
+
+        # Resolve each import statement. Import.resolve() will update the memo
+        # dictionary.
+        for import_ in self._imports:
+            import_.resolve(memo, file_exts)
+
+        # Update the import environments of this and other grammars in the memo
+        # dictionary.
+        for value in memo.values():
+            if isinstance(value, Grammar):
+                value.import_environment.update(memo)
+
+        return memo
+
     def get_rule_from_name(self, name):
         """
-        Get a rule object with the specified name, if one exists in the grammar.
+        Get a rule object with the specified name if one exists in the grammar or its
+        imported rules.
+
+        If ``name`` is a fully-qualified rule name, then this method will attempt to
+        import it.
 
         :param name: str
         :returns: Rule
+        :raises: GrammarError | TypeError | JSGFImportError
+        """
+        if not isinstance(name, string_types):
+            raise TypeError("string expected, got %r instead" % name)
+
+        if not references.optionally_qualified_name.matches(name):
+            raise GrammarError("%r is not a valid JSGF reference name" % name)
+
+        for rule in self.rules:
+            if rule.name == name:
+                return rule
+
+        # No local rules matched, so resolve import statements.
+        self.resolve_imports()
+        import_names = self.import_names
+        imported_rules = []
+        for (key, value) in self.import_environment.items():
+            if key not in import_names:
+                continue
+
+            # Handle single rule imports.
+            if isinstance(value, Rule):
+                imported_rules.append(value)
+
+            # Handle wildcard rule imports.
+            elif isinstance(value, list):
+                imported_rules.extend(value)
+
+        # Check against imported rules.
+        matching_rules = []
+        qualified_name = ".".join(name.split(".")[-2:])  # get only the last part
+        for rule in imported_rules:
+            if name == rule.name or qualified_name == rule.qualified_name:
+                matching_rules.append(rule)
+
+        # Return the matching imported rule if there is only one.
+        if len(matching_rules) == 1:
+            return matching_rules[0]
+
+        # Raise an error if there are multiple matches and the name is not fully
+        # qualified.
+        if len(matching_rules) > 1 and name.count(".") <= 1:
+            raise GrammarError("name %r is ambiguous; multiple imported rules match."
+                               " Use a qualified or fully-qualified name instead."
+                               % name)
+
+        # If the name is a fully-qualified rule name, then try to resolve it.
+        if name.count(".") > 0:
+            import_ = Import(name)
+            return import_.resolve(self._import_env)
+
+        # No local or imported rule matched. This is an error.
+        raise GrammarError("%r is not a local or imported rule in Grammar %r"
+                           % (name, self.name))
+
+    #: Alias of :meth:`get_rule_from_name`.
+    get_rule = get_rule_from_name
+
+    def get_rules_from_names(self, *names):
+        """
+        Get rule objects with the specified names, if they exist in the grammar.
+
+        :param names: str
+        :returns: list
         :raises: GrammarError
         """
-        if name not in self.rule_names:
-            raise GrammarError("'%s' is not a rule in Grammar '%s'" % (name, self))
+        return [self.get_rule_from_name(name) for name in names]
 
-        return self.rules[self.rule_names.index(name)]
+    #: Alias of :meth:`get_rules_from_names`.
+    get_rules = get_rules_from_names
 
     def remove_rule(self, rule, ignore_dependent=False):
         """
@@ -467,6 +743,20 @@ class Grammar(BaseRef):
         """
         if _import in self._imports:
             self._imports.remove(_import)
+        elif isinstance(_import, Import):
+            raise GrammarError("%r is not an import statement in Grammar '%r'"
+                               % (_import, self.name))
+        else:
+            raise TypeError("object '%s' is not a JSGF Import object" % _import)
+
+    def remove_imports(self, *imports):
+        """
+        Remove multiple imports from the grammar.
+
+        :param imports: imports
+        """
+        for i in imports:
+            self.remove_import(i)
 
 
 class RootGrammar(Grammar):

@@ -6,12 +6,12 @@ rules.
 """
 
 from .errors import GrammarError
-from .references import BaseRef
+from . import references
 from .expansions import Expansion, Literal, NamedRuleRef, filter_expansion, \
     map_expansion, TraversalOrder
 
 
-class Rule(BaseRef):
+class Rule(references.BaseRef):
     """
     Base class for JSGF rules.
 
@@ -61,6 +61,36 @@ class Rule(BaseRef):
     @expansion.setter
     def expansion(self, value):
         self._set_expansion(value)
+
+    @property
+    def qualified_name(self):
+        """
+        This rule's qualified name.
+
+        Qualified rule names are the last part of the grammar name plus the rule
+        name. For example, if ``"com.example.grammar"`` is the full grammar name and
+        ``"rule"`` is the rule name, then ``"grammar.rule"`` is the qualified name.
+        """
+        if self.grammar is not None:
+            grammar_part = self.grammar.name.split(".")[-1]
+            return "%s.%s" % (grammar_part, self._name)
+        else:
+            return self._name
+
+    @property
+    def fully_qualified_name(self):
+        """
+        This rule's fully qualified name.
+
+        Fully-qualified rule names are the grammar name plus the rule name.
+        For example, if ``"com.example.grammar"`` is the grammar name and ``"rule"``
+        is the rule name, then ``"com.example.grammar.rule"`` is the fully-qualified
+        name.
+        """
+        if self.grammar is not None:
+            return "%s.%s" % (self.grammar.name, self._name)
+        else:
+            return self._name
 
     def _set_expansion(self, value):
         # Reset expansion.rule if there was a previous expansion
@@ -385,16 +415,20 @@ class PublicRule(Rule):
                (self.__class__.__name__, self.name, self.expansion)
 
 
-class HiddenRule(Rule):
+class PrivateRule(Rule):
     """
     Rule subclass with ``visible`` set to False.
     """
     def __init__(self, name, expansion, case_sensitive=False):
-        super(HiddenRule, self).__init__(name, False, expansion, case_sensitive)
+        super(PrivateRule, self).__init__(name, False, expansion, case_sensitive)
 
     def __hash__(self):
-        return super(HiddenRule, self).__hash__()
+        return super(PrivateRule, self).__hash__()
 
     def __str__(self):
         return "%s(name='%s', expansion=%s)" %\
                (self.__class__.__name__, self.name, self.expansion)
+
+
+#: Alias of :class:`PrivateRule` kept in for backwards compatibility.
+HiddenRule = PrivateRule

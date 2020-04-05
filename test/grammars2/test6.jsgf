@@ -1,0 +1,3 @@
+#JSGF V1.0;
+grammar grammars2.test6;
+public <rule> = test grammars two;

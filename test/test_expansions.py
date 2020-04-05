@@ -741,7 +741,7 @@ class ExpansionTreeConstructs(unittest.TestCase):
         """
         Test map_expansion using a RuleRef.
         """
-        r = HiddenRule("name", AlternativeSet("alice", "bob"))
+        r = PrivateRule("name", AlternativeSet("alice", "bob"))
         e = RuleRef(r)
         self.assertEqual(map_expansion(e), (
             RuleRef(r), (
@@ -757,7 +757,7 @@ class ExpansionTreeConstructs(unittest.TestCase):
         Test map_expansion using a NamedRuleRef.
         """
         # NamedRuleRefs require rules to be in grammars for mapping to work.
-        r1 = HiddenRule("name", AlternativeSet("alice", "bob"))
+        r1 = PrivateRule("name", AlternativeSet("alice", "bob"))
         r2 = PublicRule("test", NamedRuleRef("name"))
         g = Grammar()
         g.add_rules(r1, r2)

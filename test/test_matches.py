@@ -291,7 +291,7 @@ class MatchesCase(unittest.TestCase):
 
     def test_rule_ref(self):
         e1 = AlternativeSet("bob", "leo")
-        person = HiddenRule("person", e1)
+        person = PrivateRule("person", e1)
         e2 = Sequence("hi", RuleRef(person))
         r = PublicRule("test", e2)
         self.assertTrue(r.matches("hi leo"))

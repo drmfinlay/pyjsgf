@@ -1,0 +1,3 @@
+#JSGF V1.0;
+grammar grammars.test2;
+public <rule> = test jgrammar;

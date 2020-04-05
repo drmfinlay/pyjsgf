@@ -1,0 +1,5 @@
+#JSGF V1.0;
+grammar grammars.cycle-test1;
+import <grammars.cycle-test2.X>;
+public <rule1> = test <X>;
+public <Y> = y;

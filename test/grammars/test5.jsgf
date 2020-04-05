@@ -1,0 +1,4 @@
+#JSGF V1.0;
+grammar grammars.test5;
+import <grammars.numbers.1to39>;
+public <DeleteRule> = delete [<1to39>];

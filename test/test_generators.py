@@ -37,7 +37,7 @@ class ExpansionGenerators(unittest.TestCase):
     
     def test_rule_ref(self):
         e1 = Sequence("bob")
-        person = HiddenRule("person", e1)
+        person = PrivateRule("person", e1)
         e2 = Sequence("hi", RuleRef(person))
         self.assertEqual(e2.generate(), "hi bob")
         

@@ -1,0 +1,7 @@
+#JSGF V1.0;
+grammar grammars.numbers;
+public <1to9> = one | two | three | four | five | six | seven | eight | nine;
+public <10to19> = ten | eleven | twelve | thirteen | fourteen | fifteen | sixteen | seventeen | eighteen | nineteen;
+public <20to29> = twenty [<1to9>];
+public <30to39> = thirty [<1to9>];
+public <1to39> = <1to9> | <10to19> | <20to29> | <30to39>;

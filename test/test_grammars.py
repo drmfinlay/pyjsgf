@@ -11,8 +11,8 @@ from jsgf.ext import Dictation
 
 class BasicGrammarCase(unittest.TestCase):
     def setUp(self):
-        rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        rule3 = HiddenRule("name", AlternativeSet(
+        rule2 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
+        rule3 = PrivateRule("name", AlternativeSet(
             "peter", "john", "mary", "anna"))
         rule1 = PublicRule("greet", RequiredGrouping(
             RuleRef(rule2), RuleRef(rule3)))
@@ -81,9 +81,9 @@ class BasicGrammarCase(unittest.TestCase):
                           PublicRule("name", "bob"))
 
         self.assertRaises(GrammarError, self.grammar.add_rule,
-                          HiddenRule("name", "bob"))
+                          PrivateRule("name", "bob"))
 
-        rules_to_add = [HiddenRule("name", "bob"),
+        rules_to_add = [PrivateRule("name", "bob"),
                         PublicRule("name", "bob")]
         self.assertRaises(GrammarError, self.grammar.add_rules, *rules_to_add)
 
@@ -114,7 +114,7 @@ class BasicGrammarCase(unittest.TestCase):
         Test that a copy of a rule in the grammar can be used to disable or enable
         the equivalent rule in the grammar as well as the rule object passed.
         """
-        r = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
+        r = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
         self.grammar.disable_rule(r)
         self.assertFalse(r.active, "duplicate rule should be disabled")
         self.assertFalse(self.rule2.active, "rule in grammar should be disabled")
@@ -274,6 +274,75 @@ class BasicGrammarCase(unittest.TestCase):
         self.assertSequenceEqual(grammar.find_matching_rules("Up Two"), [cmd_rule])
         self.assertSequenceEqual(grammar.find_matching_rules("up two"), [cmd_rule])
 
+    def test_add_import(self):
+        """ Import objects can be added and used by grammars. """
+        grammar = Grammar("test")
+        X = "com.example.grammar.X"
+        Y = "com.example.grammar.Y"
+        Z = "com.example.grammar.Z"
+        grammar.add_import(Import(X))
+        grammar.add_imports(Import(Y), Import(Z))
+        self.assertEqual(grammar.compile(),
+                         "#JSGF V1.0;\n"
+                         "grammar test;\n"
+                         "import <com.example.grammar.X>;\n"
+                         "import <com.example.grammar.Y>;\n"
+                         "import <com.example.grammar.Z>;\n")
+        self.assertEqual(grammar.imports, [Import(i) for i in (X, Y, Z)])
+        self.assertEqual(grammar.import_names, [X, Y, Z])
+
+    def test_add_import_optimal(self):
+        """ Import objects added to grammars multiple times are only added once. """
+        grammar = Grammar("test")
+        import_name = "com.example.grammar.X"
+        for i in range(2):
+            grammar.add_import(Import(import_name))
+
+        self.assertEqual(grammar.compile(),
+                         "#JSGF V1.0;\n"
+                         "grammar test;\n"
+                         "import <com.example.grammar.X>;\n")
+        self.assertEqual(grammar.imports, [Import(import_name)])
+        self.assertEqual(grammar.import_names, [import_name])
+
+    def test_add_import_type(self):
+        """ Grammar.add_import only accepts Import objects. """
+        grammar = Grammar("test")
+        grammar.add_import(Import("com.example.grammar.X"))
+        self.assertRaises(TypeError, grammar.add_import, "com.example.grammar.Y")
+        self.assertRaises(TypeError, grammar.add_imports, "com.example.grammar.Y")
+
+    def test_remove_import(self):
+        """ Import objects can be properly removed from grammars. """
+        grammar = Grammar("test")
+        expected = "#JSGF V1.0;\ngrammar test;\n"
+        import_name = "com.example.grammar.X"
+        import_ = Import(import_name)
+
+        # Both identical and equivalent Import objects should work.
+        for remove_item in (import_, Import(import_name)):
+            grammar.add_import(import_)
+            grammar.remove_import(remove_item)
+            self.assertEqual(grammar.compile(), expected)
+            self.assertEqual(grammar.imports, [])
+            self.assertEqual(grammar.import_names, [])
+
+    def test_remove_import_type(self):
+        """ Grammar.remove_import only accepts Import objects. """
+        grammar = Grammar("test")
+        grammar.add_import(Import("com.example.grammar.X"))
+        self.assertRaises(TypeError, grammar.remove_import, "com.example.grammar.X")
+        self.assertRaises(TypeError, grammar.remove_imports, "com.example.grammar.X")
+
+    def test_remove_import_unknown(self):
+        """ Removing an Import object that isn't in a grammar raises an error. """
+        grammar = Grammar("test")
+        self.assertRaises(GrammarError, grammar.remove_import,
+                          Import("com.example.grammar.X"))
+        self.assertRaises(GrammarError, grammar.remove_imports,
+                          Import("com.example.grammar.X"),
+                          Import("com.example.grammar.Y"))
+
 
 class TagTests(unittest.TestCase):
     """
@@ -314,6 +383,23 @@ class TagTests(unittest.TestCase):
         self.assertListEqual(g.find_tagged_rules("tag"), [r])
         self.assertListEqual(g.find_tagged_rules("  tag "), [r])
 
+    def test_get_rules_from_names(self):
+        g = Grammar()
+        x = PublicRule("X", "x")
+        y = PrivateRule("Y", "y")
+        z = PublicRule("Z", "z")
+        g.add_rules(x, y, z)
+
+        # Test that rules are retrievable with both methods.
+        self.assertEqual(g.get_rules_from_names("X", "Y"), [x, y])
+        self.assertEqual(g.get_rules("X", "Y"), [x, y])
+
+        # Test that a GrammarError is raised if any name is invalid.
+        self.assertRaises(GrammarError, g.get_rules_from_names, "W")
+        self.assertRaises(GrammarError, g.get_rules_from_names, "X", "W")
+        self.assertRaises(GrammarError, g.get_rules, "W")
+        self.assertRaises(GrammarError, g.get_rules, "X", "W")
+
 
 class SpeechMatchCase(unittest.TestCase):
     def assert_matches(self, speech, rule):
@@ -324,7 +410,7 @@ class SpeechMatchCase(unittest.TestCase):
 
     def test_single_rule_match(self):
         grammar = Grammar("test")
-        rule = HiddenRule("greet", Sequence(
+        rule = PrivateRule("greet", Sequence(
             AlternativeSet("hello", "hi"), "world"
         ))
         grammar.add_rules(rule)
@@ -338,8 +424,8 @@ class SpeechMatchCase(unittest.TestCase):
 
     def test_multi_rule_match(self):
         grammar = Grammar("test")
-        rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        rule3 = HiddenRule("name", AlternativeSet("peter", "john",
+        rule2 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
+        rule3 = PrivateRule("name", AlternativeSet("peter", "john",
                                                   "mary", "anna"))
         rule1 = PublicRule("greet",
                            RequiredGrouping(
@@ -404,16 +490,16 @@ class VisibleRulesCase(unittest.TestCase):
     """
     def setUp(self):
         grammar1 = Grammar("test")
-        self.rule1 = HiddenRule("rule1", "Hello")
-        self.rule2 = HiddenRule("rule2", "Hey")
-        self.rule3 = HiddenRule("rule3", "Hi")
+        self.rule1 = PrivateRule("rule1", "Hello")
+        self.rule2 = PrivateRule("rule2", "Hey")
+        self.rule3 = PrivateRule("rule3", "Hi")
         grammar1.add_rules(self.rule1, self.rule2, self.rule3)
         self.grammar1 = grammar1
 
         grammar2 = Grammar("test2")
         self.rule4 = PublicRule("rule4", "Hello")
         self.rule5 = PublicRule("rule5", "Hey")
-        self.rule6 = HiddenRule("rule6", "Hi")
+        self.rule6 = PrivateRule("rule6", "Hi")
         grammar2.add_rules(self.rule4, self.rule5, self.rule6)
         self.grammar2 = grammar2
 
@@ -427,14 +513,14 @@ class VisibleRulesCase(unittest.TestCase):
 class RootGrammarCase(unittest.TestCase):
     def setUp(self):
         self.grammar = RootGrammar(name="root")
-        self.rule2 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
-        self.rule3 = HiddenRule("name", AlternativeSet(
+        self.rule2 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
+        self.rule3 = PrivateRule("name", AlternativeSet(
             "peter", "john", "mary", "anna"))
         self.rule1 = PublicRule("greet", RequiredGrouping(
             RuleRef(self.rule2), RuleRef(self.rule3)))
         self.grammar.add_rules(self.rule1, self.rule2, self.rule3)
 
-        self.rule5 = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
+        self.rule5 = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
         self.rule4 = PublicRule("greet", Sequence(RuleRef(self.rule5), "there"))
         self.rule6 = PublicRule("partingPhrase", AlternativeSet(
             "goodbye", "see you"))
@@ -541,9 +627,9 @@ class RootGrammarCase(unittest.TestCase):
                           PublicRule("name", "bob"))
 
         self.assertRaises(GrammarError, root.add_rule,
-                          HiddenRule("name", "bob"))
+                          PrivateRule("name", "bob"))
 
-        rules_to_add = [HiddenRule("name", "bob"),
+        rules_to_add = [PrivateRule("name", "bob"),
                         PublicRule("name", "bob")]
         self.assertRaises(GrammarError, root.add_rules,
                           *rules_to_add)
@@ -566,10 +652,10 @@ class RootGrammarCase(unittest.TestCase):
                            PublicRule("test", "test")])
         self.assertRaises(GrammarError, RootGrammar,
                           [PublicRule("test", "test"),
-                           HiddenRule("test", "test")])
+                           PrivateRule("test", "test")])
         self.assertRaises(GrammarError, RootGrammar,
                           [PublicRule("test", "testing"),
-                           HiddenRule("test", "test")])
+                           PrivateRule("test", "test")])
 
     def test_enable_disable_rule(self):
         self.grammar.disable_rule(self.rule1)
@@ -598,7 +684,7 @@ class RootGrammarCase(unittest.TestCase):
         Test that a copy of a rule in the grammar can be used to disable or enable
         the equivalent rule in the grammar as well as the rule object passed.
         """
-        r = HiddenRule("greetWord", AlternativeSet("hello", "hi"))
+        r = PrivateRule("greetWord", AlternativeSet("hello", "hi"))
         self.assertTrue(self.rule2.active)
         self.grammar.disable_rule(r)
         self.assertFalse(r.active, "duplicate rule should be disabled")
