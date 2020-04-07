@@ -7,6 +7,30 @@ The format is based on `Keep a Changelog`_, using the `reStructuredText format`_
 
 This project adheres to `Semantic Versioning`_ starting with version `1.1.1`_.
 
+Unreleased_
+-----------
+
+Added
+^^^^^
+* Add JSGF import resolution.
+* Add new Grammar methods for getting Rule objects by name.
+* Add 'grammar_name', 'rule_name' and 'wildcard_import' Import class properties.
+* Add 'qualified_name' and 'fully_qualified_name' Rule class properties.
+
+Changed
+^^^^^^^
+* Add missing Grammar 'import_names' property.
+* Add missing Grammar 'remove_imports()' method.
+* Change Grammar class to silently reject duplicate Import objects.
+* Rename HiddenRule rule classes to PrivateRule instead and leave in HiddenRule aliases.
+
+Fixed
+^^^^^
+* Change Grammar.get_rule_from_name() method to validate the 'name' parameter.
+* Change Grammar.remove_import() to only accept Import objects.
+* Fix bug in Grammar.add_rule() that could cause RecursionErrors.
+
+
 1.8.0_ -- 2020-01-31
 --------------------
 
