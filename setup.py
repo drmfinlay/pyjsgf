@@ -27,7 +27,7 @@ setup(
     ],
     author='Dane Finlay',
     author_email='Danesprite@posteo.net',
-    version='1.8.0',
+    version='1.9.0',
     packages=find_packages(),
     install_requires=['pyparsing', 'six']
 )
