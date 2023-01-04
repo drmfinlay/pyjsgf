@@ -106,18 +106,16 @@ class Rule(references.BaseRef):
 
         map_expansion(self._expansion, set_rule, shallow=True)
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         """
         Compile this rule's expansion tree and return the result.
-        Set ignore_tags to True to not include expansion tags in the result.
 
-        :param ignore_tags: bool
         :returns: str
         """
         if not self._active:
             return ""
 
-        expansion = self.expansion.compile(ignore_tags)
+        expansion = self.expansion.compile()
         if not expansion:  # the compiled expansion is None or ""
             return ""
 

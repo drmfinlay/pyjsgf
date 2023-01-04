@@ -402,7 +402,7 @@ class Expansion(object):
     _NO_CALCULATION = object()
 
     def __init__(self, children):
-        self._tag = ""
+        self._tag = None
         self._parent = None
 
         # Internal member for the parser element used during matching.
@@ -483,13 +483,10 @@ class Expansion(object):
         # Set a new ChildList. This will handle setting the parent attributes.
         self._children = ChildList(self, value)
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        if self.tag and not ignore_tags:
-            return self.compiled_tag
-        else:
-            return ""
-        
+        return self.compiled_tag
+
     def generate(self):
         """Generate a string matching this expansion."""
         return ""
@@ -529,6 +526,8 @@ class Expansion(object):
         """
         JSGF tag for this expansion.
 
+        Set to ``None`` for no tag and the empty string for no tag text.
+
         :returns: str
         """
         return self._tag
@@ -540,8 +539,8 @@ class Expansion(object):
 
         :param value: str
         """
-        if not value:
-            self._tag = ""
+        if value is None:
+            self._tag = value
         elif isinstance(value, string_types):
             self._tag = value.strip()
         else:
@@ -555,8 +554,10 @@ class Expansion(object):
 
         :returns: str
         """
-        if not self.tag:
+        if self.tag is None:
             return ""
+        elif self.tag == "":
+            return " {}"
         else:
             # Escape '{', '}' and '\' so that tags will be processed
             # properly if they have those characters.
@@ -892,13 +893,10 @@ class Expansion(object):
 
     def __str__(self):
         descendants = ", ".join(["%s" % c for c in self.children])
-        if self.tag:
-            return "%s(%s) with tag '%s'" % (self.__class__.__name__,
-                                             descendants,
-                                             self.tag)
-        else:
-            return "%s(%s)" % (self.__class__.__name__,
-                               descendants)
+        result = "%s(%s)" % (self.__class__.__name__, descendants)
+        tag = self.compiled_tag
+        if tag: result += " with tag '%s'" % (self.tag,)
+        return result
 
     def __repr__(self):
         return self.__str__()
@@ -1110,12 +1108,9 @@ class BaseExpansionRef(references.BaseRef, Expansion):
     def valid(name):
         return references.optionally_qualified_name.matches(name)
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        if self.tag and not ignore_tags:
-            return "<%s>%s" % (self.name, self.compiled_tag)
-        else:
-            return "<%s>" % self.name
+        return "<%s>%s" % (self.name, self.compiled_tag)
 
     def __str__(self):
         return "%s('%s')" % (self.__class__.__name__, self.name)
@@ -1305,17 +1300,10 @@ class Sequence(VariableChildExpansion):
     """
     Class for expansions to be spoken in sequence.
     """
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        seq = " ".join([
-            e.compile(ignore_tags) for e in self.children
-        ])
-
-        # Return the sequence and the tag if there is one
-        if self.tag and not ignore_tags:
-            return "%s%s" % (seq, self.compiled_tag)
-        else:
-            return seq
+        seq = " ".join((e.compile() for e in self.children))
+        return "%s%s" % (seq, self.compiled_tag)
 
     def _make_matcher_element(self):
         # Return an And element using each child's matcher element.
@@ -1411,12 +1399,9 @@ class Literal(Expansion):
                                    "value of '%s'"
                                    % (self.__class__.__name__, self.text))
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        if self.tag and not ignore_tags:
-            return "%s%s" % (self.text, self.compiled_tag)
-        else:
-            return self.text
+        return "%s%s" % (self.text, self.compiled_tag)
 
     @property
     def matching_regex_pattern(self):
@@ -1497,14 +1482,10 @@ class Repeat(SingleChildExpansion):
         super(Repeat, self).__init__(expansion)
         self._repetitions_matched = []
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        compiled = self.child.compile(ignore_tags)
-        if self.tag and not ignore_tags:
-            return "(%s)+%s" % (compiled, self.compiled_tag)
-        else:
-            return "(%s)+" % compiled
-        
+        return "(%s)+%s" % (self.child.compile(), self.compiled_tag)
+
     def generate(self):
         """
         Generate a string matching this expansion.
@@ -1614,13 +1595,9 @@ class KleeneStar(Repeat):
 
         <kleene> = (please)* don't crash;
     """
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        compiled = self.child.compile(ignore_tags)
-        if self.tag and not ignore_tags:
-            return "(%s)*%s" % (compiled, self.compiled_tag)
-        else:
-            return "(%s)*" % compiled
+        return "(%s)*%s" % (self.child.compile(), self.compiled_tag)
         
     def generate(self):
         """
@@ -1646,14 +1623,10 @@ class OptionalGrouping(SingleChildExpansion):
     """
     Class for expansions that can be optionally spoken in a rule.
     """
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        compiled = self.child.compile(ignore_tags)
-        if self.tag and not ignore_tags:
-            return "[%s]%s" % (compiled, self.compiled_tag)
-        else:
-            return "[%s]" % compiled
-        
+        return "[%s]%s" % (self.child.compile(), self.compiled_tag)
+
     def generate(self):
         return random.choice([self.child.generate(), ""])
 
@@ -1674,16 +1647,10 @@ class RequiredGrouping(Sequence):
     """
     Subclass of ``Sequence`` for wrapping multiple expansions in parenthesises.
     """
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        grouping = " ".join([
-            e.compile(ignore_tags) for e in self.children
-        ])
-
-        if self.tag and not ignore_tags:
-            return "(%s)%s" % (grouping, self.compiled_tag)
-        else:
-            return "(%s)" % grouping
+        grouping = " ".join((e.compile() for e in self.children))
+        return "(%s)%s" % (grouping, self.compiled_tag)
 
     def __hash__(self):
         return super(RequiredGrouping, self).__hash__()
@@ -1783,7 +1750,7 @@ class AlternativeSet(VariableChildExpansion):
                 raise GrammarError("alternative %s does not have a weight "
                                    "value" % e)
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
         if self._weights:
             self._validate_weights()
@@ -1792,19 +1759,21 @@ class AlternativeSet(VariableChildExpansion):
             # such that:
             # /<w 0>/ <e 0> | ... | /<w n-1>/ <e n-1>
             alt_set = "|".join([
-                "/%.4f/ %s" % (float(self._weights[e]), e.compile(ignore_tags))
+                "/%.4f/ %s" % (float(self._weights[e]), e.compile())
                 for e in self.children
             ])
         else:
             # Or do the same thing without the weights
             alt_set = "|".join([
-                e.compile(ignore_tags) for e in self.children
+                e.compile() for e in self.children
             ])
 
-        if self.tag and not ignore_tags:
-            return "(%s)%s" % (alt_set, self.compiled_tag)
-        else:
-            return "%s" % alt_set
+        # If there is a tag, we pretend there is a required grouping around this
+        # expansion.
+        tag = self.compiled_tag
+        if tag: result = "(%s)%s" % (alt_set, tag)
+        else:   result = "%s" % (alt_set,)
+        return result
 
     def generate(self):
         """

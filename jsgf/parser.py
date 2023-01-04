@@ -381,9 +381,9 @@ def get_exp_parser():
     atom = (weight + (literal | rule_ref | req | opt))\
         .setParseAction(_atom_action)
 
-    # Define tag text to one or more words defined by a regular expression.
+    # Define tag text to zero or more words defined by a regular expression.
     # Escaped brace characters ('\{' or '\}') are allowed in tag text.
-    tag_text = OneOrMore(
+    tag_text = ZeroOrMore(
         Regex(r"([\w\-\\']|\\{|\\})+", re.UNICODE).setName("tag text")
     )
     tag = lcurl + tag_text + rcurl

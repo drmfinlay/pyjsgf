@@ -165,13 +165,9 @@ class Dictation(Literal):
     def validate_compilable(self):
         pass
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         self.validate_compilable()
-        output = "<DICTATION>"
-        if self.tag and not ignore_tags:
-            return "%s%s" % (output, self.compiled_tag)
-        else:
-            return output
+        return "<DICTATION>%s" % (self.compiled_tag,)
 
     @property
     def use_current_match(self):

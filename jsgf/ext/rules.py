@@ -110,12 +110,12 @@ class SequenceRule(Rule):
             if result:
                 return result
 
-    def compile(self, ignore_tags=False):
+    def compile(self):
         result = ""
         if not self.refuse_matches and not self.current_is_dictation_only:
             # This rule can be compiled as it doesn't have any Dictation expansions
             # and refuse_matches is not True.
-            result = super(SequenceRule, self).compile(ignore_tags)
+            result = super(SequenceRule, self).compile()
 
         return result
 
