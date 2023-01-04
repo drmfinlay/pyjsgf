@@ -26,7 +26,7 @@ setup(
         'Topic :: Software Development :: Libraries',
     ],
     author='Dane Finlay',
-    author_email='Danesprite@posteo.net',
+    author_email='dane@danefinlay.net',
     version='1.9.0',
     packages=find_packages(),
     install_requires=['pyparsing', 'six']
