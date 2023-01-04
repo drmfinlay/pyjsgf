@@ -26,8 +26,8 @@ class BasicGrammarCase(unittest.TestCase):
         expected = "#JSGF V1.0;\n" \
                    "grammar test;\n" \
                    "public <greet> = (<greetWord> <name>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<name> = (peter|john|mary|anna);\n"
+                   "<greetWord> = hello|hi;\n" \
+                   "<name> = peter|john|mary|anna;\n"
 
         compiled = self.grammar.compile()
         self.assertEqual(expected, compiled)
@@ -36,8 +36,8 @@ class BasicGrammarCase(unittest.TestCase):
         expected = "#JSGF V1.0;\n" \
                    "grammar test;\n" \
                    "public <greet> = (<greetWord> <name>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<name> = (peter|john|mary|anna);\n"
+                   "<greetWord> = hello|hi;\n" \
+                   "<name> = peter|john|mary|anna;\n"
 
         # Create a temporary testing file.
         tf = tempfile.NamedTemporaryFile()
@@ -128,8 +128,8 @@ class BasicGrammarCase(unittest.TestCase):
         enabled_output = "#JSGF V1.0;\n" \
                          "grammar test;\n" \
                          "public <greet> = (<greetWord> <name>);\n" \
-                         "<greetWord> = (hello|hi);\n" \
-                         "<name> = (peter|john|mary|anna);\n"
+                         "<greetWord> = hello|hi;\n" \
+                         "<name> = peter|john|mary|anna;\n"
 
         self.assertEqual(self.grammar.compile(), enabled_output)
 
@@ -140,8 +140,8 @@ class BasicGrammarCase(unittest.TestCase):
             self.grammar.compile(),
             "#JSGF V1.0;\n"
             "grammar test;\n"
-            "<greetWord> = (hello|hi);\n"
-            "<name> = (peter|john|mary|anna);\n",
+            "<greetWord> = hello|hi;\n"
+            "<name> = peter|john|mary|anna;\n",
             "disabled output shouldn't have the public 'greet' rule"
         )
 
@@ -240,14 +240,14 @@ class BasicGrammarCase(unittest.TestCase):
 
         expected_sensitive = "#JSGF V1.0;\n" \
             "grammar test;\n" \
-            "<direction> = (Up|Down|Left|Right);\n" \
-            "<n> = (One|Two|Three);\n" \
+            "<direction> = Up|Down|Left|Right;\n" \
+            "<n> = One|Two|Three;\n" \
             "public <cmd> = <direction> <n>;\n"
 
         expected_insensitive = "#JSGF V1.0;\n" \
             "grammar test;\n" \
-            "<direction> = (up|down|left|right);\n" \
-            "<n> = (one|two|three);\n" \
+            "<direction> = up|down|left|right;\n" \
+            "<n> = one|two|three;\n" \
             "public <cmd> = <direction> <n>;\n"
 
         # Test that default is case-insensitive.
@@ -529,10 +529,10 @@ class RootGrammarCase(unittest.TestCase):
         root = self.grammar
         expected = "#JSGF V1.0;\n" \
                    "grammar root;\n" \
-                   "public <root> = (<greet>);\n" \
+                   "public <root> = <greet>;\n" \
                    "<greet> = (<greetWord> <name>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<name> = (peter|john|mary|anna);\n"
+                   "<greetWord> = hello|hi;\n" \
+                   "<name> = peter|john|mary|anna;\n"
 
         self.assertEqual(root.compile(), expected)
 
@@ -540,10 +540,10 @@ class RootGrammarCase(unittest.TestCase):
         root = self.grammar
         expected = "#JSGF V1.0;\n" \
                    "grammar root;\n" \
-                   "public <root> = (<greet>);\n" \
+                   "public <root> = <greet>;\n" \
                    "<greet> = (<greetWord> <name>);\n" \
-                   "<greetWord> = (hello|hi);\n" \
-                   "<name> = (peter|john|mary|anna);\n"
+                   "<greetWord> = hello|hi;\n" \
+                   "<name> = peter|john|mary|anna;\n"
 
         # Create a temporary testing file.
         tf = tempfile.NamedTemporaryFile()
@@ -564,16 +564,16 @@ class RootGrammarCase(unittest.TestCase):
 
         expected_without = "#JSGF V1.0;\n" \
                            "grammar root;\n" \
-                           "public <root> = (<greet>);\n" \
-                           "<greetWord> = (hello|hi);\n" \
+                           "public <root> = <greet>;\n" \
+                           "<greetWord> = hello|hi;\n" \
                            "<greet> = <greetWord> there;\n"
 
         expected_with = "#JSGF V1.0;\n" \
                         "grammar root;\n" \
-                        "public <root> = (<greet>|<partingPhrase>);\n" \
-                        "<greetWord> = (hello|hi);\n" \
+                        "public <root> = <greet>|<partingPhrase>;\n" \
+                        "<greetWord> = hello|hi;\n" \
                         "<greet> = <greetWord> there;\n" \
-                        "<partingPhrase> = (goodbye|see you);\n"
+                        "<partingPhrase> = goodbye|see you;\n"
 
         self.assertEqual(root.compile(), expected_without)
 
@@ -698,10 +698,10 @@ class RootGrammarCase(unittest.TestCase):
     def test_enable_disable_compile_output(self):
         enabled_output = "#JSGF V1.0;\n" \
                          "grammar root;\n" \
-                         "public <root> = (<greet>);\n" \
+                         "public <root> = <greet>;\n" \
                          "<greet> = (<greetWord> <name>);\n" \
-                         "<greetWord> = (hello|hi);\n" \
-                         "<name> = (peter|john|mary|anna);\n"
+                         "<greetWord> = hello|hi;\n" \
+                         "<name> = peter|john|mary|anna;\n"
 
         self.assertEqual(self.grammar.compile(), enabled_output)
 
@@ -727,9 +727,9 @@ class RootGrammarCase(unittest.TestCase):
             self.grammar.compile(),
             "#JSGF V1.0;\n"
             "grammar root;\n"
-            "public <root> = (<test>);\n"
-            "<greetWord> = (hello|hi);\n"
-            "<name> = (peter|john|mary|anna);\n"
+            "public <root> = <test>;\n"
+            "<greetWord> = hello|hi;\n"
+            "<name> = peter|john|mary|anna;\n"
             "<test> = testing;\n",
             "disabled output should have the originally public 'test' rule"
         )

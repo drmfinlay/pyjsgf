@@ -13,19 +13,19 @@ class Compilation(unittest.TestCase):
     def test_alt_set(self):
         e1 = AlternativeSet("a")
         e1.tag = "t"
-        self.assertEqual(e1.compile(ignore_tags=True), "(a)")
+        self.assertEqual(e1.compile(ignore_tags=True), "a")
         self.assertEqual(e1.compile(ignore_tags=False), "(a) { t }")
 
         e2 = AlternativeSet("a b")
         e2.tag = "t"
-        self.assertEqual(e2.compile(ignore_tags=True), "(a b)")
+        self.assertEqual(e2.compile(ignore_tags=True), "a b")
         self.assertEqual(e2.compile(ignore_tags=False), "(a b) { t }")
 
         e3 = AlternativeSet("a", "b")
         e3.children[0].tag = "t1"
         e3.children[1].tag = "t2"
-        self.assertEqual(e3.compile(ignore_tags=True), "(a|b)")
-        self.assertEqual(e3.compile(ignore_tags=False), "(a { t1 }|b { t2 })")
+        self.assertEqual(e3.compile(ignore_tags=True), "a|b")
+        self.assertEqual(e3.compile(ignore_tags=False), "a { t1 }|b { t2 }")
 
     def test_kleene_star(self):
         e1 = KleeneStar("a")
@@ -1067,7 +1067,7 @@ class AlternativeWeightTests(unittest.TestCase):
 
         # Set the weight for "c" and check again.
         e.set_weight(c, 10)
-        self.assertEqual(e.compile(), "(/1.0000/ a|/5.5000/ b|/10.0000/ c)")
+        self.assertEqual(e.compile(), "/1.0000/ a|/5.5000/ b|/10.0000/ c")
         for s in ["a", "b", "c"]:
             self.assertEqual(e.matches(s), "")
 
@@ -1092,7 +1092,7 @@ class AlternativeWeightTests(unittest.TestCase):
 
         # Check that strings can be used for weight values.
         e.weights.update({a: "2"})
-        self.assertEqual(e.compile(), "(/2.0000/ a|/1.0000/ b|/2.5000/ c)")
+        self.assertEqual(e.compile(), "/2.0000/ a|/1.0000/ b|/2.5000/ c")
 
 
 if __name__ == '__main__':

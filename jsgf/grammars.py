@@ -315,7 +315,7 @@ class Grammar(references.BaseRef):
         Compile this grammar with one public "root" rule containing rule references
         in an alternative set to every other rule as such::
 
-            public <root> = (<rule1>|<rule2>|..|<ruleN>);
+            public <root> = <rule1>|<rule2>|..|<ruleN>;
             <rule1> = ...;
             <rule2> = ...;
             .
@@ -360,7 +360,7 @@ class Grammar(references.BaseRef):
         # rules to the result.
         if names:
             refs = ["<%s>" % name for name in names]
-            alt_set = "(%s)" % "|".join(refs)
+            alt_set = "%s" % "|".join(refs)
             root_rule = "public <root> = %s;\n" % alt_set
             result += root_rule
             result += compiled_rules
@@ -764,7 +764,7 @@ class RootGrammar(Grammar):
     A grammar with one public "root" rule containing rule references in an
     alternative set to every other rule as such::
 
-        public <root> = (<rule1>|<rule2>|..|<ruleN>);
+        public <root> = <rule1>|<rule2>|..|<ruleN>;
         <rule1> = ...;
         <rule2> = ...;
         .

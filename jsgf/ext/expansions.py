@@ -166,7 +166,7 @@ class Dictation(Literal):
         pass
 
     def compile(self, ignore_tags=False):
-        super(Dictation, self).compile()
+        self.validate_compilable()
         output = "<DICTATION>"
         if self.tag and not ignore_tags:
             return "%s%s" % (output, self.compiled_tag)

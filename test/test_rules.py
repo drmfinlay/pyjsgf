@@ -153,7 +153,7 @@ class MemberTests(unittest.TestCase):
         # Change sensitivity for one rule. Check compilation and matching.
         direction.case_sensitive = True
         self.assertTrue(direction.case_sensitive)
-        self.assertEqual(direction.compile(), "<direction> = (Up|Down|Left|Right);")
+        self.assertEqual(direction.compile(), "<direction> = Up|Down|Left|Right;")
         self.assertTrue(direction.matches("Up"))
         self.assertFalse(direction.matches("up"))
 
@@ -166,7 +166,7 @@ class MemberTests(unittest.TestCase):
         # lost.
         direction.case_sensitive = False
         self.assertFalse(direction.case_sensitive)
-        self.assertEqual(direction.compile(), "<direction> = (up|down|left|right);")
+        self.assertEqual(direction.compile(), "<direction> = up|down|left|right;")
         self.assertTrue(direction.matches("Up"))
         self.assertTrue(direction.matches("up"))
 
@@ -181,7 +181,7 @@ class MemberTests(unittest.TestCase):
 
         # Test that the "direction" rule was affected by the change.
         self.assertTrue(direction.case_sensitive)
-        self.assertEqual(direction.compile(), "<direction> = (Up|Down|Left|Right);")
+        self.assertEqual(direction.compile(), "<direction> = Up|Down|Left|Right;")
         self.assertTrue(direction.matches("Up"))
         self.assertFalse(direction.matches("up"))
 
